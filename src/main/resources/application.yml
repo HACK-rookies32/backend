@@ -23,3 +23,9 @@ spring:
 jwt:
   secret: local-test-secret-key-change-in-production
   expiration: 3600000
+
+# 위치 추적(location) 도메인 설정
+kidhack:
+  location:
+    retention-days: 3      # 동선 세그먼트 보관 기간(일) — No.2 롤링 삭제
+    segment-minutes: 5     # 세그먼트 길이(분)
