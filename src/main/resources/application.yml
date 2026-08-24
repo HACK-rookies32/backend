@@ -1,6 +1,11 @@
 spring:
+  application:
+    name: kidhack-backend
+  docker:
+    compose:
+      enabled: false
   datasource:
-    url: jdbc:h2:mem:kidhackdb;MODE=MySQL
+    url: jdbc:h2:mem:kidhackdb;MODE=Oracle
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -12,7 +17,6 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-
   data:
     mongodb:
       uri: mongodb://localhost:27017/kidhack_chat
