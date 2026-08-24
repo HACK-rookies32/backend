@@ -22,13 +22,15 @@ src/main/java/com/example/kidhackbackend
 │     ├── repository
 │     └── service
 ├── users/              # 사용자 도메인 
-│   └── 추가기능들
+│   ├── 추가기능들
 |     ├── controller    # 하위 기능은 도메인 폴더 안에 추가로 분리
 │     ├── dto
 │     ├── entity
 │     ├── repository
 │     └── service
 ├── global/              # 전역 공통 코드 (예외처리, 설정, 공통 유틸 등)
+│   ├── config
+|   ├── 추가 등등
 └── KidhackBackendApplication
 ```
 
@@ -106,4 +108,4 @@ GitHub에서 `add/1-board` → `dev`으로 Pull Request를 생성하고, 관련 
 | 브랜치명 | `작업유형/이슈번호-기능명` |
 | 커밋 메시지 | `작업유형: 작업 내용` |
 | add 범위 | 자신이 수정한 파일만 |
-| 머지 | PR 생성 후 main에 머지 |
+| 머지 | PR 생성 후 dev에 머지 |
