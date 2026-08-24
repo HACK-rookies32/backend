@@ -15,14 +15,19 @@
 ```
 src/main/java/com/example/kidhackbackend
 ├── admin/              # 관리자 도메인
-│   ├── controller
-│   ├── dto
-│   ├── entity
-│   ├── repository
-│   └── service
-├── users/              # 사용자 도메인
-│   ├── chat/           # 하위 기능은 도메인 폴더 안에 추가로 분리 (admin폴더 내부처럼) 
-│   └── global/
+│   ├── 추가기능들
+|     ├── controller    # 하위 기능은 도메인 폴더 안에 추가로 분리
+│     ├── dto
+│     ├── entity
+│     ├── repository
+│     └── service
+├── users/              # 사용자 도메인 
+│   └── 추가기능들
+|     ├── controller    # 하위 기능은 도메인 폴더 안에 추가로 분리
+│     ├── dto
+│     ├── entity
+│     ├── repository
+│     └── service
 ├── global/              # 전역 공통 코드 (예외처리, 설정, 공통 유틸 등)
 └── KidhackBackendApplication
 ```
@@ -89,7 +94,8 @@ git commit -m "add: 게시글 등록 API 구현"
 git push origin add/1-board
 ```
 
-GitHub에서 `add/1-board` → `main`으로 Pull Request를 생성하고, 관련 이슈 번호를 PR 본문에 `Closes #1`처럼 연결합니다. 리뷰 후 이상 없으면 main에 머지하고, 머지된 브랜치는 삭제합니다.
+GitHub에서 `add/1-board` → `dev`으로 Pull Request를 생성하고, 관련 이슈 번호를 PR 본문에 `Closes #1`처럼 연결합니다. 리뷰 후 이상 없으면 dev에 머지하고, 머지된 브랜치는 삭제합니다.
+`main`으로 머지 작업은 PL만 진행합니다. (오류 및 충돌 방지를 위해)
 
 
 ## 브랜치/이슈 규칙 요약
