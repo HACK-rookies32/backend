@@ -7,6 +7,8 @@ import com.example.kidhackbackend.location.dto.TrackRequest;
 import com.example.kidhackbackend.location.dto.TrackSegmentResponse;
 import com.example.kidhackbackend.location.service.PlaceService;
 import com.example.kidhackbackend.location.service.TrackingService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +23,11 @@ import java.util.List;
 
 /**
  * 위치 추적 API — 역할표 No.1(지오펜스)·No.2(동선 저장)·No.3(도착).
+ *
+ * <p>모든 엔드포인트는 JWT 인증이 필요하다(위치 업로드=CHILD, 조회/등록=PARENT).
  */
+@Tag(name = "Location", description = "위치 추적 API (동선/지오펜스/도착) — JWT 인증 필요")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/location")
 @RequiredArgsConstructor
