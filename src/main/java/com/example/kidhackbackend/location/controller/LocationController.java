@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.location.controller;
 
+import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.location.dto.PlaceEventResponse;
 import com.example.kidhackbackend.location.dto.PlaceRequest;
 import com.example.kidhackbackend.location.dto.PlaceResponse;
@@ -54,51 +55,51 @@ public class LocationController {
     // [VULN-LOC-1] childId를 요청 본문에서 그대로 받는다. 인증된 자녀 본인의 id인지 확인하지 않아
     //              다른 자녀의 위치를 위조 업로드할 수 있다. (토큰 subject로 childId를 도출해야 함)
     @PostMapping("/track")
-    public ResponseEntity<TrackSegmentResponse> track(@Valid @RequestBody TrackRequest request) {
-        return ResponseEntity.ok(TrackSegmentResponse.from(trackingService.record(request)));
+    public ResponseEntity<ApiResponse<TrackSegmentResponse>> track(@Valid @RequestBody TrackRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(TrackSegmentResponse.from(trackingService.record(request))));
     }
 
     /** 실시간 위치 추적 on/off 토글(부모). OFF=5분 세그먼트, ON=실시간 포인트 저장. */
     // [VULN-LOC-1] childId 소유권 미검증 → 남의 자녀의 실시간 추적을 임의로 켜고 끌 수 있다.
     @PatchMapping("/tracking/{childId}/realtime")
-    public ResponseEntity<TrackingSettingResponse> setRealtime(@PathVariable Long childId,
-                                                               @RequestParam boolean enabled) {
-        return ResponseEntity.ok(
-                TrackingSettingResponse.from(trackingSettingService.setRealtime(childId, enabled)));
+    public ResponseEntity<ApiResponse<TrackingSettingResponse>> setRealtime(@PathVariable Long childId,
+                                                                            @RequestParam boolean enabled) {
+        return ResponseEntity.ok(ApiResponse.success(
+                TrackingSettingResponse.from(trackingSettingService.setRealtime(childId, enabled))));
     }
 
     /** 자녀의 저장된 동선 조회(최신순). */
     // [VULN-LOC-1] 경로의 childId가 인증된 부모의 '자기 자녀'인지 검증하지 않는다.
     //              → 아무 부모나 임의의 childId로 남의 자녀 동선을 조회할 수 있다(IDOR).
     @GetMapping("/track/{childId}")
-    public ResponseEntity<List<TrackSegmentResponse>> track(@PathVariable Long childId) {
-        return ResponseEntity.ok(trackingService.findTrack(childId).stream()
+    public ResponseEntity<ApiResponse<List<TrackSegmentResponse>>> track(@PathVariable Long childId) {
+        return ResponseEntity.ok(ApiResponse.success(trackingService.findTrack(childId).stream()
                 .map(TrackSegmentResponse::from)
-                .toList());
+                .toList()));
     }
 
     /** 지오펜스/목적지 등록 (No.1·No.3). */
     // [VULN-LOC-1] 본문의 childId 소유권 미검증 → 남의 자녀에게 임의 공간(지오펜스)을 등록 가능.
     @PostMapping("/places")
-    public ResponseEntity<PlaceResponse> registerPlace(@Valid @RequestBody PlaceRequest request) {
-        return ResponseEntity.ok(PlaceResponse.from(placeService.register(request)));
+    public ResponseEntity<ApiResponse<PlaceResponse>> registerPlace(@Valid @RequestBody PlaceRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(PlaceResponse.from(placeService.register(request))));
     }
 
     /** 자녀의 등록 공간 목록. */
     // [VULN-LOC-1] childId 소유권 미검증 → 남의 자녀 등록 공간(집/학원 위치)까지 열람 가능.
     @GetMapping("/places/{childId}")
-    public ResponseEntity<List<PlaceResponse>> places(@PathVariable Long childId) {
-        return ResponseEntity.ok(placeService.findPlaces(childId).stream()
+    public ResponseEntity<ApiResponse<List<PlaceResponse>>> places(@PathVariable Long childId) {
+        return ResponseEntity.ok(ApiResponse.success(placeService.findPlaces(childId).stream()
                 .map(PlaceResponse::from)
-                .toList());
+                .toList()));
     }
 
     /** 진입/이탈/도착 이벤트 이력 (No.1·No.3). */
     // [VULN-LOC-1] childId 소유권 미검증 → 남의 자녀 이동 이벤트 이력까지 열람 가능(IDOR).
     @GetMapping("/events/{childId}")
-    public ResponseEntity<List<PlaceEventResponse>> events(@PathVariable Long childId) {
-        return ResponseEntity.ok(placeService.findEvents(childId).stream()
+    public ResponseEntity<ApiResponse<List<PlaceEventResponse>>> events(@PathVariable Long childId) {
+        return ResponseEntity.ok(ApiResponse.success(placeService.findEvents(childId).stream()
                 .map(PlaceEventResponse::from)
-                .toList());
+                .toList()));
     }
 }

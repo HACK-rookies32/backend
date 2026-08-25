@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.location.security;
 
+import com.example.kidhackbackend.global.exception.JwtAccessDeniedHandler;
+import com.example.kidhackbackend.global.exception.JwtAuthenticationEntryPoint;
 import com.example.kidhackbackend.global.jwt.JwtAuthenticationFilterGio;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
@@ -27,9 +29,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class LocationSecurityConfig {
 
     private final JwtAuthenticationFilterGio jwtAuthenticationFilter;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
-    public LocationSecurityConfig(JwtAuthenticationFilterGio jwtAuthenticationFilter) {
+    public LocationSecurityConfig(JwtAuthenticationFilterGio jwtAuthenticationFilter,
+                                  JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                                  JwtAccessDeniedHandler jwtAccessDeniedHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+        this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
     }
 
     @Bean
@@ -52,10 +60,8 @@ public class LocationSecurityConfig {
                         .anyRequest().authenticated())
                 // 토큰 없음/유효하지 않음 → 401, 권한 부족 → 403
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((req, res, e) ->
-                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다."))
-                        .accessDeniedHandler((req, res, e) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "접근 권한이 없습니다.")))
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

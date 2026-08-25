@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.global.jwt;
 
+import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -8,11 +9,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.crypto.SecretKey;
@@ -20,22 +19,21 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * 공통 JWT 인증 필터.
- *
- * <p>{@code Authorization: Bearer <토큰>} 헤더의 토큰을 인증 도메인이 발급한 시크릿({@code jwt.secret})으로
+ * 공통 JWT 인증 필터. (기존 JwtAuthenticationFilterGio 유지, 이름 변경 없음 — 다른 도메인 참조 그대로 유효)
+ * {@code Authorization: Bearer <토큰>} 헤더의 토큰을 인증 도메인이 발급한 시크릿({@code jwt.secret})으로
  * 검증하고, subject(username)와 role 클레임을 Spring Security 인증 객체로 세팅한다.
  * 토큰이 없거나 유효하지 않으면 인증 객체를 세팅하지 않아 이후 인가 단계에서 401/403으로 처리된다.
  *
- * <p>각 도메인의 시큐리티 체인(예: 위치 도메인)이 이 필터를 등록해 재사용한다.
+ * 각 도메인의 시큐리티 체인(예: 위치 도메인)이 이 필터를 등록해 재사용한다.
  */
-@Component
 public class JwtAuthenticationFilterGio extends OncePerRequestFilter {
 
     private final SecretKey signingKey;
+    private final MemberRepository memberRepository;
 
-    public JwtAuthenticationFilterGio(@Value("${jwt.secret}") String secret) {
-        // 인증 도메인의 JwtUtil과 동일한 시크릿을 사용해 서명을 검증한다.
+    public JwtAuthenticationFilterGio(String secret, MemberRepository memberRepository) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes());
+        this.memberRepository = memberRepository;
     }
 
     @Override
@@ -61,18 +59,19 @@ public class JwtAuthenticationFilterGio extends OncePerRequestFilter {
                 //     만료 전까지 계속 유효하다.
                 if (username != null && role != null) {
                     var authority = new SimpleGrantedAuthority("ROLE_" + role);
+                    Object principal = memberRepository.findByUsername(username)
+                            .<Object>map(m -> m)
+                            .orElse(username);
                     var authentication = new UsernamePasswordAuthenticationToken(
-                            username, null, List.of(authority));
+                            principal, null, List.of(authority));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } catch (JwtException | IllegalArgumentException e) {
-                // 서명 불일치·만료·형식 오류 → 인증 미설정(이후 401 처리). 컨텍스트는 건드리지 않는다.
                 SecurityContextHolder.clearContext();
             }
         }
         filterChain.doFilter(request, response);
     }
-
     /** Authorization 헤더에서 Bearer 토큰만 추출. */
     private String resolveToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");

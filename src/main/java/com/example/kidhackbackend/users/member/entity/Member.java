@@ -24,11 +24,13 @@ public class Member extends BaseEntity {
 
     private String nickname;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @Column(unique = true) // nullable=false 제거 — CHILD는 이메일 없이 가입 가능
+    private String email; // [VULN-6] 형식 검증 없음, 암호화 없이 평문 저장
 
+    @Column(nullable = false)
     private String phoneNumber; // [VULN-6] 형식 검증 없음, 암호화 없이 평문 저장
 
+    @Column(nullable = false)
     private LocalDate birthDate;
 
     private String address; // [VULN-6] 형식 검증 없음
