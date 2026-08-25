@@ -23,6 +23,10 @@ spring:
     redis:
       host: localhost
       port: 6379
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
 
 jwt:
   secret: local-test-secret-key-change-in-production
@@ -33,3 +37,6 @@ kidhack:
   location:
     retention-days: 3      # 동선 세그먼트 보관 기간(일) — No.2 롤링 삭제
     segment-minutes: 5     # 세그먼트 길이(분)
+
+file:
+  upload-dir: uploads/community
