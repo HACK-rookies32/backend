@@ -43,4 +43,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("INTERNAL_ERROR", "서버 오류가 발생했습니다."));
     }
+
+    @ExceptionHandler(AdminAccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAdminAccessDenied(AdminAccessDeniedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error("FORBIDDEN", e.getMessage()));
+    }
 }
