@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### fcm key ###
+firebase-service-account.json
+
+### test code ###
+TestPushController
+TestSecurityConfig

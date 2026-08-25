@@ -32,6 +32,9 @@ jwt:
   secret: local-test-secret-key-change-in-production
   expiration: 3600000
 
+firebase:
+  credentials-path: firebase-service-account.json
+
 # 위치 추적(location) 도메인 설정
 kidhack:
   location:
