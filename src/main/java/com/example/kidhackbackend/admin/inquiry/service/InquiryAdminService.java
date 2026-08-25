@@ -1,4 +1,4 @@
-package com.example.kidhackbackend.users.inquiry.service;
+package com.example.kidhackbackend.admin.inquiry.service;
 
 import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardResponse;
