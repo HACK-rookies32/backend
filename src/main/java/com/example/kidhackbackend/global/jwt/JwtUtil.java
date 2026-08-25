@@ -1,7 +1,7 @@
 package com.example.kidhackbackend.global.jwt;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -14,7 +14,7 @@ import java.util.Date;
 public class JwtUtil {
 
     // [VULN-2] 시크릿 키가 application.yml에 평문으로 하드코딩되어 있고
-    //          그 파일이 그대로 깃 레포에 커밋되어 있음 (환경변수/보안레포 미사용)
+    //  그 파일이 그대로 깃 레포에 커밋되어 있음 (환경변수/보안레포 미사용)
     @Value("${jwt.secret}")
     private String secret;
 
@@ -35,6 +35,26 @@ public class JwtUtil {
                 .compact();
     }
 
-    // [VULN-5] 토큰 무효화(로그아웃) 로직이 아예 없음
-    //          -> 로그아웃해도 발급된 토큰은 만료시간 전까지 계속 유효함
+    // ---------- 추가된 부분 ----------
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            parseClaims(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String extractUsername(String token) {
+        return parseClaims(token).getSubject();
+    }
 }
