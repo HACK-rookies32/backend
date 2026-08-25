@@ -29,4 +29,7 @@ public class Board extends BaseEntity {
     private String attachmentUrl;
 
     private String linkUrl;
+
+    @Column(nullable = false)
+    private boolean answered = false;
 }

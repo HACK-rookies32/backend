@@ -12,5 +12,6 @@ public class BoardResponse {
     private Long memberId;
     private String memberNickname;
     private String title;
+    private boolean answered;
     private LocalDateTime createdAt;
 }

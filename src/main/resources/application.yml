@@ -40,3 +40,4 @@ kidhack:
 
 file:
   upload-dir: uploads/community
+  inquiry-upload-dir: uploads/inquiry
