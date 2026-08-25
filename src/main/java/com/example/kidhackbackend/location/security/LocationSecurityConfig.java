@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.location.security;
 
+import com.example.kidhackbackend.global.jwt.JwtAuthenticationFilterGio;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,9 +26,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class LocationSecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationFilterGio jwtAuthenticationFilter;
 
-    public LocationSecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public LocationSecurityConfig(JwtAuthenticationFilterGio jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 

@@ -25,6 +25,15 @@ import java.util.List;
  * 위치 추적 API — 역할표 No.1(지오펜스)·No.2(동선 저장)·No.3(도착).
  *
  * <p>모든 엔드포인트는 JWT 인증이 필요하다(위치 업로드=CHILD, 조회/등록=PARENT).
+ *
+ * <p>[VULN-LOC-1] IDOR (권한 상승/타인 데이터 접근): 모든 엔드포인트가 대상 자녀를
+ * {@code childId}(요청 본문/경로)로만 지정하고, <b>인증된 사용자가 그 자녀 본인인지 /
+ * 그 자녀의 부모인지 전혀 검증하지 않는다.</b> 역할(CHILD/PARENT)만 맞으면 통과하므로:
+ * <ul>
+ *   <li>아무 부모나 다른 집 자녀의 childId로 동선·이벤트·공간을 조회/등록 가능</li>
+ *   <li>아무 자녀나 다른 자녀의 childId로 위치를 업로드(위치 위조) 가능</li>
+ * </ul>
+ * 근본 해결: 토큰의 사용자 → Member(자녀/부모) 매핑 후 소유권을 검증해야 한다(2단계 예정).
  */
 @Tag(name = "Location", description = "위치 추적 API (동선/지오펜스/도착) — JWT 인증 필요")
 @SecurityRequirement(name = "bearerAuth")
@@ -37,12 +46,16 @@ public class LocationController {
     private final PlaceService placeService;
 
     /** 자녀 앱이 현재 좌표를 업로드 → 5분 세그먼트에 반영 + 지오펜스/도착 판정 (No.2). */
+    // [VULN-LOC-1] childId를 요청 본문에서 그대로 받는다. 인증된 자녀 본인의 id인지 확인하지 않아
+    //              다른 자녀의 위치를 위조 업로드할 수 있다. (토큰 subject로 childId를 도출해야 함)
     @PostMapping("/track")
     public ResponseEntity<TrackSegmentResponse> track(@Valid @RequestBody TrackRequest request) {
         return ResponseEntity.ok(TrackSegmentResponse.from(trackingService.record(request)));
     }
 
     /** 자녀의 저장된 동선 조회(최신순). */
+    // [VULN-LOC-1] 경로의 childId가 인증된 부모의 '자기 자녀'인지 검증하지 않는다.
+    //              → 아무 부모나 임의의 childId로 남의 자녀 동선을 조회할 수 있다(IDOR).
     @GetMapping("/track/{childId}")
     public ResponseEntity<List<TrackSegmentResponse>> track(@PathVariable Long childId) {
         return ResponseEntity.ok(trackingService.findTrack(childId).stream()
@@ -51,12 +64,14 @@ public class LocationController {
     }
 
     /** 지오펜스/목적지 등록 (No.1·No.3). */
+    // [VULN-LOC-1] 본문의 childId 소유권 미검증 → 남의 자녀에게 임의 공간(지오펜스)을 등록 가능.
     @PostMapping("/places")
     public ResponseEntity<PlaceResponse> registerPlace(@Valid @RequestBody PlaceRequest request) {
         return ResponseEntity.ok(PlaceResponse.from(placeService.register(request)));
     }
 
     /** 자녀의 등록 공간 목록. */
+    // [VULN-LOC-1] childId 소유권 미검증 → 남의 자녀 등록 공간(집/학원 위치)까지 열람 가능.
     @GetMapping("/places/{childId}")
     public ResponseEntity<List<PlaceResponse>> places(@PathVariable Long childId) {
         return ResponseEntity.ok(placeService.findPlaces(childId).stream()
@@ -65,6 +80,7 @@ public class LocationController {
     }
 
     /** 진입/이탈/도착 이벤트 이력 (No.1·No.3). */
+    // [VULN-LOC-1] childId 소유권 미검증 → 남의 자녀 이동 이벤트 이력까지 열람 가능(IDOR).
     @GetMapping("/events/{childId}")
     public ResponseEntity<List<PlaceEventResponse>> events(@PathVariable Long childId) {
         return ResponseEntity.ok(placeService.findEvents(childId).stream()
