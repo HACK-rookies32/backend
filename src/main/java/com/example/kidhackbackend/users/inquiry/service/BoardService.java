@@ -52,6 +52,7 @@ public class BoardService {
         board.setContent(request.getContent());
         board.setAttachmentUrl(request.getAttachmentUrl());
         board.setLinkUrl(request.getLinkUrl());
+        //[VULN-9] board.getMember()와 파라미터로 받은 member를 비교하는 로직이 없음(IDOR)
         return toResponse(board);
     }
 
@@ -59,6 +60,7 @@ public class BoardService {
     public void deleteBoard(Long boardId, Member member) {
         Board board = findBoard(boardId);
         boardRepository.delete(board);
+        //[VULN-9] board.getMember()와 파라미터로 받은 member를 비교하는 로직이 없음(IDOR)
     }
 
     private Board findBoard(Long boardId) {
