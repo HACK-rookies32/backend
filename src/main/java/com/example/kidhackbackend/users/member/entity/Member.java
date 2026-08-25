@@ -44,4 +44,9 @@ public class Member extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Member parent;
+
+    // 기존 Member 엔티티에 아래 필드만 추가
+
+    @Column(nullable = false)
+    private boolean isDeleted = false;
 }
