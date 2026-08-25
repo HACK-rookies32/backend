@@ -1,0 +1,47 @@
+package com.example.kidhackbackend.global.notification;
+
+import com.example.kidhackbackend.global.notification.entity.Notification;
+import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.repository.NotificationRepository;
+import com.example.kidhackbackend.global.notification.service.NotificationService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+@Import(NotificationService.class)
+class NotificationServiceTest {
+
+    @Autowired
+    NotificationService notificationService;
+
+    @Autowired
+    NotificationRepository repository;
+
+    @Test
+    void 알림을_발행하면_수신자별로_조회된다() {
+        notificationService.publish(1L, NotificationType.LOCATION_ENTER, "학원에 진입했습니다.");
+        notificationService.publish(1L, NotificationType.LOCATION_EXIT, "학원에서 이탈했습니다.");
+        notificationService.publish(2L, NotificationType.LOCATION_ARRIVED, "집에 도착했습니다.");
+
+        List<Notification> forOne = notificationService.findByRecipient(1L);
+        assertThat(forOne).hasSize(2);
+        assertThat(notificationService.findByRecipient(2L)).hasSize(1);
+    }
+
+    @Test
+    void 새_알림은_읽지_않음_상태이고_읽음_처리할_수_있다() {
+        notificationService.publish(1L, NotificationType.LOCATION_ENTER, "메시지");
+        Notification saved = notificationService.findByRecipient(1L).get(0);
+        assertThat(saved.isRead()).isFalse();
+
+        notificationService.markAsRead(saved.getId());
+
+        assertThat(repository.findById(saved.getId()).orElseThrow().isRead()).isTrue();
+    }
+}
