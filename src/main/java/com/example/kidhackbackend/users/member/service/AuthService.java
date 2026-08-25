@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.member.service;
 
+import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.global.exception.InvalidCredentialException;
 import com.example.kidhackbackend.global.jwt.JwtUtil;
@@ -12,6 +13,8 @@ import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +82,27 @@ public class AuthService {
 
         // [VULN-4] 로그인 실패 횟수 제한/계정 잠금이 없어서 무제한 브루트포스 가능
 
+        String token = jwtUtil.generateToken(member.getUsername(), member.getRole());
+        return new LoginResponse(token, member.getUsername(), member.getRole());
+    }
+
+    private static final Set<Role> ADMIN_ROLES = Set.of(
+            Role.SUPER_ADMIN, Role.GENERAL_ADMIN, Role.COMMUNITY_ADMIN, Role.INQUIRY_ADMIN
+    );
+
+    public LoginResponse adminLogin(LoginRequest request) {
+        Member member = memberRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new InvalidCredentialException("존재하지 않는 아이디입니다.")); // [VULN-3]
+
+        if (!member.getPassword().equals(request.getPassword())) {
+            throw new InvalidCredentialException("비밀번호가 일치하지 않습니다."); // [VULN-3]
+        }
+
+        if (!ADMIN_ROLES.contains(member.getRole())) {
+            throw new AdminAccessDeniedException("관리자 계정이 아닙니다.");
+        }
+
+        // [VULN-4] no rate limiting
         String token = jwtUtil.generateToken(member.getUsername(), member.getRole());
         return new LoginResponse(token, member.getUsername(), member.getRole());
     }

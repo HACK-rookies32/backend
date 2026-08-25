@@ -1,0 +1,35 @@
+package com.example.kidhackbackend.admin.config;
+
+import com.example.kidhackbackend.global.exception.JwtAccessDeniedHandler;
+import com.example.kidhackbackend.global.exception.JwtAuthenticationEntryPoint;
+import com.example.kidhackbackend.global.jwt.JwtAuthenticationFilterGio;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@RequiredArgsConstructor
+public class AdminSecurityConfig {
+
+    private final JwtAuthenticationFilterGio jwtAuthenticationFilterGio;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain adminMemberFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/admin/members/**")
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth.anyRequest().hasRole("SUPER_ADMIN"))
+                .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler));
+        return http.build();
+    }
+}
