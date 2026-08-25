@@ -5,18 +5,22 @@ import com.example.kidhackbackend.location.dto.PlaceRequest;
 import com.example.kidhackbackend.location.dto.PlaceResponse;
 import com.example.kidhackbackend.location.dto.TrackRequest;
 import com.example.kidhackbackend.location.dto.TrackSegmentResponse;
+import com.example.kidhackbackend.location.dto.TrackingSettingResponse;
 import com.example.kidhackbackend.location.service.PlaceService;
 import com.example.kidhackbackend.location.service.TrackingService;
+import com.example.kidhackbackend.location.service.TrackingSettingService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -43,6 +47,7 @@ import java.util.List;
 public class LocationController {
 
     private final TrackingService trackingService;
+    private final TrackingSettingService trackingSettingService;
     private final PlaceService placeService;
 
     /** 자녀 앱이 현재 좌표를 업로드 → 5분 세그먼트에 반영 + 지오펜스/도착 판정 (No.2). */
@@ -51,6 +56,15 @@ public class LocationController {
     @PostMapping("/track")
     public ResponseEntity<TrackSegmentResponse> track(@Valid @RequestBody TrackRequest request) {
         return ResponseEntity.ok(TrackSegmentResponse.from(trackingService.record(request)));
+    }
+
+    /** 실시간 위치 추적 on/off 토글(부모). OFF=5분 세그먼트, ON=실시간 포인트 저장. */
+    // [VULN-LOC-1] childId 소유권 미검증 → 남의 자녀의 실시간 추적을 임의로 켜고 끌 수 있다.
+    @PatchMapping("/tracking/{childId}/realtime")
+    public ResponseEntity<TrackingSettingResponse> setRealtime(@PathVariable Long childId,
+                                                               @RequestParam boolean enabled) {
+        return ResponseEntity.ok(
+                TrackingSettingResponse.from(trackingSettingService.setRealtime(childId, enabled)));
     }
 
     /** 자녀의 저장된 동선 조회(최신순). */

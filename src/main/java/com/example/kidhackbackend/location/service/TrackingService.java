@@ -22,18 +22,27 @@ public class TrackingService {
 
     private final TrackSegmentRepository repository;
     private final GeofenceService geofenceService;
+    private final TrackingSettingService trackingSettingService;
     private final int segmentMinutes;
 
     public TrackingService(TrackSegmentRepository repository,
                            GeofenceService geofenceService,
+                           TrackingSettingService trackingSettingService,
                            @Value("${kidhack.location.segment-minutes:5}") int segmentMinutes) {
         this.repository = repository;
         this.geofenceService = geofenceService;
+        this.trackingSettingService = trackingSettingService;
         this.segmentMinutes = segmentMinutes;
     }
 
     /**
-     * 자녀 앱이 업로드한 현재 좌표를 5분 세그먼트에 반영하고, 지오펜스/도착 판정을 트리거한다.
+     * 자녀 앱이 업로드한 현재 좌표를 저장하고, 지오펜스/도착 판정을 트리거한다.
+     *
+     * <p>자녀의 실시간 추적 토글에 따라 저장 방식이 달라진다.
+     * <ul>
+     *   <li>OFF(기본): 5분 단위 세그먼트로 묶어 저장(같은 창이면 최신 좌표로 갱신)</li>
+     *   <li>ON: 업로드된 좌표를 매번 실시간 포인트로 저장(5분 묶음 없음)</li>
+     * </ul>
      *
      * @return 갱신되거나 새로 생성된 세그먼트
      */
@@ -43,10 +52,37 @@ public class TrackingService {
         double lng = parseCoordinate(request.longitude(), "경도", -180.0, 180.0);
 
         LocalDateTime now = LocalDateTime.now();
+
+        TrackSegment segment = trackingSettingService.isRealtimeEnabled(request.childId())
+                ? recordRealtime(request, now)
+                : recordSegment(request, now);
+
+        // No.1(지오펜스 진입/이탈)·No.3(도착) 판정을 새 좌표 기준으로 트리거.
+        geofenceService.evaluate(request.childId(), lat, lng, now);
+
+        return segment;
+    }
+
+    /** 실시간 ON: 좌표를 매번 포인트 세그먼트(시작=종료=now)로 새로 저장. */
+    // [VULN-LOC-4] 업로드 횟수 제한(rate limit)이 없어, 실시간 ON 상태에서 /track을 대량 호출하면
+    //              레코드가 무제한 생성되어 저장소 고갈/성능 저하(DoS)로 이어질 수 있다.
+    //              (VULN-LOC-1 IDOR로 남의 자녀를 강제 ON 시킨 뒤 flood하면 피해가 커진다.)
+    private TrackSegment recordRealtime(TrackRequest request, LocalDateTime now) {
+        return repository.save(new TrackSegment(
+                request.childId(),
+                request.latitude(),
+                request.longitude(),
+                now,
+                now,
+                now));
+    }
+
+    /** 실시간 OFF(기본): 5분 창에 묶어 저장(같은 창이면 최신 좌표로 갱신). */
+    private TrackSegment recordSegment(TrackRequest request, LocalDateTime now) {
         LocalDateTime windowStart = floorToWindow(now);
         LocalDateTime windowEnd = windowStart.plusMinutes(segmentMinutes);
 
-        TrackSegment segment = repository.findByChildIdAndSegmentStart(request.childId(), windowStart)
+        return repository.findByChildIdAndSegmentStart(request.childId(), windowStart)
                 .map(existing -> {
                     existing.updatePosition(request.latitude(), request.longitude(), now);
                     return existing;
@@ -59,11 +95,6 @@ public class TrackingService {
                         windowEnd,
                         now
                 )));
-
-        // No.1(지오펜스 진입/이탈)·No.3(도착) 판정을 새 좌표 기준으로 트리거.
-        geofenceService.evaluate(request.childId(), lat, lng, now);
-
-        return segment;
     }
 
     /** 자녀의 동선 조회(최신순). */
