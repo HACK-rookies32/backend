@@ -15,6 +15,8 @@ public class BoardDetailResponse {
     private String content;
     private String attachmentUrl;
     private String linkUrl;
+    private boolean answered;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private InquiryAnswerResponse answer; // 없으면 null
 }
