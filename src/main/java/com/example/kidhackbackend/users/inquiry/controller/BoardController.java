@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.inquiry.controller;
 
+import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardRequest;
 import com.example.kidhackbackend.users.inquiry.dto.BoardResponse;
@@ -24,39 +25,39 @@ public class BoardController {
 
     @Operation(summary = "게시글 등록")
     @PostMapping
-    public ResponseEntity<BoardResponse> createBoard(
+    public ResponseEntity<ApiResponse<BoardResponse>> createBoard(
             @AuthenticationPrincipal Member member,
             @RequestBody BoardRequest request) {
-        return ResponseEntity.ok(boardService.createBoard(member, request));
+        return ResponseEntity.ok(ApiResponse.success(boardService.createBoard(member, request)));
     }
 
     @Operation(summary = "게시글 목록 조회")
     @GetMapping
-    public ResponseEntity<List<BoardResponse>> getAllBoards() {
-        return ResponseEntity.ok(boardService.getAllBoards());
+    public ResponseEntity<ApiResponse<List<BoardResponse>>> getAllBoards() {
+        return ResponseEntity.ok(ApiResponse.success(boardService.getAllBoards()));
     }
 
     @Operation(summary = "게시글 상세 조회")
     @GetMapping("/{id}")
-    public ResponseEntity<BoardDetailResponse> getBoardDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(boardService.getBoardDetail(id));
+    public ResponseEntity<ApiResponse<BoardDetailResponse>> getBoardDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(boardService.getBoardDetail(id)));
     }
 
     @Operation(summary = "게시글 수정")
     @PutMapping("/{id}")
-    public ResponseEntity<BoardResponse> updateBoard(
+    public ResponseEntity<ApiResponse<BoardResponse>> updateBoard(
             @PathVariable Long id,
             @AuthenticationPrincipal Member member,
             @RequestBody BoardRequest request) {
-        return ResponseEntity.ok(boardService.updateBoard(id, member, request));
+        return ResponseEntity.ok(ApiResponse.success(boardService.updateBoard(id, member, request)));
     }
 
     @Operation(summary = "게시글 삭제")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteBoard(
+    public ResponseEntity<ApiResponse<Void>> deleteBoard(
             @PathVariable Long id,
             @AuthenticationPrincipal Member member) {
         boardService.deleteBoard(id, member);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }
