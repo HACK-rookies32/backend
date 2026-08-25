@@ -1,11 +1,11 @@
-package com.example.kidhackbackend.users.inquiry.controller;
+package com.example.kidhackbackend.admin.inquiry.controller;
 
+import com.example.kidhackbackend.admin.inquiry.service.InquiryAdminService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerRequest;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerResponse;
-import com.example.kidhackbackend.users.inquiry.service.InquiryAdminService;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
