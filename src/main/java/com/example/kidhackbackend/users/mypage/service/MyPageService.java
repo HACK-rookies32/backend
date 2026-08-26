@@ -36,6 +36,7 @@ public class MyPageService {
     private ProfileResponse toResponse(Member member) {
         return new ProfileResponse(
                 member.getId(),
+                member.getLoginId(),
                 member.getUsername(),
                 member.getNickname(),
                 member.getEmail(),

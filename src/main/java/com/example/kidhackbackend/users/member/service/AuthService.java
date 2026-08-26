@@ -25,7 +25,7 @@ public class AuthService {
 
     public SignupResponse signup(SignupRequest request) {
         // [VULN-6] 동시 요청 시 중복 체크와 저장 사이에 경쟁 조건 존재
-        if (memberRepository.existsByUsername(request.getUsername())) {
+        if (memberRepository.existsByLoginId(request.getLoginId())) {
             throw new DuplicateResourceException("이미 존재하는 아이디입니다.");
         }
 
@@ -36,6 +36,7 @@ public class AuthService {
         }
 
         Member member = new Member();
+        member.setLoginId(request.getLoginId());
         member.setUsername(request.getUsername());
         member.setPassword(request.getPassword()); // [VULN-1] 평문 저장
         member.setNickname(request.getNickname());
@@ -56,6 +57,7 @@ public class AuthService {
 
         return new SignupResponse(
                 member.getId(),
+                member.getLoginId(),
                 member.getUsername(),
                 member.getNickname(),
                 member.getEmail(),
@@ -71,7 +73,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        Member member = memberRepository.findByUsername(request.getUsername())
+        Member member = memberRepository.findByLoginId(request.getLoginId())
                 // [VULN-3] 아이디가 없다는 걸 명확히 알려줌 -> 계정 존재 여부(사용자 열거) 노출
                 .orElseThrow(() -> new InvalidCredentialException("존재하지 않는 아이디입니다."));
 
@@ -82,8 +84,8 @@ public class AuthService {
 
         // [VULN-4] 로그인 실패 횟수 제한/계정 잠금이 없어서 무제한 브루트포스 가능
 
-        String token = jwtUtil.generateToken(member.getUsername(), member.getRole());
-        return new LoginResponse(token, member.getUsername(), member.getRole());
+        String token = jwtUtil.generateToken(member.getLoginId(), member.getRole());
+        return new LoginResponse(token, member.getLoginId(), member.getUsername(), member.getRole());
     }
 
     private static final Set<Role> ADMIN_ROLES = Set.of(
@@ -91,7 +93,7 @@ public class AuthService {
     );
 
     public LoginResponse adminLogin(LoginRequest request) {
-        Member member = memberRepository.findByUsername(request.getUsername())
+        Member member = memberRepository.findByLoginId(request.getLoginId())
                 .orElseThrow(() -> new InvalidCredentialException("존재하지 않는 아이디입니다.")); // [VULN-3]
 
         if (!member.getPassword().equals(request.getPassword())) {
@@ -103,7 +105,7 @@ public class AuthService {
         }
 
         // [VULN-4] no rate limiting
-        String token = jwtUtil.generateToken(member.getUsername(), member.getRole());
-        return new LoginResponse(token, member.getUsername(), member.getRole());
+        String token = jwtUtil.generateToken(member.getLoginId(), member.getRole());
+        return new LoginResponse(token, member.getLoginId(), member.getUsername(), member.getRole());
     }
 }

@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class AdminMemberResponse {
 
     private final Long id;
+    private final String loginId;
     private final String username;
     private final String nickname;
     private final String email;
@@ -20,6 +21,7 @@ public class AdminMemberResponse {
 
     private AdminMemberResponse(Member member) {
         this.id = member.getId();
+        this.loginId = member.getLoginId();
         this.username = member.getUsername();
         this.nickname = member.getNickname();
         this.email = member.getEmail();
