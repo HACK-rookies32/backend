@@ -29,4 +29,22 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
                                    @Param("from") LocalDateTime from,
                                    @Param("to") LocalDateTime to,
                                    Pageable pageable);
+
+    /** 관리자 전체 원장 조회(No.47): walletId optional(null=전체) + type/기간 필터·페이징. */
+    @Query("SELECT t FROM WalletTransaction t WHERE (:walletId IS NULL OR t.walletId = :walletId) "
+            + "AND (:type IS NULL OR t.type = :type) "
+            + "AND (:from IS NULL OR t.createdAt >= :from) "
+            + "AND (:to IS NULL OR t.createdAt <= :to) "
+            + "ORDER BY t.id DESC")
+    Page<WalletTransaction> adminSearch(@Param("walletId") Long walletId,
+                                        @Param("type") TxType type,
+                                        @Param("from") LocalDateTime from,
+                                        @Param("to") LocalDateTime to,
+                                        Pageable pageable);
+
+    /** 통계 집계용(No.51 DAY): 기간 내 원장 전체(기간 null이면 전체). */
+    @Query("SELECT t FROM WalletTransaction t WHERE (:from IS NULL OR t.createdAt >= :from) "
+            + "AND (:to IS NULL OR t.createdAt <= :to)")
+    List<WalletTransaction> findForStats(@Param("from") LocalDateTime from,
+                                         @Param("to") LocalDateTime to);
 }
