@@ -1,7 +1,9 @@
 package com.example.kidhackbackend.users.filtering.service;
 
 import com.example.kidhackbackend.users.filtering.entity.BlockRule;
+import com.example.kidhackbackend.users.filtering.entity.HarmfulKeyword;
 import com.example.kidhackbackend.users.filtering.repository.BlockRuleRepository;
+import com.example.kidhackbackend.users.filtering.repository.HarmfulKeywordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import java.util.Locale;
 public class BlockRuleService {
 
     private final BlockRuleRepository repository;
+    private final HarmfulKeywordRepository harmfulKeywordRepository;
 
     @Transactional
     public BlockRule addRule(Long childId, String pattern) {
@@ -42,11 +45,23 @@ public class BlockRuleService {
         repository.deleteById(ruleId);
     }
 
-    /** 대상(앱/URL)이 자녀의 블랙리스트에 걸리는지 판정. 패턴이 포함되면 차단. */
+    /**
+     * 대상(앱/URL)이 차단 목록에 걸리는지 판정. 패턴이 포함되면 차단.
+     *
+     * <p>부모가 등록한 자녀별 규칙과, 관리자가 등록한 전역 차단 키워드를 함께 검사한다.
+     */
     @Transactional(readOnly = true)
     public boolean isBlocked(Long childId, String target) {
         String lowered = target.toLowerCase(Locale.ROOT);
-        return repository.findByChildId(childId).stream()
+
+        boolean blockedByRule = repository.findByChildId(childId).stream()
                 .anyMatch(rule -> lowered.contains(rule.getPattern().toLowerCase(Locale.ROOT)));
+        if (blockedByRule) {
+            return true;
+        }
+
+        return harmfulKeywordRepository.findAll().stream()
+                .map(HarmfulKeyword::getKeyword)
+                .anyMatch(keyword -> lowered.contains(keyword.toLowerCase(Locale.ROOT)));
     }
 }

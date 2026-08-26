@@ -33,6 +33,9 @@ public class WalletSecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // 내 지갑 조회(No.38)는 자녀도 본인 지갑을 볼 수 있어야 하므로 PARENT+CHILD 허용.
+                        .requestMatchers("/api/wallet/me").hasAnyRole("PARENT", "CHILD")
+                        // 그 외 지갑 기능(충전·이체·환불·자녀지갑 조회 등)은 부모 전용.
                         .anyRequest().hasRole("PARENT"))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) ->
