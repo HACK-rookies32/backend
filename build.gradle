@@ -54,6 +54,13 @@ dependencies {
     // FCM 푸시 알림
     implementation 'com.google.firebase:firebase-admin:9.4.1'
 
+    // S3 (첨부파일 저장 + presigned URL 발급)
+    // Spring Boot BOM 에 AWS SDK 가 없어 버전을 직접 지정한다.
+    // s3 와 presigner 의 버전이 어긋나면 런타임에 NoSuchMethodError 가 나므로
+    // BOM 으로 묶어 한 곳에서만 올린다.
+    implementation platform('software.amazon.awssdk:bom:2.54.4')
+    implementation 'software.amazon.awssdk:s3'
+
     // API 명세서
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
 
