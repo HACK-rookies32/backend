@@ -49,4 +49,22 @@ public class AdminSecurityConfig {
                         .accessDeniedHandler(jwtAccessDeniedHandler));
         return http.build();
     }
+
+    // 전역 유해 키워드 관리 경로 필터 체인
+    @Bean
+    @Order(4)
+    public SecurityFilterChain adminHarmfulKeywordFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/admin/harmful-keywords/**")
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // 전역 차단 키워드는 SUPER_ADMIN 만 관리 가능
+                        .anyRequest().hasRole("SUPER_ADMIN")
+                )
+                .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler));
+        return http.build();
+    }
 }
