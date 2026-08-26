@@ -7,6 +7,7 @@ import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
 import com.example.kidhackbackend.global.config.JpaAuditingConfig;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.service.NotificationService;
+import com.example.kidhackbackend.global.notification.service.NotificationSettingService;
 import com.example.kidhackbackend.users.location.dto.TrackRequest;
 import com.example.kidhackbackend.users.location.service.GeofenceService;
 import com.example.kidhackbackend.users.location.service.LogAlertAdapter;
@@ -23,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @Import({ChildDashboardService.class, TrackingService.class, TrackingSettingService.class,
         PlaceService.class, GeofenceService.class, LogAlertAdapter.class,
-        NotificationService.class, BlockRuleService.class, JpaAuditingConfig.class})
+        NotificationService.class, NotificationSettingService.class, BlockRuleService.class, JpaAuditingConfig.class})
 class ChildDashboardServiceTest {
 
     @Autowired ChildDashboardService dashboardService;
