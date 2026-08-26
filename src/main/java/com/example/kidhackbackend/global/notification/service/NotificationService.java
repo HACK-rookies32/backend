@@ -14,10 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * 알림 저장/조회 서비스. {@link NotificationPort}의 구현체로, 다른 도메인의 알림 생성을 처리한다.
- * DB 저장 후 등록된 FCM 토큰이 있으면 실제 푸시도 함께 발송한다.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -25,10 +21,16 @@ public class NotificationService implements NotificationPort {
 
     private final NotificationRepository repository;
     private final DeviceTokenRepository deviceTokenRepository;
+    private final NotificationSettingService notificationSettingService;
 
     @Override
     @Transactional
     public void publish(Long recipientId, NotificationType type, String message) {
+        if (!notificationSettingService.isEnabled(recipientId, type)) {
+            log.info("알림 설정이 꺼져있어 발송 생략: recipientId={}, type={}", recipientId, type);
+            return;
+        }
+
         repository.save(new Notification(recipientId, type, message));
         sendPush(recipientId, type, message);
     }
@@ -46,19 +48,16 @@ public class NotificationService implements NotificationPort {
                         .build();
                 FirebaseMessaging.getInstance().send(fcmMessage);
             } catch (FirebaseMessagingException e) {
-                // 토큰 만료/무효 등 — 발송 실패해도 알림 저장 자체는 이미 끝났으므로 로그만 남기고 넘어감
                 log.warn("FCM 발송 실패: recipientId={}, error={}", recipientId, e.getMessage());
             }
         });
     }
 
-    /** 수신자별 알림 목록(최신순). */
     @Transactional(readOnly = true)
     public List<Notification> findByRecipient(Long recipientId) {
         return repository.findByRecipientIdOrderByCreatedAtDesc(recipientId);
     }
 
-    /** 알림 읽음 처리. */
     @Transactional
     public void markAsRead(Long notificationId) {
         Notification notification = repository.findById(notificationId)

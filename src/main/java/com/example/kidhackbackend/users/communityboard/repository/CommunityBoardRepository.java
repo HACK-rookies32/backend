@@ -9,4 +9,6 @@ public interface CommunityBoardRepository extends JpaRepository<CommunityBoard, 
 
     Page<CommunityBoard> findByTitleContainingIgnoreCaseOrContentContainingIgnoreCase(
             String title, String content, Pageable pageable);
+
+    Page<CommunityBoard> findByMemberId(Long memberId, Pageable pageable);
 }
