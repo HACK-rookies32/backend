@@ -1,9 +1,9 @@
 package com.example.kidhackbackend.filtering;
 
-import com.example.kidhackbackend.filtering.entity.BlockRule;
-import com.example.kidhackbackend.filtering.repository.BlockRuleRepository;
-import com.example.kidhackbackend.filtering.service.BlockRuleService;
-import com.example.kidhackbackend.filtering.service.FilteringService;
+import com.example.kidhackbackend.users.filtering.entity.BlockRule;
+import com.example.kidhackbackend.users.filtering.repository.BlockRuleRepository;
+import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
+import com.example.kidhackbackend.users.filtering.service.FilteringService;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.service.NotificationPort;
 import org.junit.jupiter.api.Test;

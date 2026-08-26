@@ -1,12 +1,12 @@
 package com.example.kidhackbackend.location;
 
-import com.example.kidhackbackend.location.entity.Place;
-import com.example.kidhackbackend.location.entity.PlaceEvent;
-import com.example.kidhackbackend.location.entity.PlaceEventType;
-import com.example.kidhackbackend.location.entity.PlaceType;
-import com.example.kidhackbackend.location.repository.PlaceRepository;
-import com.example.kidhackbackend.location.service.GeofenceService;
-import com.example.kidhackbackend.location.service.LogAlertAdapter;
+import com.example.kidhackbackend.users.location.entity.Place;
+import com.example.kidhackbackend.users.location.entity.PlaceEvent;
+import com.example.kidhackbackend.users.location.entity.PlaceEventType;
+import com.example.kidhackbackend.users.location.entity.PlaceType;
+import com.example.kidhackbackend.users.location.repository.PlaceRepository;
+import com.example.kidhackbackend.users.location.service.GeofenceService;
+import com.example.kidhackbackend.users.location.service.LogAlertAdapter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

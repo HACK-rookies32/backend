@@ -2,16 +2,16 @@ package com.example.kidhackbackend.wallet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.example.kidhackbackend.wallet.dto.ChargeApproveRequest;
-import com.example.kidhackbackend.wallet.dto.ChargeApproveResponse;
-import com.example.kidhackbackend.wallet.dto.ChargePrepareRequest;
-import com.example.kidhackbackend.wallet.dto.ChargePrepareResponse;
-import com.example.kidhackbackend.wallet.entity.ChargeStatus;
-import com.example.kidhackbackend.wallet.pg.MockPgClient;
-import com.example.kidhackbackend.wallet.repository.ChargeOrderRepository;
-import com.example.kidhackbackend.wallet.repository.WalletRepository;
-import com.example.kidhackbackend.wallet.repository.WalletTransactionRepository;
-import com.example.kidhackbackend.wallet.service.WalletChargeService;
+import com.example.kidhackbackend.users.wallet.dto.ChargeApproveRequest;
+import com.example.kidhackbackend.users.wallet.dto.ChargeApproveResponse;
+import com.example.kidhackbackend.users.wallet.dto.ChargePrepareRequest;
+import com.example.kidhackbackend.users.wallet.dto.ChargePrepareResponse;
+import com.example.kidhackbackend.users.wallet.entity.ChargeStatus;
+import com.example.kidhackbackend.users.wallet.pg.MockPgClient;
+import com.example.kidhackbackend.users.wallet.repository.ChargeOrderRepository;
+import com.example.kidhackbackend.users.wallet.repository.WalletRepository;
+import com.example.kidhackbackend.users.wallet.repository.WalletTransactionRepository;
+import com.example.kidhackbackend.users.wallet.service.WalletChargeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

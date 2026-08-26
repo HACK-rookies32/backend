@@ -1,8 +1,8 @@
 package com.example.kidhackbackend.device;
 
-import com.example.kidhackbackend.device.entity.DeviceEventType;
-import com.example.kidhackbackend.device.repository.DeviceEventRepository;
-import com.example.kidhackbackend.device.service.DeviceEventService;
+import com.example.kidhackbackend.users.device.entity.DeviceEventType;
+import com.example.kidhackbackend.users.device.repository.DeviceEventRepository;
+import com.example.kidhackbackend.users.device.service.DeviceEventService;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.service.NotificationPort;
 import org.junit.jupiter.api.Test;

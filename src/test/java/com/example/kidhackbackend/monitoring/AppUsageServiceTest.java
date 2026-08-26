@@ -1,13 +1,13 @@
 package com.example.kidhackbackend.monitoring;
 
-import com.example.kidhackbackend.monitoring.dto.GroupBy;
-import com.example.kidhackbackend.monitoring.dto.UsageAggregateResponse;
-import com.example.kidhackbackend.monitoring.dto.UsageReportRequest;
-import com.example.kidhackbackend.monitoring.dto.UsageReportRequest.UsageItem;
+import com.example.kidhackbackend.users.monitoring.dto.GroupBy;
+import com.example.kidhackbackend.users.monitoring.dto.UsageAggregateResponse;
+import com.example.kidhackbackend.users.monitoring.dto.UsageReportRequest;
+import com.example.kidhackbackend.users.monitoring.dto.UsageReportRequest.UsageItem;
 import com.example.kidhackbackend.global.config.JpaAuditingConfig;
-import com.example.kidhackbackend.monitoring.entity.AppUsage;
-import com.example.kidhackbackend.monitoring.repository.AppUsageRepository;
-import com.example.kidhackbackend.monitoring.service.AppUsageService;
+import com.example.kidhackbackend.users.monitoring.entity.AppUsage;
+import com.example.kidhackbackend.users.monitoring.repository.AppUsageRepository;
+import com.example.kidhackbackend.users.monitoring.service.AppUsageService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
