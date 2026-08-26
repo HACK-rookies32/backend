@@ -2,11 +2,9 @@ package com.example.kidhackbackend.global.notification.service;
 
 import com.example.kidhackbackend.global.notification.entity.Notification;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.push.PushPort;
 import com.example.kidhackbackend.global.notification.repository.DeviceTokenRepository;
 import com.example.kidhackbackend.global.notification.repository.NotificationRepository;
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.FirebaseMessagingException;
-import com.google.firebase.messaging.Message;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +20,7 @@ public class NotificationService implements NotificationPort {
     private final NotificationRepository repository;
     private final DeviceTokenRepository deviceTokenRepository;
     private final NotificationSettingService notificationSettingService;
+    private final PushPort pushPort;
 
     @Override
     @Transactional
@@ -36,21 +35,8 @@ public class NotificationService implements NotificationPort {
     }
 
     private void sendPush(Long recipientId, NotificationType type, String message) {
-        deviceTokenRepository.findByMemberId(recipientId).ifPresent(deviceToken -> {
-            try {
-                Message fcmMessage = Message.builder()
-                        .setToken(deviceToken.getToken())
-                        .setNotification(
-                                com.google.firebase.messaging.Notification.builder()
-                                        .setTitle(type.name())
-                                        .setBody(message)
-                                        .build())
-                        .build();
-                FirebaseMessaging.getInstance().send(fcmMessage);
-            } catch (FirebaseMessagingException e) {
-                log.warn("FCM 발송 실패: recipientId={}, error={}", recipientId, e.getMessage());
-            }
-        });
+        deviceTokenRepository.findByMemberId(recipientId)
+                .ifPresent(deviceToken -> pushPort.sendPush(deviceToken.getToken(), type.name(), message));
     }
 
     @Transactional(readOnly = true)
@@ -63,5 +49,10 @@ public class NotificationService implements NotificationPort {
         Notification notification = repository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 알림입니다: " + notificationId));
         notification.markAsRead();
+    }
+
+    @Transactional(readOnly = true)
+    public long countUnread(Long recipientId) {
+        return repository.countByRecipientIdAndReadFalse(recipientId);
     }
 }

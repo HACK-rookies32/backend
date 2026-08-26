@@ -25,4 +25,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     // loginId + 부모의 이메일로 자녀 계정 찾기 (비밀번호 재설정용)
     Optional<Member> findByLoginIdAndParentEmail(String loginId, String parentEmail);
+
+    // 전체 알림 발송
+    List<Member> findByIsDeletedFalse();
 }
