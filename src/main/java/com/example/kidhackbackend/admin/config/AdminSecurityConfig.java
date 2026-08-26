@@ -40,6 +40,9 @@ public class AdminSecurityConfig {
                 .securityMatcher("/api/admin/community/**")
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 사용자 밴은 SUPER_ADMIN, COMMUNITY_ADMIN 만 가능
+                        .requestMatchers("/api/admin/community/members/**")
+                        .hasAnyRole("SUPER_ADMIN", "COMMUNITY_ADMIN")
                         // SUPER_ADMIN, GENERAL_ADMIN, COMMUNITY_ADMIN 권한 허용
                         .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN", "COMMUNITY_ADMIN")
                 )
