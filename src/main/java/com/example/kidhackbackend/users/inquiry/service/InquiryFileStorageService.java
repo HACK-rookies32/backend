@@ -1,8 +1,10 @@
 package com.example.kidhackbackend.users.inquiry.service;
 
 import com.example.kidhackbackend.global.storage.ObjectStorage;
+import com.example.kidhackbackend.global.storage.StoredObject;
 import com.example.kidhackbackend.global.storage.UploadCategory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,6 +17,7 @@ import java.util.UUID;
  * 실제 저장은 {@link ObjectStorage} 가 하며, 운영에서는 S3, 로컬에서는 디스크다
  * ({@code app.s3.bucket} 설정 여부로 갈린다).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InquiryFileStorageService {
@@ -31,5 +34,24 @@ public class InquiryFileStorageService {
         String savedFilename = UUID.randomUUID() + "_" + originalFilename;
 
         return storage.store(UploadCategory.INQUIRY, savedFilename, file);
+    }
+
+    /**
+     * 문의가 지워질 때 첨부 실물도 함께 지운다.
+     *
+     * <p>구조와 실패 정책은 커뮤니티 쪽 FileStorageService#delete 주석 참고.
+     * 문의 첨부에는 개인정보가 담기는 경우가 있어 고아 객체를 남기지 않는 것이
+     * 커뮤니티보다 더 중요하다.
+     */
+    public void delete(String publicPath) {
+        StoredObject.parse(publicPath)
+                .filter(object -> object.category() == UploadCategory.INQUIRY)
+                .ifPresent(object -> {
+                    try {
+                        storage.delete(object.category(), object.filename());
+                    } catch (RuntimeException e) {
+                        log.warn("문의 첨부파일 삭제 실패: {}", publicPath, e);
+                    }
+                });
     }
 }

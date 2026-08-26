@@ -7,10 +7,15 @@ import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.io.IOException;
 import java.net.URI;
@@ -46,10 +51,74 @@ public class S3ObjectStorage implements ObjectStorage, DisposableBean {
             client.putObject(request, RequestBody.fromInputStream(
                     file.getInputStream(), file.getSize()));
 
-            return publicPath(category, filename);
+            return new StoredObject(category, filename).publicPath();
         } catch (IOException e) {
             throw new RuntimeException("파일 저장에 실패했습니다.", e);
         }
+    }
+
+    /**
+     * presigned PUT URL 발급.
+     *
+     * <p>{@link #store} 와 달리 파일 본문이 이 서버를 통과하지 않는다. WAS 2 대의
+     * 대역폭과 요청 스레드를 아끼려는 것이 목적이다.
+     *
+     * <p>서명에 Content-Type 이 들어가므로 클라이언트는 반드시 같은 값을 헤더로
+     * 보내야 한다. 브라우저에서 나가는 요청이라 preflight 가 발생하며, 버킷 CORS 에
+     * PUT 이 열려 있어야 한다(infra storage.tf).
+     */
+    @Override
+    public Optional<URI> uploadUrl(UploadCategory category, String filename, String contentType) {
+        PutObjectRequest put = PutObjectRequest.builder()
+                .bucket(props.getBucket())
+                .key(key(category, filename))
+                .contentType(contentType)
+                .build();
+
+        PutObjectPresignRequest presign = PutObjectPresignRequest.builder()
+                .signatureDuration(props.getPresignTtl())
+                .putObjectRequest(put)
+                .build();
+
+        return Optional.of(presigner.presignPutObject(presign).url())
+                .map(url -> URI.create(url.toString()));
+    }
+
+    /**
+     * HeadObject 로 존재만 본다. 본문을 받지 않으므로 크기와 무관하게 싸다.
+     *
+     * <p>SDK 버전에 따라 없는 키를 NoSuchKeyException 으로 주기도 하고 404 상태의
+     * S3Exception 으로 주기도 해서 둘 다 받는다. 그 밖의 오류(권한 등)는 존재
+     * 여부를 판단할 수 없는 상황이므로 false 로 삼키지 않고 그대로 올린다.
+     */
+    @Override
+    public boolean exists(UploadCategory category, String filename) {
+        try {
+            client.headObject(HeadObjectRequest.builder()
+                    .bucket(props.getBucket())
+                    .key(key(category, filename))
+                    .build());
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 버킷에 버저닝이 켜져 있으므로 이 호출은 삭제 마커를 남기는 소프트 삭제다.
+     * 이전 버전은 라이프사이클 규칙이 만료시킬 때까지 남아 복구할 수 있다.
+     */
+    @Override
+    public void delete(UploadCategory category, String filename) {
+        client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(props.getBucket())
+                .key(key(category, filename))
+                .build());
     }
 
     @Override
@@ -80,10 +149,6 @@ public class S3ObjectStorage implements ObjectStorage, DisposableBean {
 
     private String key(UploadCategory category, String filename) {
         return "%s/%s/%s".formatted(props.getPrefix(), category.segment(), filename);
-    }
-
-    private String publicPath(UploadCategory category, String filename) {
-        return "/api/files/%s/%s".formatted(category.segment(), filename);
     }
 
     @Override

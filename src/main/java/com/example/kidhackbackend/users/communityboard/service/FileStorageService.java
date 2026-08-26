@@ -1,8 +1,10 @@
 package com.example.kidhackbackend.users.communityboard.service;
 
 import com.example.kidhackbackend.global.storage.ObjectStorage;
+import com.example.kidhackbackend.global.storage.StoredObject;
 import com.example.kidhackbackend.global.storage.UploadCategory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,6 +18,7 @@ import java.util.UUID;
  *
  * <p>파일명 생성만 여기 남긴 이유는 저장 위치와 무관한 결정이기 때문이다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class FileStorageService {
@@ -36,5 +39,29 @@ public class FileStorageService {
         String savedFilename = UUID.randomUUID() + "_" + originalFilename;
 
         return storage.store(UploadCategory.COMMUNITY, savedFilename, file);
+    }
+
+    /**
+     * 게시글이 지워질 때 첨부 실물도 함께 지운다.
+     *
+     * <p>이게 없으면 게시글만 사라지고 S3 객체는 영원히 남는다(고아 객체).
+     *
+     * <p>어떤 실패도 게시글 삭제를 막지 않는다. 첨부를 못 지운 것은 로그로 남겨
+     * 나중에 정리할 수 있지만, 그것 때문에 사용자가 글을 못 지우면 안 된다.
+     *
+     * <p>커뮤니티 분류가 아닌 경로와 우리가 만들지 않은 값(외부 URL, 예전 데이터)은
+     * 조용히 건너뛴다. 분류를 대조하는 이유는 게시글 첨부 목록에 문의 첨부 경로를
+     * 넣어 남의 파일을 지우는 것을 막기 위해서다.
+     */
+    public void delete(String publicPath) {
+        StoredObject.parse(publicPath)
+                .filter(object -> object.category() == UploadCategory.COMMUNITY)
+                .ifPresent(object -> {
+                    try {
+                        storage.delete(object.category(), object.filename());
+                    } catch (RuntimeException e) {
+                        log.warn("첨부파일 삭제 실패: {}", publicPath, e);
+                    }
+                });
     }
 }

@@ -13,7 +13,9 @@ import java.util.Optional;
 public enum UploadCategory {
 
     COMMUNITY("community"),
-    INQUIRY("inquiry");
+    INQUIRY("inquiry"),
+    /** 프로필 이미지. 회원가입·프로필 수정에서 profileImageUrl 로 저장된다. */
+    PROFILE("profile");
 
     private final String segment;
 
