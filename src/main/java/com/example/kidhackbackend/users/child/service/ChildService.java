@@ -5,6 +5,7 @@ import com.example.kidhackbackend.users.child.dto.ChildSummaryResponse;
 import com.example.kidhackbackend.users.child.dto.ChildUpdateRequest;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import com.example.kidhackbackend.users.member.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.List;
 public class ChildService {
 
     private final MemberRepository memberRepository;
+    private final RefreshTokenService refreshTokenService; // 생성자 주입 추가
 
     public List<ChildSummaryResponse> getChildren(Long parentId) {
         return memberRepository.findByParentId(parentId).stream()
@@ -55,6 +57,13 @@ public class ChildService {
         child.setParent(null);
         child.setDeleted(true);
         memberRepository.save(child);
+    }
+
+    // [VULN-CHILD-7] childId 소유권 검증 없이 강제 로그아웃 — 임의 childId로 다른 부모가 자녀 세션을 끊을 수 있음(IDOR)
+    @Transactional
+    public void logoutChild(Long childId) {
+        Member child = findChild(childId);
+        refreshTokenService.revokeAll(child.getId());
     }
 
     private Member findChild(Long childId) {

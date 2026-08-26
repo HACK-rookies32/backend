@@ -58,4 +58,10 @@ public class ChildController {
         childService.unpairChild(childId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
+
+    @PostMapping("/{childId}/logout")
+    public ResponseEntity<ApiResponse<Void>> logoutChild(@PathVariable Long childId) {
+        childService.logoutChild(childId);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

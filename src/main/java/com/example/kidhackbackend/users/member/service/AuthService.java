@@ -13,6 +13,8 @@ import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.kidhackbackend.users.member.dto.TokenRefreshRequest;
+import com.example.kidhackbackend.users.member.dto.TokenRefreshResponse;
 
 import java.util.Set;
 
@@ -22,6 +24,11 @@ public class AuthService {
 
     private final MemberRepository memberRepository;
     private final JwtUtil jwtUtil;
+    private final RefreshTokenService refreshTokenService;
+
+    private static final Set<Role> ADMIN_ROLES = Set.of(
+            Role.SUPER_ADMIN, Role.GENERAL_ADMIN, Role.COMMUNITY_ADMIN, Role.INQUIRY_ADMIN
+    );
 
     public SignupResponse signup(SignupRequest request) {
         // [VULN-6] 동시 요청 시 중복 체크와 저장 사이에 경쟁 조건 존재
@@ -85,12 +92,9 @@ public class AuthService {
         // [VULN-4] 로그인 실패 횟수 제한/계정 잠금이 없어서 무제한 브루트포스 가능
 
         String token = jwtUtil.generateToken(member.getLoginId(), member.getRole());
-        return new LoginResponse(token, member.getLoginId(), member.getUsername(), member.getRole());
+        String refreshToken = refreshTokenService.issue(member.getId());
+        return new LoginResponse(token, refreshToken, member.getLoginId(), member.getUsername(), member.getRole());
     }
-
-    private static final Set<Role> ADMIN_ROLES = Set.of(
-            Role.SUPER_ADMIN, Role.GENERAL_ADMIN, Role.COMMUNITY_ADMIN, Role.INQUIRY_ADMIN
-    );
 
     public LoginResponse adminLogin(LoginRequest request) {
         Member member = memberRepository.findByLoginId(request.getLoginId())
@@ -106,6 +110,19 @@ public class AuthService {
 
         // [VULN-4] no rate limiting
         String token = jwtUtil.generateToken(member.getLoginId(), member.getRole());
-        return new LoginResponse(token, member.getLoginId(), member.getUsername(), member.getRole());
+        String refreshToken = refreshTokenService.issue(member.getId());
+        return new LoginResponse(token, refreshToken, member.getLoginId(), member.getUsername(), member.getRole());
+    }
+
+    public TokenRefreshResponse refresh(TokenRefreshRequest request) {
+        Long memberId = refreshTokenService.verify(request.getRefreshToken());
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+        String newToken = jwtUtil.generateToken(member.getLoginId(), member.getRole());
+        return new TokenRefreshResponse(newToken);
+    }
+
+    public void logout(Member member) {
+        refreshTokenService.revokeAll(member.getId());
     }
 }
