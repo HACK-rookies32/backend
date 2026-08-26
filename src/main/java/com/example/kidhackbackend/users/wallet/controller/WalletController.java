@@ -5,16 +5,24 @@ import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.wallet.dto.ChargeApproveRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargeApproveResponse;
+import com.example.kidhackbackend.users.wallet.dto.ChargeOrderResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareResponse;
+import com.example.kidhackbackend.users.wallet.dto.RefundResponse;
+import com.example.kidhackbackend.users.wallet.dto.TxResponse;
 import com.example.kidhackbackend.users.wallet.service.WalletChargeService;
+import com.example.kidhackbackend.users.wallet.service.WalletHistoryService;
+import com.example.kidhackbackend.users.wallet.service.WalletRefundService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class WalletController {
 
     private final WalletChargeService walletChargeService;
+    private final WalletHistoryService walletHistoryService;
+    private final WalletRefundService walletRefundService;
 
     private void requireParent(Member member) {
         if (member == null) {
@@ -61,5 +71,36 @@ public class WalletController {
         requireParent(member);
         return ResponseEntity.ok(
                 ApiResponse.success(walletChargeService.approve(member.getId(), request)));
+    }
+
+    /** 충전내역: 본인 지갑 원장(충전/환불) 목록 — No.37. */
+    @Operation(summary = "원장 내역 조회", description = "본인 지갑의 충전/환불 원장을 최신순으로 조회한다.")
+    @GetMapping("/transactions")
+    public ResponseEntity<ApiResponse<List<TxResponse>>> transactions(
+            @AuthenticationPrincipal Member member) {
+        requireParent(member);
+        return ResponseEntity.ok(
+                ApiResponse.success(walletHistoryService.getTransactions(member.getId())));
+    }
+
+    /** 충전내역: 본인 충전 주문(상태 포함) 목록 — No.37. */
+    @Operation(summary = "충전 주문 내역 조회", description = "본인 충전 주문을 상태와 함께 최신순으로 조회한다.")
+    @GetMapping("/charges")
+    public ResponseEntity<ApiResponse<List<ChargeOrderResponse>>> charges(
+            @AuthenticationPrincipal Member member) {
+        requireParent(member);
+        return ResponseEntity.ok(
+                ApiResponse.success(walletHistoryService.getCharges(member.getId())));
+    }
+
+    /** 취소·환불: 완료된 충전을 전액 환불 — No.37. */
+    @Operation(summary = "충전 환불", description = "merchantUid의 충전을 전액 환불(잔액 차감·주문 취소)한다.")
+    @PostMapping("/charge/{merchantUid}/refund")
+    public ResponseEntity<ApiResponse<RefundResponse>> refund(
+            @AuthenticationPrincipal Member member,
+            @PathVariable String merchantUid) {
+        requireParent(member);
+        return ResponseEntity.ok(
+                ApiResponse.success(walletRefundService.refund(member.getId(), merchantUid)));
     }
 }

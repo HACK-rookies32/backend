@@ -42,4 +42,9 @@ public class Wallet extends BaseEntity {
     public void credit(long amount) {
         this.balance += amount;
     }
+
+    /** 잔액을 amount만큼 차감한다. (환불/이체 출금 공통) */
+    public void debit(long amount) {
+        this.balance -= amount;
+    }
 }
