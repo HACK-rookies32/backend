@@ -16,6 +16,7 @@ public enum NotificationType {
 
     // 결제 도메인
     PAYMENT_APPROVED,   // No.44 QR 매장결제 승인(부모 알림)
+    PAYMENT_CANCELED,   // No.46 매장결제 취소(부모 알림)
 
     ETC                 // 기타
 }
