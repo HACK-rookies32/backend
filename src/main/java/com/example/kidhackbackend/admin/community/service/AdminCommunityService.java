@@ -166,8 +166,9 @@ public class AdminCommunityService {
                 : LocalDateTime.now().plusDays(request.getDurationDays());
 
         MemberBan ban = memberBanRepository.findByMemberId(member.getId())
-                .orElseGet(() -> memberBanRepository.save(new MemberBan(member.getId())));
+                .orElseGet(() -> new MemberBan(member.getId()));
         ban.apply(request.getReason(), bannedUntil);
+        memberBanRepository.save(ban);
 
         return MemberBanResponse.from(member, ban);
     }
