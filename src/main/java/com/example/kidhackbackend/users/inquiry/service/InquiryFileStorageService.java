@@ -1,38 +1,35 @@
 package com.example.kidhackbackend.users.inquiry.service;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.example.kidhackbackend.global.storage.ObjectStorage;
+import com.example.kidhackbackend.global.storage.UploadCategory;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
+/**
+ * 1:1 문의 첨부파일 업로드.
+ *
+ * <p>구조는 커뮤니티 쪽 FileStorageService 와 같고 저장 분류만 다르다.
+ * 실제 저장은 {@link ObjectStorage} 가 하며, 운영에서는 S3, 로컬에서는 디스크다
+ * ({@code app.s3.bucket} 설정 여부로 갈린다).
+ */
 @Service
+@RequiredArgsConstructor
 public class InquiryFileStorageService {
 
-    @Value("${file.inquiry-upload-dir}")
-    private String uploadDir;
+    private final ObjectStorage storage;
 
     public String store(MultipartFile file) {
-        try {
-            Path dirPath = Paths.get(uploadDir);
-            if (!Files.exists(dirPath)) {
-                Files.createDirectories(dirPath);
-            }
+        String originalFilename = file.getOriginalFilename();
+        // [VULN-10] 확장자 화이트리스트 검증이 없어서 어떤 파일이든 그대로 저장됨
+        //
+        // 참고: 이전에는 올린 파일을 다시 받을 경로가 없어 이 취약점이 사실상
+        // 잠들어 있었다. FileController(/api/files/**) 가 생기면서 실제로 재현
+        // 가능해졌다. 자세한 내용은 커뮤니티 쪽 FileStorageService 주석 참고.
+        String savedFilename = UUID.randomUUID() + "_" + originalFilename;
 
-            String originalFilename = file.getOriginalFilename();
-            // [VULN-10] 확장자 화이트리스트 검증이 없어서 어떤 파일이든 그대로 저장됨
-            String savedFilename = UUID.randomUUID() + "_" + originalFilename;
-
-            Path targetPath = dirPath.resolve(savedFilename);
-            file.transferTo(targetPath);
-
-            return "/uploads/inquiry/" + savedFilename;
-        } catch (IOException e) {
-            throw new RuntimeException("파일 저장에 실패했습니다.", e);
-        }
+        return storage.store(UploadCategory.INQUIRY, savedFilename, file);
     }
 }
