@@ -53,9 +53,6 @@ jwt:
   secret: local-test-secret-key-change-in-production
   expiration: 3600000
 
-firebase:
-  credentials-path: firebase-service-account.json
-
 # 위치 추적(location) 도메인 설정
 kidhack:
   location:
@@ -79,5 +76,10 @@ app:
   s3:
     bucket: ${APP_S3_BUCKET:}
     prefix: uploads
-    # presigned URL 유효 기간. 매 요청마다 새로 발급되므로 짧아도 된다.
     presign-ttl: 5m
+  push:
+    provider: mock   # 나중에 firebase로 바꾸면 전환
+
+firebase:
+  credentials-path: firebase-service-account.json
+

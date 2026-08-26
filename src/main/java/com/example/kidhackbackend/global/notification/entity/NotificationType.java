@@ -13,6 +13,7 @@ public enum NotificationType {
     DEVICE_POWER_OFF,   // No.4 전원/GPS 꺼짐
     HARMFUL_SITE,       // No.5 유해 사이트 감지
     APP_USAGE,
+    NOTICE,
 
     // 결제 도메인
     PAYMENT_APPROVED,   // No.44 QR 매장결제 승인(부모 알림)

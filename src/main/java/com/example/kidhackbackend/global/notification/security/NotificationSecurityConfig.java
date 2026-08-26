@@ -26,7 +26,7 @@ public class NotificationSecurityConfig {
     }
 
     @Bean
-    @Order(4)
+    @Order(11)
     public SecurityFilterChain notificationSecurityFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/api/notifications/**")
