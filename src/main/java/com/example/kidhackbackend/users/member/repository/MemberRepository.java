@@ -14,4 +14,5 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     List<Member> findByRoleIn(Collection<Role> roles);
     List<Member> findByIsDeletedTrueAndUpdatedAtBefore(LocalDateTime cutoff);
+    List<Member> findByParentId(Long parentId);
 }
