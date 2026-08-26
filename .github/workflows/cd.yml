@@ -83,8 +83,40 @@ jobs:
       - name: gradlew 실행 권한
         run: chmod +x ./gradlew
 
+      # ----------------------------------------------------------------
+      # 운영 설정 주입
+      #
+      # application-prod.yml 은 레포에 없다(RDS 엔드포인트와 DB 계정명이
+      # 들어가므로). GitHub Secrets 의 APPLICATION_PROD_YML 을 여기서 파일로
+      # 복원해 bootJar 에 포함시킨다. 필요한 키는 레포의
+      # src/main/resources/application-prod.yml.example 참고.
+      #
+      # base64 로 보관하는 이유: 여러 줄 YAML 을 시크릿에 그대로 넣으면
+      # 들여쓰기가 깨지기 쉽고, 액션의 마스킹도 줄 단위라 조각이 로그에 남을 수 있다.
+      #
+      # ⚠️ 비어 있으면 즉시 실패시킨다. 시크릿이 없는 채로 빌드하면 prod
+      #    프로파일이 비어 로컬 설정(H2 / localhost)이 그대로 운영에 나가는데,
+      #    앱은 정상 기동해 버려서 아무도 모른 채 데이터가 메모리에 쌓인다.
+      # ----------------------------------------------------------------
+      - name: application-prod.yml 복원
+        env:
+          APPLICATION_PROD_YML: ${{ secrets.APPLICATION_PROD_YML }}
+        run: |
+          if [ -z "$APPLICATION_PROD_YML" ]; then
+            echo "FATAL: APPLICATION_PROD_YML 시크릿이 비어 있다."
+            exit 1
+          fi
+          printf '%s' "$APPLICATION_PROD_YML" | base64 -d \
+            > src/main/resources/application-prod.yml
+          # 값은 절대 출력하지 않는다. 복원이 됐는지만 최상위 키로 확인한다.
+          echo "복원된 최상위 키:"
+          grep -E '^[a-z][a-z-]*:' src/main/resources/application-prod.yml
+
       # main 에 들어온 뒤에도 한 번 더 돌린다. PR 이후 다른 PR 이 머지되어
       # 조합이 깨지는 경우(semantic conflict)를 여기서 잡는다.
+      #
+      # 위에서 prod yml 을 복원했지만 테스트는 프로파일을 켜지 않으므로
+      # 그대로 H2 로 돈다(러너에서 RDS 로는 애초에 접속할 수 없다).
       - name: 테스트
         run: ./gradlew test
 

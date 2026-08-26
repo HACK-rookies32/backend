@@ -87,3 +87,10 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+// application-prod.yml.example 은 "prod 프로파일에 어떤 키가 필요한가" 를 레포에
+// 남기기 위한 템플릿이라 실행 시점에는 아무도 읽지 않는다. jar 에 넣지 않는다.
+// (실물 application-prod.yml 은 cd.yml 이 빌드 직전에 복원하므로 그대로 포함된다)
+tasks.named('processResources') {
+    exclude 'application-prod.yml.example'
+}

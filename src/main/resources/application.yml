@@ -1,3 +1,15 @@
+# ------------------------------------------------------------------
+# 기본(로컬/CI) 설정.
+#
+# 여기 있는 DB 설정은 전부 로컬용이다 — H2 인메모리, localhost Mongo/Redis.
+# 개발자 PC 와 GitHub Actions 러너는 RDS/DocumentDB/ElastiCache 에 접속할 수
+# 없다(프라이빗 서브넷 + 보안그룹이 WAS 에서 오는 트래픽만 허용). 그래서
+# ./gradlew test 는 앞으로도 외부 DB 없이 이 설정으로 돈다.
+#
+# 운영은 prod 프로파일이 아래 값을 덮어쓴다. 실물 application-prod.yml 은
+# 레포에 없고 GitHub Secrets(APPLICATION_PROD_YML)에 있으며, cd.yml 이 빌드
+# 직전에 복원한다. 어떤 키가 필요한지는 application-prod.yml.example 참고.
+# ------------------------------------------------------------------
 spring:
   application:
     name: kidhack-backend
