@@ -4,6 +4,7 @@ import com.example.kidhackbackend.global.notification.entity.Notification;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.repository.NotificationRepository;
 import com.example.kidhackbackend.global.notification.service.NotificationService;
+import com.example.kidhackbackend.global.notification.service.NotificationSettingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -14,7 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@Import(NotificationService.class)
+@Import({NotificationService.class, NotificationSettingService.class})
 class NotificationServiceTest {
 
     @Autowired

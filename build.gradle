@@ -40,6 +40,12 @@ dependencies {
     // 인증/보안
     implementation 'org.springframework.boot:spring-boot-starter-security'
 
+    // 헬스체크 — 배포 자동화의 안전망.
+    // NLB 헬스체크가 TCP 라 "포트가 열렸는가" 만 보는데, Watchtower 가 사람 손 없이
+    // 컨테이너를 교체하는 구조에서는 "앱이 요청을 받을 수 있는가" 를 물어야 한다.
+    // 기동에 실패한 컨테이너에 트래픽이 계속 들어가는 것을 막는다.
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
     // JWT
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
