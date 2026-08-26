@@ -32,4 +32,21 @@ public class AdminSecurityConfig {
                         .accessDeniedHandler(jwtAccessDeniedHandler));
         return http.build();
     }
+    // 커뮤니티 관리자 경로 필터 체인 추가
+    @Bean
+    @Order(3)
+    public SecurityFilterChain adminCommunityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/admin/community/**")
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // SUPER_ADMIN, GENERAL_ADMIN, COMMUNITY_ADMIN 권한 허용
+                        .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN", "COMMUNITY_ADMIN")
+                )
+                .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler));
+        return http.build();
+    }
 }
