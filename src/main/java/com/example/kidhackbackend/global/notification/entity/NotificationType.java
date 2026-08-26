@@ -12,6 +12,7 @@ public enum NotificationType {
     // 알림 도메인 후속 기능(자리만 확보)
     DEVICE_POWER_OFF,   // No.4 전원/GPS 꺼짐
     HARMFUL_SITE,       // No.5 유해 사이트 감지
+    APP_USAGE,
 
     ETC                 // 기타
 }
