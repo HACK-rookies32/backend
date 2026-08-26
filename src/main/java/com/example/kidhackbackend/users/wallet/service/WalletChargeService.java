@@ -5,6 +5,7 @@ import com.example.kidhackbackend.users.wallet.dto.ChargeApproveRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargeApproveResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareResponse;
+import com.example.kidhackbackend.users.wallet.dto.PgWebhookRequest;
 import com.example.kidhackbackend.users.wallet.dto.TxResponse;
 import com.example.kidhackbackend.users.wallet.entity.ChargeOrder;
 import com.example.kidhackbackend.users.wallet.entity.TxType;
@@ -90,5 +91,52 @@ public class WalletChargeService {
                         wallet.getBalance(), order.getMerchantUid()));
 
         return new ChargeApproveResponse(order.getMerchantUid(), wallet.getBalance(), TxResponse.from(tx));
+    }
+
+    /**
+     * PG 웹훅 확정 — 역할표 No.36. 서명 검증 후 주문을 확정(PAID)하고 잔액을 적립한다.
+     *
+     * <p>PG 서버가 서버-투-서버로 호출하는 콜백. 앱 토큰이 아니라 서명으로 진위를 확인한다.
+     *
+     * @param rawBody   웹훅 원본 바디(서명 검증 대상)
+     * @param signature 요청 헤더 {@code X-PG-Signature}
+     * @param payload   파싱된 웹훅 페이로드
+     */
+    @Transactional
+    public void confirmByWebhook(String rawBody, String signature, PgWebhookRequest payload) {
+        // [VULN-WALLET-4] 웹훅 서명검증 우회.
+        //   서명 헤더가 '있을 때만' 검증하고, 없으면(null/blank) 검증을 통째로 건너뛴다.
+        //   → 공격자가 X-PG-Signature 헤더 없이 위조 웹훅 바디만 보내면 그대로 통과되어,
+        //     임의 merchantUid를 원하는 paidAmount로 확정·적립할 수 있다(결제 위조).
+        //   방어: 서명 헤더를 '필수'로 강제하고, 항상 verify() 실패 시 거부(상수시간 비교 권장).
+        //         즉 `if (!pgClient.verify(rawBody, signature)) throw ...;` 로 무조건 검증.
+        if (signature != null && !pgClient.verify(rawBody, signature)) {
+            throw new IllegalArgumentException("유효하지 않은 웹훅 서명입니다.");
+        }
+
+        // 결제 성공 콜백만 확정한다. (취소/실패 상태 처리는 No.37에서 다룸)
+        if (!"paid".equalsIgnoreCase(payload.status())) {
+            return;
+        }
+
+        ChargeOrder order = chargeOrderRepository.findByMerchantUid(payload.merchantUid())
+                .orElseThrow(() -> new ResourceNotFoundException("충전 주문을 찾을 수 없습니다."));
+
+        // [VULN-WALLET-3] 멱등성/재생 방어 부재 — PG는 응답 실패 시 웹훅을 재전송한다.
+        //   status 가드/멱등키 없이 매번 재적립하므로, 동일 웹훅 재전송·재생으로 중복 충전된다.
+        //   방어: 이미 PAID면 재적립 금지(멱등 처리) + @Version 락.
+        order.markPaid(payload.pgTransactionId());
+
+        Wallet wallet = walletRepository.findByOwnerId(order.getOwnerId())
+                .orElseGet(() -> walletRepository.save(new Wallet(order.getOwnerId())));
+
+        // 웹훅이 통지한 결제액을 적립한다. 서명검증이 뚫리면([VULN-WALLET-4]) 이 금액도 공격자가 조작한다.
+        long creditAmount = payload.paidAmount();
+        wallet.credit(creditAmount);
+        walletRepository.save(wallet);
+
+        walletTransactionRepository.save(
+                new WalletTransaction(wallet.getId(), TxType.CHARGE, creditAmount,
+                        wallet.getBalance(), order.getMerchantUid()));
     }
 }
