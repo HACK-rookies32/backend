@@ -26,6 +26,7 @@ public class CommunityBoardService {
     private final CommunityBoardRepository communityBoardRepository;
     private final CommunityBoardCommentRepository commentRepository;
     private final CommunityBoardLikeRepository likeRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional
     public PostResponse createPost(Member member, PostRequest request) {
@@ -80,6 +81,12 @@ public class CommunityBoardService {
     public void deletePost(Long postId, Member member) {
         CommunityBoard board = findBoard(postId);
         // [VULN-11] 위와 동일한 이유로, 작성자 검증 없이 삭제까지 가능함
+        //
+        // ⚠️ 아래 첨부 삭제가 이 취약점의 영향 범위를 DB 행에서 실제 파일로 넓힌다.
+        //    다만 운영 버킷은 버저닝이 켜져 있어 삭제 마커만 남고, 라이프사이클이
+        //    이전 버전을 만료시키기 전까지는 복구할 수 있다(infra storage.tf).
+        //    첨부를 남겨 두면 고아 객체가 무한히 쌓이므로 지우는 쪽을 택했다.
+        board.getAttachments().forEach(fileStorageService::delete);
         communityBoardRepository.delete(board);
     }
 

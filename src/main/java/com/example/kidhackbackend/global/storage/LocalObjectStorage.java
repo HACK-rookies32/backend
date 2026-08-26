@@ -36,9 +36,33 @@ public class LocalObjectStorage implements ObjectStorage {
             // transferTo 는 상대 경로를 임시 디렉터리 기준으로 해석하는 구현이 있어
             // 절대 경로로 넘긴다.
             file.transferTo(dir.resolve(filename).toAbsolutePath());
-            return "/api/files/%s/%s".formatted(category.segment(), filename);
+            return new StoredObject(category, filename).publicPath();
         } catch (IOException e) {
             throw new RuntimeException("파일 저장에 실패했습니다.", e);
+        }
+    }
+
+    /**
+     * 로컬에는 서명할 대상이 없다. 비어 있으면 컨트롤러가 기존 multipart 업로드를
+     * 쓰라고 안내한다. 로컬 개발자가 AWS 자격증명 없이도 계속 작업할 수 있어야 하므로
+     * 예외를 던지지 않는다.
+     */
+    @Override
+    public Optional<URI> uploadUrl(UploadCategory category, String filename, String contentType) {
+        return Optional.empty();
+    }
+
+    @Override
+    public boolean exists(UploadCategory category, String filename) {
+        return Files.isRegularFile(dir(category).resolve(filename));
+    }
+
+    @Override
+    public void delete(UploadCategory category, String filename) {
+        try {
+            Files.deleteIfExists(dir(category).resolve(filename));
+        } catch (IOException e) {
+            throw new RuntimeException("파일 삭제에 실패했습니다.", e);
         }
     }
 

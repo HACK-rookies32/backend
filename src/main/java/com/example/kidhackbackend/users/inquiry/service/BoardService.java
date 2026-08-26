@@ -23,6 +23,7 @@ public class BoardService {
 
     private final BoardRepository boardRepository;
     private final InquiryAnswerRepository inquiryAnswerRepository;
+    private final InquiryFileStorageService inquiryFileStorageService;
 
     @Transactional
     public BoardResponse createBoard(Member member, BoardRequest request) {
@@ -64,6 +65,10 @@ public class BoardService {
     public void deleteBoard(Long boardId, Member member) {
         Board board = findBoard(boardId);
         inquiryAnswerRepository.deleteByBoardId(board.getId());
+        // 첨부 실물도 함께 지운다. 남겨 두면 고아 객체가 되고, 문의 첨부에는
+        // 개인정보가 담기는 경우가 있어 사용자가 지웠는데 실물이 남으면 곤란하다.
+        // 버저닝 덕에 즉시 소실이 아니라 복구 가능한 소프트 삭제다(infra storage.tf).
+        inquiryFileStorageService.delete(board.getAttachmentUrl());
         boardRepository.delete(board);
         //[VULN-9] board.getMember()와 파라미터로 받은 member를 비교하는 로직이 없음(IDOR)
     }

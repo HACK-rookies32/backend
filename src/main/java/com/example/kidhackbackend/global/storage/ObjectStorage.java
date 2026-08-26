@@ -16,6 +16,14 @@ import java.util.Optional;
  *
  * <p>파일명 생성은 이 인터페이스의 책임이 아니다. 호출하는 서비스가 정한 이름을
  * 그대로 받는다.
+ *
+ * <p><b>업로드 경로가 둘이다.</b>
+ * <ul>
+ *   <li>{@link #store} — 브라우저가 WAS 로 multipart 를 보내고 WAS 가 S3 에 올린다.
+ *       작은 파일용이며 로컬 모드에서도 그대로 동작한다.</li>
+ *   <li>{@link #uploadUrl} — presigned PUT URL 만 발급하고 파일 본문은 브라우저가
+ *       S3 로 직접 보낸다. WAS 를 통과하지 않으므로 큰 파일에 쓴다.</li>
+ * </ul>
  */
 public interface ObjectStorage {
 
@@ -25,6 +33,34 @@ public interface ObjectStorage {
      * @return {@code /api/files/{category}/{filename}} 형태. 이 문자열이 DB 에 저장된다.
      */
     String store(UploadCategory category, String filename, MultipartFile file);
+
+    /**
+     * 브라우저가 S3 로 직접 올릴 presigned PUT URL.
+     *
+     * <p>서명에 Content-Type 이 포함되므로 클라이언트는 PUT 할 때 여기 넘긴 값과
+     * <b>똑같은</b> Content-Type 헤더를 보내야 한다. 다르면 S3 가 403 을 준다.
+     *
+     * <p>로컬 구현은 서명할 대상이 없어 비어 있는 값을 돌려준다. 그 경우 호출하는
+     * 쪽은 {@link #store} 를 쓰는 기존 multipart 경로로 안내해야 한다.
+     */
+    Optional<URI> uploadUrl(UploadCategory category, String filename, String contentType);
+
+    /**
+     * 객체가 실제로 있는지 본다.
+     *
+     * <p>presigned 업로드는 WAS 를 거치지 않으므로 서버는 업로드 성공 여부를 모른다.
+     * 클라이언트가 "다 올렸다" 고 알려 온 것을 그대로 믿고 DB 에 경로를 박으면
+     * 실재하지 않는 파일을 가리키게 되므로, 완료 시점에 이걸로 확인한다.
+     */
+    boolean exists(UploadCategory category, String filename);
+
+    /**
+     * 객체를 지운다. 없는 객체를 지워도 예외를 던지지 않는다(멱등).
+     *
+     * <p>운영 버킷은 버저닝이 켜져 있어 이 호출은 삭제 마커를 남길 뿐이고 실제
+     * 데이터는 라이프사이클 규칙이 만료시킬 때까지 복구할 수 있다(infra storage.tf).
+     */
+    void delete(UploadCategory category, String filename);
 
     /**
      * 브라우저를 리다이렉트시킬 다운로드 URL.
