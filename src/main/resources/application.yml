@@ -28,6 +28,27 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
 
+# ------------------------------------------------------------------
+# 헬스체크 (NLB 타깃그룹이 이 엔드포인트를 호출한다)
+#
+# probes.enabled 는 쿠버네티스로 인식될 때만 자동으로 켜지므로 명시한다.
+# 이걸 켜면 /actuator/health/readiness 가 생긴다.
+#
+# 로드밸런서에는 /actuator/health 가 아니라 readiness 를 물려야 한다.
+# 기본 /actuator/health 는 DB·Mongo·Redis 상태를 전부 집계하기 때문에,
+# DocumentDB 가 페일오버로 몇 초 흔들리면 WAS 2 대가 "동시에" unhealthy 가 되고
+# NLB 에 살아 있는 타깃이 0 이 된다. 지금(TCP 체크)보다 나쁜 상태가 된다.
+# readiness 그룹은 "앱이 요청을 받을 준비가 됐는가" 만 본다.
+#
+# ⚠️ management.endpoints.web.exposure.include 를 추가하지 말 것.
+#    SecurityConfig 가 anyRequest().permitAll() 이라 /actuator/env 를 열면
+#    DB 비밀번호와 JWT 시크릿이 그대로 노출된다. 기본값(health 만 노출)을 유지한다.
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
 jwt:
   secret: local-test-secret-key-change-in-production
   expiration: 3600000
