@@ -82,4 +82,9 @@ public class QrPayment extends BaseEntity {
         this.terminalId = terminalId;
         this.paidAt = paidAt;
     }
+
+    /** 결제 취소(No.46): CANCELLED로 전이한다. 금액·매장·paidAt은 이력 표시를 위해 유지. */
+    public void markCancelled() {
+        this.status = QrStatus.CANCELLED;
+    }
 }
