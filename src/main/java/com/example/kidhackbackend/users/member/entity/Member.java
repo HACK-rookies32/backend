@@ -17,7 +17,10 @@ public class Member extends BaseEntity {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String username;
+    private String loginId; // login용 id
+
+    @Column(nullable = false)
+    private String username; // 실제 이름
 
     @Column(nullable = false)
     private String password; // [VULN-1] 평문 저장

@@ -59,7 +59,7 @@ public class JwtAuthenticationFilterGio extends OncePerRequestFilter {
                 //     만료 전까지 계속 유효하다.
                 if (username != null && role != null) {
                     var authority = new SimpleGrantedAuthority("ROLE_" + role);
-                    Object principal = memberRepository.findByUsername(username)
+                    Object principal = memberRepository.findByLoginId(username)
                             .<Object>map(m -> m)
                             .orElse(username);
                     var authentication = new UsernamePasswordAuthenticationToken(
