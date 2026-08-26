@@ -63,4 +63,9 @@ public class ChargeOrder extends BaseEntity {
         this.status = ChargeStatus.PAID;
         this.pgTransactionId = pgTransactionId;
     }
+
+    /** 환불/취소 처리로 주문을 CANCELLED 상태로 전이한다. (No.37) */
+    public void markCancelled() {
+        this.status = ChargeStatus.CANCELLED;
+    }
 }
