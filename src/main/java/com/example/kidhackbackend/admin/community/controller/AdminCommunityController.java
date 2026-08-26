@@ -3,17 +3,23 @@ package com.example.kidhackbackend.admin.community.controller;
 import com.example.kidhackbackend.admin.community.dto.AdminCommentResponse;
 import com.example.kidhackbackend.admin.community.dto.AdminPostDetailResponse;
 import com.example.kidhackbackend.admin.community.dto.AdminPostResponse;
+import com.example.kidhackbackend.admin.community.dto.MemberBanRequest;
+import com.example.kidhackbackend.admin.community.dto.MemberBanResponse;
 import com.example.kidhackbackend.admin.community.service.AdminCommunityService;
+import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
+import com.example.kidhackbackend.global.exception.InvalidCredentialException;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -27,10 +33,10 @@ public class AdminCommunityController {
 
     private void requireParent(Member member) {
         if (member == null) {
-            throw new IllegalArgumentException("로그인이 필요합니다.");
+            throw new InvalidCredentialException("로그인이 필요합니다.");
         }
         if (member.getRole() != Role.PARENT) {
-            throw new IllegalArgumentException("부모 회원만 이용할 수 있는 기능입니다.");
+            throw new AdminAccessDeniedException("부모 회원만 이용할 수 있는 기능입니다.");
         }
     }
 
@@ -107,5 +113,14 @@ public class AdminCommunityController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+
+    @Operation(summary = "커뮤니티 사용자 밴/해제 (관리자)",
+            description = "durationDays 를 0 으로 보내면 밴이 해제됩니다.")
+    @PostMapping("/api/admin/community/members/ban")
+    public ResponseEntity<ApiResponse<MemberBanResponse>> banMember(
+            @Valid @RequestBody MemberBanRequest request) {
+        MemberBanResponse response = adminCommunityService.banMember(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
 
 }

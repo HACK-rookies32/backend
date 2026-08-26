@@ -40,8 +40,8 @@ public class AdminSecurityConfig {
                 .securityMatcher("/api/admin/community/**")
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // SUPER_ADMIN, GENERAL_ADMIN, COMMUNITY_ADMIN 권한 허용
-                        .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN", "COMMUNITY_ADMIN")
+                        // 커뮤니티 관리 기능(조회/삭제/사용자 밴)은 SUPER_ADMIN, COMMUNITY_ADMIN 만 가능
+                        .anyRequest().hasAnyRole("SUPER_ADMIN", "COMMUNITY_ADMIN")
                 )
                 .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
