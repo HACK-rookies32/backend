@@ -25,8 +25,8 @@ public class DeviceEventService {
     // [VULN-DEV-1] childId를 요청값 그대로 신뢰(본인 검증 없음)한다.
     //   → 타인 childId로 위조 이벤트를 보내 거짓 '트래킹 불가' 알림을 유발할 수 있다(알림 스팸/오도).
     @Transactional
-    public DeviceEvent report(Long childId, DeviceEventType type) {
-        DeviceEvent event = repository.save(new DeviceEvent(childId, type));
+    public DeviceEvent report(Long childId, String deviceId, DeviceEventType type) {
+        DeviceEvent event = repository.save(new DeviceEvent(childId, deviceId, type));
 
         String reason = (type == DeviceEventType.POWER_OFF) ? "기기 전원 꺼짐" : "GPS(위치) 꺼짐";
         notificationPort.publish(childId, NotificationType.DEVICE_POWER_OFF,

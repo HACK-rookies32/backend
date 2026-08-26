@@ -52,4 +52,11 @@ public class Member extends BaseEntity {
 
     @Column(nullable = false)
     private boolean isDeleted = false;
+
+    public void updateProfile(String nickname, String email, String phoneNumber, String address) {
+        if (nickname != null) this.nickname = nickname;
+        if (email != null) this.email = email;
+        if (phoneNumber != null) this.phoneNumber = phoneNumber;
+        if (address != null) this.address = address;
+    }
 }

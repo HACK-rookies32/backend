@@ -2,7 +2,12 @@ package com.example.kidhackbackend.users.member.repository;
 
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
+import org.springframework.data.domain.Page;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -28,4 +33,10 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     // 전체 알림 발송
     List<Member> findByIsDeletedFalse();
+
+    // 관리자 - 고객(회원) 검색용. PARENT/CHILD만 대상으로 하고, role/keyword는 선택 필터.
+    @Query("SELECT m FROM Member m WHERE m.role IN ('PARENT', 'CHILD') " +
+            "AND (:role IS NULL OR m.role = :role) " +
+            "AND (:keyword IS NULL OR m.loginId LIKE %:keyword% OR m.username LIKE %:keyword% OR m.nickname LIKE %:keyword%)")
+    Page<Member> searchCustomers(@Param("role") Role role, @Param("keyword") String keyword, Pageable pageable);
 }

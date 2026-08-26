@@ -1,0 +1,74 @@
+package com.example.kidhackbackend.admin.member.service;
+
+import com.example.kidhackbackend.admin.finance.dto.AdminUserWalletResponse;
+import com.example.kidhackbackend.admin.finance.service.AdminFinanceQueryService;
+import com.example.kidhackbackend.admin.member.dto.AdminCustomerResponse;
+import com.example.kidhackbackend.admin.member.dto.AdminCustomerUpdateRequest;
+import com.example.kidhackbackend.admin.member.dto.AdminDeviceResponse;
+import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
+import com.example.kidhackbackend.users.device.entity.DeviceEvent;
+import com.example.kidhackbackend.users.device.repository.DeviceEventRepository;
+import com.example.kidhackbackend.users.member.entity.Member;
+import com.example.kidhackbackend.users.member.entity.Role;
+import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class AdminCustomerService {
+
+    private final MemberRepository memberRepository;
+    private final DeviceEventRepository deviceEventRepository;
+    private final AdminFinanceQueryService adminFinanceQueryService;
+
+    public Page<AdminCustomerResponse> getCustomers(Role role, String keyword, Pageable pageable) {
+        return memberRepository.searchCustomers(role, keyword, pageable).map(AdminCustomerResponse::from);
+    }
+
+    public AdminCustomerResponse getCustomer(Long id) {
+        return AdminCustomerResponse.from(findMember(id));
+    }
+
+    @Transactional
+    public AdminCustomerResponse updateCustomer(Long id, AdminCustomerUpdateRequest request) {
+        Member member = findMember(id);
+        member.updateProfile(request.nickname(), request.email(), request.phoneNumber(), request.address());
+        return AdminCustomerResponse.from(member);
+    }
+
+    @Transactional
+    public void deleteCustomer(Long id) {
+        Member member = findMember(id);
+        member.setDeleted(true);
+    }
+
+    public List<AdminDeviceResponse> getDevices(Long id) {
+        findMember(id); // 존재 확인
+        List<DeviceEvent> events = deviceEventRepository.findByChildIdOrderByCreatedAtDesc(id);
+
+        // deviceId별 최근 이벤트 1건만 남긴다 (목록은 이미 최신순 정렬되어 있음)
+        Map<String, AdminDeviceResponse> byDevice = new LinkedHashMap<>();
+        for (DeviceEvent event : events) {
+            byDevice.putIfAbsent(event.getDeviceId(), AdminDeviceResponse.from(event));
+        }
+        return List.copyOf(byDevice.values());
+    }
+
+    public AdminUserWalletResponse getSubscription(Long id) {
+        findMember(id); // 존재 확인
+        return adminFinanceQueryService.getUserWallet(id);
+    }
+
+    private Member findMember(Long id) {
+        return memberRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 회원입니다: " + id));
+    }
+}
