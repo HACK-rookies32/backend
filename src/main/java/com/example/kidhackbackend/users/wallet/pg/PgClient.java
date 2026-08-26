@@ -15,4 +15,21 @@ public interface PgClient {
      * @return 승인 결과
      */
     PgApproval approve(String merchantUid, long amount);
+
+    /**
+     * 웹훅 본문에 대한 서명(HMAC-SHA256 hex)을 계산한다. (No.36 — 테스트/모의 PG가 서명 생성용)
+     *
+     * @param rawBody 웹훅 원본 바디(직렬화된 JSON 문자열)
+     * @return hex 인코딩된 서명
+     */
+    String sign(String rawBody);
+
+    /**
+     * 웹훅 서명을 검증한다.
+     *
+     * @param rawBody   웹훅 원본 바디
+     * @param signature 요청 헤더로 전달된 서명
+     * @return 서명이 유효하면 true (signature가 null이면 false)
+     */
+    boolean verify(String rawBody, String signature);
 }
