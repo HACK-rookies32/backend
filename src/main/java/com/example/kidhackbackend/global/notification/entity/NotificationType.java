@@ -14,5 +14,8 @@ public enum NotificationType {
     HARMFUL_SITE,       // No.5 유해 사이트 감지
     APP_USAGE,
 
+    // 결제 도메인
+    PAYMENT_APPROVED,   // No.44 QR 매장결제 승인(부모 알림)
+
     ETC                 // 기타
 }

@@ -50,6 +50,18 @@ public class QrPayment extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
+    /** 결제 금액(원). 승인(No.44) 시 단말이 입력한 값으로 확정. 그 전엔 null. */
+    private Long amount;
+
+    /** 결제 매장명. 승인 시 단말 등록정보에서 취득. 그 전엔 null. */
+    private String storeName;
+
+    /** 승인한 매장 단말 id. 승인 전엔 null. */
+    private Long terminalId;
+
+    /** 결제 승인 시각. 승인 전엔 null. */
+    private LocalDateTime paidAt;
+
     public QrPayment(String qrToken, Long childId, LocalDateTime expiresAt) {
         this.qrToken = qrToken;
         this.childId = childId;
@@ -60,5 +72,14 @@ public class QrPayment extends BaseEntity {
     /** 주어진 시각 기준 만료 여부. */
     public boolean isExpired(LocalDateTime now) {
         return now.isAfter(expiresAt);
+    }
+
+    /** 결제 승인(No.44): PAID로 전이하며 금액·매장·단말·시각을 확정한다. */
+    public void markPaid(long amount, String storeName, Long terminalId, LocalDateTime paidAt) {
+        this.status = QrStatus.PAID;
+        this.amount = amount;
+        this.storeName = storeName;
+        this.terminalId = terminalId;
+        this.paidAt = paidAt;
     }
 }
