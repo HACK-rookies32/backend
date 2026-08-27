@@ -26,6 +26,13 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("UNAUTHORIZED", e.getMessage()));
     }
 
+    /** 감사로그 조회의 activityType 코드가 정의되지 않은 값일 때 — INVALID_PARAMETER 와 코드를 구분한다. */
+    @ExceptionHandler(InvalidActivityTypeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidActivityType(InvalidActivityTypeException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("INVALID_ACTIVITY_TYPE", e.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()

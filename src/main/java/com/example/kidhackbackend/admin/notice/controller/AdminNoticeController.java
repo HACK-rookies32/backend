@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.admin.notice.controller;
 
+import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.global.notice.dto.NoticeRequest;
 import com.example.kidhackbackend.global.notice.dto.NoticeResponse;
 import com.example.kidhackbackend.global.notice.service.NoticeService;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminNoticeController {
 
     private final NoticeService noticeService;
+    private final AdminAuditLogService adminAuditLogService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<NoticeResponse>>> getNotices(
@@ -33,18 +36,23 @@ public class AdminNoticeController {
     @PostMapping
     public ResponseEntity<ApiResponse<NoticeResponse>> createNotice(
             @AuthenticationPrincipal Member member, @RequestBody NoticeRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(noticeService.createNotice(member.getId(), request)));
+        NoticeResponse response = noticeService.createNotice(member.getId(), request);
+        adminAuditLogService.record(member, AdminActivityType.NOTICE_CREATE, response.id());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<NoticeResponse>> updateNotice(
             @PathVariable Long id, @RequestBody NoticeRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(noticeService.updateNotice(id, request)));
+        NoticeResponse response = noticeService.updateNotice(id, request);
+        adminAuditLogService.record(AdminActivityType.NOTICE_UPDATE, id);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteNotice(@PathVariable Long id) {
         noticeService.deleteNotice(id);
+        adminAuditLogService.record(AdminActivityType.NOTICE_DELETE, id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.admin.member.controller;
 
+import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.member.dto.AdminMemberResponse;
 import com.example.kidhackbackend.admin.member.dto.AdminRoleUpdateRequest;
 import com.example.kidhackbackend.admin.member.service.AdminMemberService;
@@ -19,6 +21,7 @@ import java.util.List;
 public class AdminMemberController {
 
     private final AdminMemberService adminMemberService;
+    private final AdminAuditLogService adminAuditLogService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<AdminMemberResponse>>> getAdminList() {
@@ -31,6 +34,7 @@ public class AdminMemberController {
             @PathVariable Long id,
             @Valid @RequestBody AdminRoleUpdateRequest request) {
         AdminMemberResponse response = adminMemberService.updateAdminRole(id, request.getRole());
+        adminAuditLogService.record(AdminActivityType.MEMBER_ROLE_UPDATE, id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
