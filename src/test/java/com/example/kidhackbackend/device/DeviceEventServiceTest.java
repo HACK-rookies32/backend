@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.device;
 
+import com.example.kidhackbackend.users.device.entity.DeviceEvent;
 import com.example.kidhackbackend.users.device.entity.DeviceEventType;
 import com.example.kidhackbackend.users.device.repository.DeviceEventRepository;
 import com.example.kidhackbackend.users.device.service.DeviceEventService;
@@ -41,9 +42,13 @@ class DeviceEventServiceTest {
 
     @Test
     void 전원꺼짐_보고시_기록되고_트래킹불가_알림이_발행된다() {
-        deviceEventService.report(1L, DeviceEventType.POWER_OFF);
+        deviceEventService.report(1L, "device-1", DeviceEventType.POWER_OFF);
 
-        assertThat(repository.findByChildIdOrderByCreatedAtDesc(1L)).hasSize(1);
+        assertThat(repository.findByChildIdOrderByCreatedAtDesc(1L))
+                .hasSize(1)
+                .first()
+                .extracting(DeviceEvent::getDeviceId)
+                .isEqualTo("device-1");
         assertThat(recordingPort.published).containsExactly(NotificationType.DEVICE_POWER_OFF);
     }
 }
