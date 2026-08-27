@@ -7,6 +7,8 @@ import com.example.kidhackbackend.users.communityboard.entity.CommunityBoardLike
 import com.example.kidhackbackend.users.communityboard.repository.CommunityBoardCommentRepository;
 import com.example.kidhackbackend.users.communityboard.repository.CommunityBoardLikeRepository;
 import com.example.kidhackbackend.users.communityboard.repository.CommunityBoardRepository;
+import com.example.kidhackbackend.admin.community.entity.MemberBan;
+import com.example.kidhackbackend.admin.community.repository.MemberBanRepository;
 import com.example.kidhackbackend.users.member.entity.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,6 +32,7 @@ public class CommunityBoardService {
 
     @Transactional
     public PostResponse createPost(Member member, PostRequest request) {
+        checkBan(member);
         CommunityBoard board = new CommunityBoard();
         board.setMember(member);
         board.setTitle(request.getTitle());
@@ -92,6 +95,7 @@ public class CommunityBoardService {
 
     @Transactional
     public CommentResponse createComment(Long postId, Member member, CommentRequest request) {
+        checkBan(member);
         CommunityBoard board = findBoard(postId);
         CommunityBoardComment comment = new CommunityBoardComment();
         comment.setBoard(board);
@@ -143,6 +147,19 @@ public class CommunityBoardService {
                 likeCount,
                 board.getCreatedAt()
         );
+    }
+
+    private final MemberBanRepository memberBanRepository;
+
+    private void checkBan(Member member) {
+        memberBanRepository.findByMemberId(member.getId())
+                .filter(MemberBan::isBanned)
+                .ifPresent(ban -> {
+                    String until = ban.getBannedUntil()
+                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy년 M월 d일 HH:mm"));
+                    throw new IllegalArgumentException(
+                            "커뮤니티 이용이 정지된 상태입니다. (" + until + "까지)");
+                });
     }
 
     private PostDetailResponse toDetailResponse(CommunityBoard board) {
