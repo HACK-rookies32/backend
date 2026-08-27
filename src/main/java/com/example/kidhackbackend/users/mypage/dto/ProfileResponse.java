@@ -14,4 +14,5 @@ public class ProfileResponse {
     private String phoneNumber;
     private String address;
     private String profileImageUrl;
+    private Long parentId;
 }
