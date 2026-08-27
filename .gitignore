@@ -40,6 +40,11 @@ out/
 ### fcm key ###
 firebase-service-account.json
 
+### 운영 설정 ###
+# 실물은 GitHub Secrets 의 APPLICATION_PROD_YML 에 있고 cd.yml 이 빌드 직전에
+# 복원한다. 레포에는 값이 빠진 application-prod.yml.example 만 둔다.
+src/main/resources/application-prod.yml
+
 ### test code ###
 TestPushController
 TestSecurityConfig
