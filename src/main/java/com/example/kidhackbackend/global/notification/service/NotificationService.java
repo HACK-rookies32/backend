@@ -40,14 +40,18 @@ public class NotificationService implements NotificationPort {
     }
 
     /**
-     * 여러 수신자에게 같은 알림을 보낸다(공지 전체발송).
+     * 여러 수신자에게 같은 알림을 보낸다(관리자 전체 알림).
      *
      * <p>예전에는 회원 수만큼 {@link #publish} 를 돌려 FCM 을 한 명씩 호출했다. 여기서는
      * 토큰을 모아 멀티캐스트 한 번으로 보낸다. 알림 저장과 설정(끔) 확인은 기존과 동일하게
      * 수신자별로 한다.
+     *
+     * <p>단건과 달리 제목을 인자로 받는다. 관리자가 "점검 안내" 처럼 직접 적은 제목을
+     * 그대로 단말 알림창에 띄워야 하기 때문이다.
      */
     @Transactional
-    public void publishAll(Collection<Long> recipientIds, NotificationType type, String message) {
+    public void publishAll(Collection<Long> recipientIds, NotificationType type,
+                           String title, String message) {
         List<Long> targets = recipientIds.stream()
                 .filter(recipientId -> notificationSettingService.isEnabled(recipientId, type))
                 .toList();
@@ -56,7 +60,7 @@ public class NotificationService implements NotificationPort {
         }
 
         repository.saveAll(targets.stream()
-                .map(recipientId -> new Notification(recipientId, type, message))
+                .map(recipientId -> new Notification(recipientId, type, title, message))
                 .toList());
 
         List<String> tokens = deviceTokenRepository.findAllByMemberIdIn(targets).stream()
@@ -67,7 +71,7 @@ public class NotificationService implements NotificationPort {
         }
 
         // 수신자마다 알림 id 가 달라 notificationId 는 싣지 않는다. 앱은 type 으로 목록을 연다.
-        PushMessage push = new PushMessage(type.getTitle(), message, Map.of("type", type.name()));
+        PushMessage push = new PushMessage(title, message, Map.of("type", type.name()));
         Map<String, PushResult> results = pushPort.sendMulticast(tokens, push);
 
         deleteInvalidTokens(results.entrySet().stream()
@@ -91,10 +95,13 @@ public class NotificationService implements NotificationPort {
      *
      * <p>제목에 {@code type.name()} 을 넣던 시절에는 사용자 화면에 "PAYMENT_APPROVED" 가
      * 그대로 떴다. 유형은 눈에 보이지 않는 data 로 넘긴다.
+     *
+     * <p>제목은 저장된 값을 그대로 쓴다. 단건 알림은 유형이 정한 제목이고, 관리자 전체
+     * 알림은 관리자가 입력한 제목이다.
      */
     private PushMessage toPushMessage(Notification notification) {
         return new PushMessage(
-                notification.getType().getTitle(),
+                notification.getTitle(),
                 notification.getMessage(),
                 Map.of(
                         "type", notification.getType().name(),

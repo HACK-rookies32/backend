@@ -141,7 +141,8 @@ class NotificationServiceTest {
         deviceTokenRepository.save(new DeviceToken(2L, "token-2"));
         // 3번 회원은 앱을 설치하지 않아 토큰이 없다.
 
-        notificationService.publishAll(List.of(1L, 2L, 3L), NotificationType.NOTICE, "새 공지가 등록되었습니다");
+        notificationService.publishAll(List.of(1L, 2L, 3L), NotificationType.NOTICE,
+                "공지사항", "새 공지가 등록되었습니다");
 
         assertThat(notificationService.findByRecipient(1L)).hasSize(1);
         assertThat(notificationService.findByRecipient(3L)).hasSize(1);
@@ -150,12 +151,30 @@ class NotificationServiceTest {
     }
 
     @Test
+    void 관리자가_입력한_제목이_푸시_제목으로_나간다() {
+        deviceTokenRepository.save(new DeviceToken(1L, "token-1"));
+
+        notificationService.publishAll(List.of(1L), NotificationType.MAINTENANCE,
+                "점검 안내", "8/29 새벽 점검 예정입니다.");
+
+        // 예전에는 제목이 유형 고정("공지사항")이라 관리자가 뭘 적든 무시됐다.
+        assertThat(pushSender.sent()).singleElement().satisfies(sent -> {
+            assertThat(sent.message().title()).isEqualTo("점검 안내");
+            assertThat(sent.message().body()).isEqualTo("8/29 새벽 점검 예정입니다.");
+            assertThat(sent.message().data()).containsEntry("type", "MAINTENANCE");
+        });
+        assertThat(notificationService.findByRecipient(1L)).singleElement()
+                .satisfies(n -> assertThat(n.getTitle()).isEqualTo("점검 안내"));
+    }
+
+    @Test
     void 공지를_꺼둔_사람은_전체발송에서도_빠진다() {
         settingService.updateSettings(2L, Map.of(NotificationType.NOTICE, false));
         deviceTokenRepository.save(new DeviceToken(1L, "token-1"));
         deviceTokenRepository.save(new DeviceToken(2L, "token-2"));
 
-        notificationService.publishAll(List.of(1L, 2L), NotificationType.NOTICE, "새 공지가 등록되었습니다");
+        notificationService.publishAll(List.of(1L, 2L), NotificationType.NOTICE,
+                "공지사항", "새 공지가 등록되었습니다");
 
         assertThat(notificationService.findByRecipient(2L)).isEmpty();
         assertThat(pushSender.sent()).extracting(FakePushSender.Sent::token)

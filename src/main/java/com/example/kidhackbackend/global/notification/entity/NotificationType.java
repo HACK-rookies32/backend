@@ -22,7 +22,13 @@ public enum NotificationType {
     DEVICE_POWER_OFF("트래킹 불가"), // No.4 전원/GPS 꺼짐
     HARMFUL_SITE("유해 접속 감지"),  // No.5 유해 사이트 감지
     APP_USAGE("앱 사용 알림"),
+
+    // 관리자 전체 알림(POST /api/admin/notifications/broadcast). 관리자 웹이 이 넷 중
+    // 하나를 골라 보낸다. 공지 작성과는 별개다 — 공지를 써도 알림은 나가지 않는다.
     NOTICE("공지사항"),
+    MAINTENANCE("점검 안내"),
+    UPDATE("업데이트 안내"),
+    EVENT("이벤트"),
 
     // 결제 도메인
     PAYMENT_APPROVED("결제 승인"),   // No.44 QR 매장결제 승인(부모 알림)
