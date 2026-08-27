@@ -32,7 +32,13 @@ dependencies {
     // 운영(Oracle)에서만 켜고 로컬/CI 는 H2 + ddl-auto 를 그대로 쓴다.
     // 마이그레이션 SQL 이 Oracle 문법이라 H2 에서 돌리면 깨지기 때문이다.
     // Flyway 10 부터 DB 별 지원이 별도 모듈로 분리되어 oracle 모듈이 따로 필요하다.
-    implementation 'org.flywaydb:flyway-core'
+    //
+    // ⚠️ flyway-core 만 넣으면 안 된다. Spring Boot 4 는 자동설정이 모듈별로 쪼개져서
+    //    FlywayAutoConfiguration 이 spring-boot-flyway 에 들어 있다(starter 가 이걸 끌고 온다).
+    //    라이브러리만 있고 자동설정이 없으면 spring.flyway.* 프로퍼티를 아무도 읽지 않아
+    //    마이그레이션이 조용히 실행되지 않는다. 로그도 한 줄 안 남는다.
+    //    운영에서는 그 결과가 ddl-auto: validate 의 "missing table" 로 뒤늦게 터진다.
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
     runtimeOnly 'org.flywaydb:flyway-database-oracle'
 
     // NoSQL (채팅용)
