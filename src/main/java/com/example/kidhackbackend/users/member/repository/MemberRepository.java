@@ -35,8 +35,19 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Member> findByIsDeletedFalse();
 
     // 관리자 - 고객(회원) 검색용. PARENT/CHILD만 대상으로 하고, role/keyword는 선택 필터.
-    @Query("SELECT m FROM Member m WHERE m.role IN ('PARENT', 'CHILD') " +
+// JPQL의 LIKE 파라미터 바인딩이 Hibernate 7.x + H2 조합에서 escape('') 문제로 매칭이 깨져서 네이티브 쿼리로 우회한다.
+    @Query(value = "SELECT * FROM member m WHERE m.role IN ('PARENT', 'CHILD') " +
             "AND (:role IS NULL OR m.role = :role) " +
-            "AND (:keyword IS NULL OR m.loginId LIKE %:keyword% OR m.username LIKE %:keyword% OR m.nickname LIKE %:keyword%)")
-    Page<Member> searchCustomers(@Param("role") Role role, @Param("keyword") String keyword, Pageable pageable);
+            "AND (:keyword IS NULL OR " +
+            "     m.login_id LIKE CONCAT('%', :keyword, '%') OR " +
+            "     m.username LIKE CONCAT('%', :keyword, '%') OR " +
+            "     m.nickname LIKE CONCAT('%', :keyword, '%'))",
+            countQuery = "SELECT count(*) FROM member m WHERE m.role IN ('PARENT', 'CHILD') " +
+                    "AND (:role IS NULL OR m.role = :role) " +
+                    "AND (:keyword IS NULL OR " +
+                    "     m.login_id LIKE CONCAT('%', :keyword, '%') OR " +
+                    "     m.username LIKE CONCAT('%', :keyword, '%') OR " +
+                    "     m.nickname LIKE CONCAT('%', :keyword, '%'))",
+            nativeQuery = true)
+    Page<Member> searchCustomers(@Param("role") String role, @Param("keyword") String keyword, Pageable pageable);
 }

@@ -95,3 +95,7 @@ app:
 firebase:
   credentials-path: firebase-service-account.json
 
+server:
+  tomcat:
+    uri-encoding: UTF-8
+
