@@ -30,7 +30,9 @@ public class AdminCustomerService {
     private final AdminFinanceQueryService adminFinanceQueryService;
 
     public Page<AdminCustomerResponse> getCustomers(Role role, String keyword, Pageable pageable) {
-        return memberRepository.searchCustomers(role, keyword, pageable).map(AdminCustomerResponse::from);
+        String roleParam = (role != null) ? role.name() : null;
+        String keywordParam = (keyword != null && !keyword.isBlank()) ? keyword : null;
+        return memberRepository.searchCustomers(roleParam, keywordParam, pageable).map(AdminCustomerResponse::from);
     }
 
     public AdminCustomerResponse getCustomer(Long id) {
