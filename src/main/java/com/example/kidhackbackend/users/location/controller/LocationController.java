@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.example.kidhackbackend.users.member.entity.Member;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import java.util.List;
 
 /**
@@ -68,6 +70,16 @@ public class LocationController {
                 TrackingSettingResponse.from(trackingSettingService.setRealtime(childId, enabled))));
     }
 
+    /** 실시간 위치 추적 on/off 현재 상태 조회(부모). 설정이 없으면 기본 false. */
+    // [VULN-LOC-1] childId 소유권 미검증 → 남의 자녀의 실시간 추적 활성화 여부를 열람할 수 있다(감시 상태 노출).
+    //              VULN-LOC-3(토글 시 childId 미검증)·VULN-LOC-5(감사 로그 부재)와 결합하면
+    //              남의 자녀를 몰래 ON 시킨 뒤 유지 여부까지 확인 가능하다(스토킹 시나리오 완결).
+    @GetMapping("/tracking/{childId}/realtime")
+    public ResponseEntity<ApiResponse<TrackingSettingResponse>> getRealtime(@PathVariable Long childId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                new TrackingSettingResponse(childId, trackingSettingService.isRealtimeEnabled(childId))));
+    }
+
     /** 자녀의 저장된 동선 조회(최신순). */
     // [VULN-LOC-1] 경로의 childId가 인증된 부모의 '자기 자녀'인지 검증하지 않는다.
     //              → 아무 부모나 임의의 childId로 남의 자녀 동선을 조회할 수 있다(IDOR).
@@ -101,5 +113,13 @@ public class LocationController {
         return ResponseEntity.ok(ApiResponse.success(placeService.findEvents(childId).stream()
                 .map(PlaceEventResponse::from)
                 .toList()));
+    }
+    /** 지오펜스/목적지 삭제. 본인 자녀 소유의 장소인지 검증한다. */
+    @DeleteMapping("/places/{placeId}")
+    public ResponseEntity<ApiResponse<Void>> deletePlace(
+            @AuthenticationPrincipal Member member,
+            @PathVariable Long placeId) {
+        placeService.delete(placeId, member);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

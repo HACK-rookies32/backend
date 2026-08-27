@@ -83,7 +83,8 @@ public class MyPageService {
                 member.getEmail(),
                 member.getPhoneNumber(),
                 member.getAddress(),
-                member.getProfileImageUrl()
+                member.getProfileImageUrl(),
+                member.getParent() != null ? member.getParent().getId() : null
         );
     }
 }

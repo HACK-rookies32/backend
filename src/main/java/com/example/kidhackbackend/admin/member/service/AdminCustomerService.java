@@ -35,6 +35,14 @@ public class AdminCustomerService {
         return memberRepository.searchCustomers(roleParam, keywordParam, pageable).map(AdminCustomerResponse::from);
     }
 
+    /**
+     * 고객 전체 목록. 리포트(CSV)에서 목록 조회와 완전히 동일한 기준(PARENT/CHILD)으로 쓰려고
+     * 필터·페이징 없이 같은 쿼리를 재사용한다.
+     */
+    public List<AdminCustomerResponse> getAllCustomers() {
+        return getCustomers(null, null, Pageable.unpaged()).getContent();
+    }
+
     public AdminCustomerResponse getCustomer(Long id) {
         return AdminCustomerResponse.from(findMember(id));
     }

@@ -52,6 +52,8 @@ public class LocationSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/location/track").hasRole("CHILD")
                         // 부모: 실시간 추적 토글
                         .requestMatchers(HttpMethod.PATCH, "/api/location/tracking/*/realtime").hasRole("PARENT")
+                        // 부모: 실시간 추적 토글 상태 조회
+                        .requestMatchers(HttpMethod.GET, "/api/location/tracking/*/realtime").hasRole("PARENT")
                         // 부모: 동선/공간/이벤트 조회 및 공간 등록
                         .requestMatchers(HttpMethod.GET, "/api/location/track/*").hasRole("PARENT")
                         .requestMatchers("/api/location/places/**").hasRole("PARENT")

@@ -8,6 +8,8 @@ import com.example.kidhackbackend.users.location.repository.PlaceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.kidhackbackend.users.member.entity.Member;
+import com.example.kidhackbackend.users.member.repository.MemberRepository;
 
 import java.util.List;
 
@@ -15,7 +17,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class PlaceService {
-
+    private final MemberRepository memberRepository;
     private final PlaceRepository placeRepository;
     private final PlaceEventRepository eventRepository;
 
@@ -38,5 +40,20 @@ public class PlaceService {
     @Transactional(readOnly = true)
     public List<PlaceEvent> findEvents(Long childId) {
         return eventRepository.findByChildIdOrderByOccurredAtDesc(childId);
+    }
+
+    @Transactional
+    public void delete(Long placeId, Member requester) {
+        Place place = placeRepository.findById(placeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 장소입니다."));
+
+        Member child = memberRepository.findById(place.getChildId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 자녀입니다."));
+
+        if (child.getParent() == null || !child.getParent().getId().equals(requester.getId())) {
+            throw new IllegalArgumentException("본인 자녀의 장소만 삭제할 수 있습니다.");
+        }
+
+        placeRepository.delete(place);
     }
 }
