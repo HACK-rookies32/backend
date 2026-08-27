@@ -15,7 +15,9 @@ public enum UploadCategory {
     COMMUNITY("community"),
     INQUIRY("inquiry"),
     /** 프로필 이미지. 회원가입·프로필 수정에서 profileImageUrl 로 저장된다. */
-    PROFILE("profile");
+    PROFILE("profile"),
+    /** 자녀 화면 캡처. 1시간 주기 자동 또는 부모 요청분. */
+    SCREENSHOT("screenshot");
 
     private final String segment;
 

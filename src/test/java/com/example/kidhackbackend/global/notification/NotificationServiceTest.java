@@ -11,6 +11,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,6 +25,9 @@ class NotificationServiceTest {
     @Autowired
     NotificationRepository repository;
 
+    @Autowired
+    NotificationSettingService settingService;
+
     @Test
     void 알림을_발행하면_수신자별로_조회된다() {
         notificationService.publish(1L, NotificationType.LOCATION_ENTER, "학원에 진입했습니다.");
@@ -33,6 +37,25 @@ class NotificationServiceTest {
         List<Notification> forOne = notificationService.findByRecipient(1L);
         assertThat(forOne).hasSize(2);
         assertThat(notificationService.findByRecipient(2L)).hasSize(1);
+    }
+
+    @Test
+    void 자녀가_알림_설정을_꺼도_촬영_트리거는_발송된다() {
+        // 자녀가 자기 설정으로 끄려고 시도한다(감시 회피 시나리오).
+        settingService.updateSettings(7L, Map.of(NotificationType.SCREENSHOT_REQUESTED, false));
+
+        notificationService.publish(7L, NotificationType.SCREENSHOT_REQUESTED, "부모가 화면 캡처를 요청했습니다.");
+
+        assertThat(notificationService.findByRecipient(7L)).hasSize(1);
+    }
+
+    @Test
+    void 꺼둔_일반_알림은_발송되지_않는다() {
+        settingService.updateSettings(7L, Map.of(NotificationType.HARMFUL_SITE, false));
+
+        notificationService.publish(7L, NotificationType.HARMFUL_SITE, "유해 사이트 접속이 감지되었습니다.");
+
+        assertThat(notificationService.findByRecipient(7L)).isEmpty();
     }
 
     @Test
