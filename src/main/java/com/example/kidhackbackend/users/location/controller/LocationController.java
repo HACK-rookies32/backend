@@ -23,7 +23,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import com.example.kidhackbackend.users.member.entity.Member;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import java.util.List;
 
 /**
@@ -101,5 +103,13 @@ public class LocationController {
         return ResponseEntity.ok(ApiResponse.success(placeService.findEvents(childId).stream()
                 .map(PlaceEventResponse::from)
                 .toList()));
+    }
+    /** 지오펜스/목적지 삭제. 본인 자녀 소유의 장소인지 검증한다. */
+    @DeleteMapping("/places/{placeId}")
+    public ResponseEntity<ApiResponse<Void>> deletePlace(
+            @AuthenticationPrincipal Member member,
+            @PathVariable Long placeId) {
+        placeService.delete(placeId, member);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }
