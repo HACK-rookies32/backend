@@ -4,6 +4,7 @@ import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardRequest;
 import com.example.kidhackbackend.users.inquiry.dto.BoardResponse;
+import com.example.kidhackbackend.users.inquiry.dto.InquiryPageResponse;
 import com.example.kidhackbackend.users.inquiry.service.BoardService;
 import com.example.kidhackbackend.users.inquiry.service.InquiryFileStorageService;
 import com.example.kidhackbackend.users.member.entity.Member;
@@ -16,7 +17,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.Map;
 
 @Tag(name = "Board", description = "1:1 문의 게시판 API (회원)")
@@ -46,12 +46,14 @@ public class BoardController {
         return ResponseEntity.ok(ApiResponse.success(boardService.createBoard(member, request)));
     }
 
-    @Operation(summary = "게시글 목록 조회 (본인 문의만)")
+    @Operation(summary = "게시글 목록 조회 (본인 문의만, 페이징)")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<BoardResponse>>> getMyBoards(
-            @AuthenticationPrincipal Member member) {
+    public ResponseEntity<ApiResponse<InquiryPageResponse>> getMyBoards(
+            @AuthenticationPrincipal Member member,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         requireParent(member);
-        return ResponseEntity.ok(ApiResponse.success(boardService.getMyBoards(member)));
+        return ResponseEntity.ok(ApiResponse.success(boardService.getMyBoards(member, page, size)));
     }
 
     @Operation(summary = "게시글 상세 조회")
