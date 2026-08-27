@@ -2,6 +2,7 @@ package com.example.kidhackbackend.global.notification;
 
 import com.example.kidhackbackend.global.notification.entity.Notification;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.push.MockPushSender;
 import com.example.kidhackbackend.global.notification.repository.NotificationRepository;
 import com.example.kidhackbackend.global.notification.service.NotificationService;
 import com.example.kidhackbackend.global.notification.service.NotificationSettingService;
@@ -16,7 +17,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@Import({NotificationService.class, NotificationSettingService.class})
+// @DataJpaTest 는 슬라이스라 컴포넌트 스캔을 하지 않는다. 그래서 NotificationService 가
+// 생성자로 받는 PushPort 구현체도 여기서 직접 넣어 줘야 컨텍스트가 뜬다.
+// 빠지면 NoSuchBeanDefinitionException('PushPort') 로 죽는다.
+@Import({NotificationService.class, NotificationSettingService.class, MockPushSender.class})
 class NotificationServiceTest {
 
     @Autowired
