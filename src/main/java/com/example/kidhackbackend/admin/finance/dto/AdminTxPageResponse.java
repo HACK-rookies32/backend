@@ -13,14 +13,20 @@ public record AdminTxPageResponse(
         int page,
         int size,
         long totalElements,
-        int totalPages) {
+        int totalPages,
+        Long walletBalance) {   // 추가: userId로 조회했을 때만 값 채워짐, 전체 조회 시 null
 
     public static AdminTxPageResponse from(Page<WalletTransaction> page) {
+        return from(page, null);
+    }
+
+    public static AdminTxPageResponse from(Page<WalletTransaction> page, Long walletBalance) {
         return new AdminTxPageResponse(
                 page.getContent().stream().map(TxResponse::from).toList(),
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),
-                page.getTotalPages());
+                page.getTotalPages(),
+                walletBalance);
     }
 }

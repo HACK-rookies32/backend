@@ -3,7 +3,6 @@ package com.example.kidhackbackend.adminfinance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.kidhackbackend.admin.finance.dto.AdminTxPageResponse;
-import com.example.kidhackbackend.admin.finance.dto.AdminUserWalletResponse;
 import com.example.kidhackbackend.admin.finance.dto.FinanceStatsResponse;
 import com.example.kidhackbackend.admin.finance.service.AdminFinanceQueryService;
 import com.example.kidhackbackend.global.config.JpaAuditingConfig;
@@ -83,14 +82,21 @@ class AdminFinanceQueryServiceTest {
     }
 
     @Test
-    void 회원_지갑_잔액과_최근거래() {
+    void userId지정시_잔액도_함께_반환() {
         long wa = wallet(USER_A, 5000L);
         tx(wa, TxType.CHARGE, 5000L, 5000L);
         tx(wa, TxType.PAYMENT, 2000L, 3000L);
 
-        AdminUserWalletResponse res = service.getUserWallet(USER_A);
-        assertThat(res.balance()).isEqualTo(5000L);
-        assertThat(res.recentTransactions()).hasSize(2);
+        AdminTxPageResponse res = service.getTransactions(USER_A, null, null, null, 0, 20);
+        assertThat(res.walletBalance()).isEqualTo(5000L);
+        assertThat(res.content()).hasSize(2);
+    }
+
+    @Test
+    void userId없이_전체조회시_잔액은_null() {
+        wallet(USER_A, 5000L);
+        AdminTxPageResponse res = service.getTransactions(null, null, null, null, 0, 20);
+        assertThat(res.walletBalance()).isNull();
     }
 
     @Test
