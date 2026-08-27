@@ -69,6 +69,24 @@ public class AdminSecurityConfig {
         return http.build();
     }
 
+    // 1:1 문의 관리 경로 필터 체인 (문의 기록 CSV 리포트 포함)
+    @Bean
+    @Order(13)   // 다른 admin 체인과 겹치지 않는 값. securityMatcher가 서로 배타적이라 순서 의존성은 없다.
+    public SecurityFilterChain adminInquiryFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/admin/inquiries/**")
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // 문의 조회/답변/CSV 리포트는 SUPER_ADMIN, INQUIRY_ADMIN 만 가능
+                        .anyRequest().hasAnyRole("SUPER_ADMIN", "INQUIRY_ADMIN")
+                )
+                .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler));
+        return http.build();
+    }
+
     // 공지사항 super admin만
     @Bean
     @Order(12)   // 4 -> 12 (adminHarmfulKeywordFilterChain과 충돌 방지)
