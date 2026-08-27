@@ -1,8 +1,11 @@
 package com.example.kidhackbackend.global.notification.service;
 
+import com.example.kidhackbackend.global.notification.entity.DeviceToken;
 import com.example.kidhackbackend.global.notification.entity.Notification;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.push.PushMessage;
 import com.example.kidhackbackend.global.notification.push.PushPort;
+import com.example.kidhackbackend.global.notification.push.PushResult;
 import com.example.kidhackbackend.global.notification.repository.DeviceTokenRepository;
 import com.example.kidhackbackend.global.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,7 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -30,13 +35,83 @@ public class NotificationService implements NotificationPort {
             return;
         }
 
-        repository.save(new Notification(recipientId, type, message));
-        sendPush(recipientId, type, message);
+        Notification saved = repository.save(new Notification(recipientId, type, message));
+        sendPush(saved);
     }
 
-    private void sendPush(Long recipientId, NotificationType type, String message) {
-        deviceTokenRepository.findByMemberId(recipientId)
-                .ifPresent(deviceToken -> pushPort.sendPush(deviceToken.getToken(), type.name(), message));
+    /**
+     * 여러 수신자에게 같은 알림을 보낸다(공지 전체발송).
+     *
+     * <p>예전에는 회원 수만큼 {@link #publish} 를 돌려 FCM 을 한 명씩 호출했다. 여기서는
+     * 토큰을 모아 멀티캐스트 한 번으로 보낸다. 알림 저장과 설정(끔) 확인은 기존과 동일하게
+     * 수신자별로 한다.
+     */
+    @Transactional
+    public void publishAll(Collection<Long> recipientIds, NotificationType type, String message) {
+        List<Long> targets = recipientIds.stream()
+                .filter(recipientId -> notificationSettingService.isEnabled(recipientId, type))
+                .toList();
+        if (targets.isEmpty()) {
+            return;
+        }
+
+        repository.saveAll(targets.stream()
+                .map(recipientId -> new Notification(recipientId, type, message))
+                .toList());
+
+        List<String> tokens = deviceTokenRepository.findAllByMemberIdIn(targets).stream()
+                .map(DeviceToken::getToken)
+                .toList();
+        if (tokens.isEmpty()) {
+            return;
+        }
+
+        // 수신자마다 알림 id 가 달라 notificationId 는 싣지 않는다. 앱은 type 으로 목록을 연다.
+        PushMessage push = new PushMessage(type.getTitle(), message, Map.of("type", type.name()));
+        Map<String, PushResult> results = pushPort.sendMulticast(tokens, push);
+
+        deleteInvalidTokens(results.entrySet().stream()
+                .filter(entry -> entry.getValue() == PushResult.TOKEN_INVALID)
+                .map(Map.Entry::getKey)
+                .toList());
+    }
+
+    private void sendPush(Notification notification) {
+        deviceTokenRepository.findByMemberId(notification.getRecipientId())
+                .ifPresent(deviceToken -> {
+                    PushResult result = pushPort.sendPush(deviceToken.getToken(), toPushMessage(notification));
+                    if (result == PushResult.TOKEN_INVALID) {
+                        deleteInvalidTokens(List.of(deviceToken.getToken()));
+                    }
+                });
+    }
+
+    /**
+     * 알림창에 보이는 제목/본문과, 앱이 탭 처리에 쓰는 data 를 만든다.
+     *
+     * <p>제목에 {@code type.name()} 을 넣던 시절에는 사용자 화면에 "PAYMENT_APPROVED" 가
+     * 그대로 떴다. 유형은 눈에 보이지 않는 data 로 넘긴다.
+     */
+    private PushMessage toPushMessage(Notification notification) {
+        return new PushMessage(
+                notification.getType().getTitle(),
+                notification.getMessage(),
+                Map.of(
+                        "type", notification.getType().name(),
+                        "notificationId", String.valueOf(notification.getId())
+                ));
+    }
+
+    /**
+     * FCM 이 "이 토큰은 죽었다" 고 답한 것만 지운다. 네트워크 실패 같은 일시적 오류로는
+     * 지우지 않는다({@link PushResult} 참고).
+     */
+    private void deleteInvalidTokens(List<String> tokens) {
+        if (tokens.isEmpty()) {
+            return;
+        }
+        deviceTokenRepository.deleteByTokenIn(tokens);
+        log.info("무효 기기 토큰 {} 건을 정리했다.", tokens.size());
     }
 
     @Transactional(readOnly = true)
