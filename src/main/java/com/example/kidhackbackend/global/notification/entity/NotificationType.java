@@ -13,9 +13,11 @@ public enum NotificationType {
     DEVICE_POWER_OFF,   // No.4 전원/GPS 꺼짐
     HARMFUL_SITE,       // No.5 유해 사이트 감지
     APP_USAGE,
+    NOTICE,
 
     // 결제 도메인
     PAYMENT_APPROVED,   // No.44 QR 매장결제 승인(부모 알림)
+    PAYMENT_CANCELED,   // No.46 매장결제 취소(부모 알림)
 
     // 화면 캡처 도메인
     SCREENSHOT_REQUESTED, // 부모가 자녀 앱에 즉시 촬영을 요청(자녀 기기로 트리거)

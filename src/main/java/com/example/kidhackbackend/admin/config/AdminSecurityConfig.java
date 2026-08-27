@@ -32,6 +32,7 @@ public class AdminSecurityConfig {
                         .accessDeniedHandler(jwtAccessDeniedHandler));
         return http.build();
     }
+
     // 커뮤니티 관리자 경로 필터 체인 추가
     @Bean
     @Order(3)
@@ -47,6 +48,52 @@ public class AdminSecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                         .accessDeniedHandler(jwtAccessDeniedHandler));
+        return http.build();
+    }
+
+    // 전역 유해 키워드 관리 경로 필터 체인
+    @Bean
+    @Order(4)
+    public SecurityFilterChain adminHarmfulKeywordFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/admin/harmful-keywords/**")
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // 전역 차단 키워드는 SUPER_ADMIN 만 관리 가능
+                        .anyRequest().hasRole("SUPER_ADMIN")
+                )
+                .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler));
+        return http.build();
+    }
+
+    // 공지사항 super admin만
+    @Bean
+    @Order(12)   // 4 -> 12 (adminHarmfulKeywordFilterChain과 충돌 방지)
+    public SecurityFilterChain adminNoticeFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/admin/notices/**")
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().hasRole("SUPER_ADMIN")
+                )
+                .csrf(csrf -> csrf.disable())
+                .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
+    // 전체 관리자 모두 가능
+    @Bean
+    @Order(10)
+    public SecurityFilterChain adminNotificationBroadcastFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/api/admin/notifications/**")
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN", "COMMUNITY_ADMIN", "INQUIRY_ADMIN")
+                )
+                .csrf(csrf -> csrf.disable())
+                .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

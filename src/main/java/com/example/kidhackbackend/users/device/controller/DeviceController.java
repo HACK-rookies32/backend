@@ -28,7 +28,7 @@ public class DeviceController {
     /** 자녀 앱이 전원/GPS 꺼짐을 보고 → '트래킹 불가' 알림 발행. */
     @PostMapping("/event")
     public ResponseEntity<ApiResponse<Void>> report(@Valid @RequestBody DeviceEventRequest request) {
-        deviceEventService.report(request.childId(), request.type());
+        deviceEventService.report(request.childId(), request.deviceId(), request.type());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

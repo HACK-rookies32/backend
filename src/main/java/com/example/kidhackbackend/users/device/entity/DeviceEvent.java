@@ -35,12 +35,17 @@ public class DeviceEvent extends BaseEntity {
     @Column(nullable = false)
     private Long childId;
 
+    /** 기기 식별자 (관리자 페이지의 "등록 기기 목록" 구분용으로 추가) */
+    @Column(nullable = false)
+    private String deviceId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private DeviceEventType type;
 
-    public DeviceEvent(Long childId, DeviceEventType type) {
+    public DeviceEvent(Long childId, String deviceId, DeviceEventType type) {
         this.childId = childId;
+        this.deviceId = deviceId;
         this.type = type;
     }
 }

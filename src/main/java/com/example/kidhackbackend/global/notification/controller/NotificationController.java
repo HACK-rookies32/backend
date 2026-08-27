@@ -42,4 +42,10 @@ public class NotificationController {
         notificationService.markAsRead(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
+
+    /** 수신자의 안읽음 알림 개수(폴링용). */
+    @GetMapping("/{recipientId}/unread-count")
+    public ResponseEntity<ApiResponse<Long>> unreadCount(@PathVariable Long recipientId) {
+        return ResponseEntity.ok(ApiResponse.success(notificationService.countUnread(recipientId)));
+    }
 }
