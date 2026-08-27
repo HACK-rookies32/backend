@@ -41,6 +41,15 @@ public class Notification extends BaseEntity {
     @Column(nullable = false)
     private NotificationType type;
 
+    /**
+     * 알림 제목. 단건 알림은 {@link NotificationType#getTitle()} 을 그대로 쓰고,
+     * 관리자 전체 알림은 관리자가 입력한 제목이 들어온다.
+     *
+     * <p>nullable 인 이유: 이 컬럼이 생기기 전에 쌓인 행이 있다(V4 이전). 새로 만드는
+     * 행은 생성자가 항상 채운다.
+     */
+    private String title;
+
     @Column(nullable = false)
     private String message;
 
@@ -48,9 +57,16 @@ public class Notification extends BaseEntity {
     @Column(name = "is_read", nullable = false)
     private boolean read;
 
+    /** 단건 알림. 제목은 유형이 정한 것을 쓴다. */
     public Notification(Long recipientId, NotificationType type, String message) {
+        this(recipientId, type, type.getTitle(), message);
+    }
+
+    /** 제목을 직접 정하는 알림(관리자 전체 알림). */
+    public Notification(Long recipientId, NotificationType type, String title, String message) {
         this.recipientId = recipientId;
         this.type = type;
+        this.title = title;
         this.message = message;
         this.read = false;
     }
