@@ -5,9 +5,9 @@ import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.inquiry.service.InquiryAdminService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
-import com.example.kidhackbackend.users.inquiry.dto.BoardResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerRequest;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerResponse;
+import com.example.kidhackbackend.users.inquiry.dto.InquiryPageResponse;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Set;
 
 @Tag(name = "InquiryAdmin", description = "1:1 문의 게시판 API (관리자)")
@@ -40,12 +39,14 @@ public class InquiryAdminController {
         }
     }
 
-    @Operation(summary = "전체 문의 목록 조회")
+    @Operation(summary = "전체 문의 목록 조회 (페이징)")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<BoardResponse>>> getAllInquiries(
-            @AuthenticationPrincipal Member member) {
+    public ResponseEntity<ApiResponse<InquiryPageResponse>> getAllInquiries(
+            @AuthenticationPrincipal Member member,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         requireInquiryAdmin(member);
-        return ResponseEntity.ok(ApiResponse.success(inquiryAdminService.getAllInquiries()));
+        return ResponseEntity.ok(ApiResponse.success(inquiryAdminService.getAllInquiries(page, size)));
     }
 
     @Operation(summary = "문의 상세 조회")

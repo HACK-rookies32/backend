@@ -4,12 +4,16 @@ import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardRequest;
 import com.example.kidhackbackend.users.inquiry.dto.BoardResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerResponse;
+import com.example.kidhackbackend.users.inquiry.dto.InquiryPageResponse;
 import com.example.kidhackbackend.users.inquiry.entity.Board;
 import com.example.kidhackbackend.users.inquiry.entity.InquiryAnswer;
 import com.example.kidhackbackend.users.inquiry.repository.BoardRepository;
 import com.example.kidhackbackend.users.inquiry.repository.InquiryAnswerRepository;
 import com.example.kidhackbackend.users.member.entity.Member;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,10 +42,21 @@ public class BoardService {
         return toResponse(board);
     }
 
-    public List<BoardResponse> getMyBoards(Member member) {
-        return boardRepository.findByMemberIdOrderByCreatedAtDesc(member.getId()).stream()
+    public InquiryPageResponse getMyBoards(Member member, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Board> result = boardRepository.findByMemberIdOrderByCreatedAtDesc(member.getId(), pageable);
+
+        List<BoardResponse> content = result.getContent().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+
+        return new InquiryPageResponse(
+                content,
+                result.getNumber(),
+                result.getSize(),
+                result.getTotalElements(),
+                result.getTotalPages()
+        );
     }
 
     public BoardDetailResponse getBoardDetail(Long boardId) {
