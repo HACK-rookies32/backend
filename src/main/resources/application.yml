@@ -29,6 +29,11 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  # 로컬/CI 는 H2 라 Flyway 를 켜지 않는다. 마이그레이션 SQL 이 Oracle 문법이고,
+  # 위 ddl-auto 가 엔티티에서 직접 스키마를 만들어 주므로 여기서는 필요가 없다.
+  # 운영은 prod yml 이 이 값을 true 로 덮어쓴다.
+  flyway:
+    enabled: false
   data:
     mongodb:
       uri: mongodb://localhost:27017/kidhack_chat

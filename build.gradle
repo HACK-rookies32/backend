@@ -28,6 +28,13 @@ dependencies {
     runtimeOnly 'com.h2database:h2'
     runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.26.3.0.0'
 
+    // 스키마 마이그레이션.
+    // 운영(Oracle)에서만 켜고 로컬/CI 는 H2 + ddl-auto 를 그대로 쓴다.
+    // 마이그레이션 SQL 이 Oracle 문법이라 H2 에서 돌리면 깨지기 때문이다.
+    // Flyway 10 부터 DB 별 지원이 별도 모듈로 분리되어 oracle 모듈이 따로 필요하다.
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.flywaydb:flyway-database-oracle'
+
     // NoSQL (채팅용)
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 
