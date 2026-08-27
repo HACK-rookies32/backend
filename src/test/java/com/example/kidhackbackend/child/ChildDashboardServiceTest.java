@@ -6,6 +6,7 @@ import com.example.kidhackbackend.users.filtering.repository.BlockRuleRepository
 import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
 import com.example.kidhackbackend.global.config.JpaAuditingConfig;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.push.MockPushSender;
 import com.example.kidhackbackend.global.notification.service.NotificationService;
 import com.example.kidhackbackend.global.notification.service.NotificationSettingService;
 import com.example.kidhackbackend.users.location.dto.TrackRequest;
@@ -22,9 +23,14 @@ import org.springframework.context.annotation.Import;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
+// @DataJpaTest 는 슬라이스라 컴포넌트 스캔을 하지 않는다. NotificationService 가 생성자로
+// 받는 PushPort 구현체(MockPushSender)까지 직접 넣어 줘야 컨텍스트가 뜬다.
+// 빠지면 ChildDashboardService -> NotificationService -> PushPort 순으로 타고 내려가
+// NoSuchBeanDefinitionException('PushPort') 로 죽는다.
 @Import({ChildDashboardService.class, TrackingService.class, TrackingSettingService.class,
         PlaceService.class, GeofenceService.class, LogAlertAdapter.class,
-        NotificationService.class, NotificationSettingService.class, BlockRuleService.class, JpaAuditingConfig.class})
+        NotificationService.class, NotificationSettingService.class, BlockRuleService.class,
+        MockPushSender.class, JpaAuditingConfig.class})
 class ChildDashboardServiceTest {
 
     @Autowired ChildDashboardService dashboardService;
