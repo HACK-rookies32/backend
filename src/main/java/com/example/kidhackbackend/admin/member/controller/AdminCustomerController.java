@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.admin.member.controller;
 
+import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.finance.dto.AdminUserWalletResponse;
 import com.example.kidhackbackend.admin.member.dto.AdminCustomerResponse;
 import com.example.kidhackbackend.admin.member.dto.AdminCustomerUpdateRequest;
@@ -23,6 +25,7 @@ import java.util.List;
 public class AdminCustomerController {
 
     private final AdminCustomerService adminCustomerService;
+    private final AdminAuditLogService adminAuditLogService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<Page<AdminCustomerResponse>>> getCustomers(
@@ -42,12 +45,15 @@ public class AdminCustomerController {
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<AdminCustomerResponse>> updateCustomer(
             @PathVariable Long id, @RequestBody AdminCustomerUpdateRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(adminCustomerService.updateCustomer(id, request)));
+        AdminCustomerResponse response = adminCustomerService.updateCustomer(id, request);
+        adminAuditLogService.record(AdminActivityType.MEMBER_UPDATE, id);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteCustomer(@PathVariable Long id) {
         adminCustomerService.deleteCustomer(id);
+        adminAuditLogService.record(AdminActivityType.MEMBER_DELETE, id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 

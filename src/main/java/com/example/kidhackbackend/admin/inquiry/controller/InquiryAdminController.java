@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.admin.inquiry.controller;
 
+import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.inquiry.service.InquiryAdminService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
@@ -25,6 +27,7 @@ import java.util.Set;
 public class InquiryAdminController {
 
     private final InquiryAdminService inquiryAdminService;
+    private final AdminAuditLogService adminAuditLogService;
 
     private static final Set<Role> ALLOWED_ROLES = Set.of(Role.SUPER_ADMIN, Role.INQUIRY_ADMIN);
 
@@ -61,7 +64,9 @@ public class InquiryAdminController {
             @PathVariable Long id,
             @RequestBody InquiryAnswerRequest request) {
         requireInquiryAdmin(member);
-        return ResponseEntity.ok(ApiResponse.success(inquiryAdminService.createAnswer(id, request)));
+        InquiryAnswerResponse response = inquiryAdminService.createAnswer(id, request);
+        adminAuditLogService.record(member, AdminActivityType.INQUIRY_ANSWER_CREATE, id);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @Operation(summary = "답변 수정")
@@ -71,7 +76,9 @@ public class InquiryAdminController {
             @PathVariable Long id,
             @RequestBody InquiryAnswerRequest request) {
         requireInquiryAdmin(member);
-        return ResponseEntity.ok(ApiResponse.success(inquiryAdminService.updateAnswer(id, request)));
+        InquiryAnswerResponse response = inquiryAdminService.updateAnswer(id, request);
+        adminAuditLogService.record(member, AdminActivityType.INQUIRY_ANSWER_UPDATE, id);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @Operation(summary = "답변 삭제")
@@ -81,6 +88,7 @@ public class InquiryAdminController {
             @PathVariable Long id) {
         requireInquiryAdmin(member);
         inquiryAdminService.deleteAnswer(id);
+        adminAuditLogService.record(member, AdminActivityType.INQUIRY_ANSWER_DELETE, id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

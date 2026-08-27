@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.admin.filtering.controller;
 
+import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.filtering.dto.HarmfulKeywordRequest;
 import com.example.kidhackbackend.admin.filtering.dto.HarmfulKeywordResponse;
 import com.example.kidhackbackend.admin.filtering.service.AdminHarmfulKeywordService;
@@ -29,6 +31,7 @@ import java.util.List;
 public class AdminHarmfulKeywordController {
 
     private final AdminHarmfulKeywordService adminHarmfulKeywordService;
+    private final AdminAuditLogService adminAuditLogService;
 
     @Operation(summary = "차단 키워드 목록 조회")
     @GetMapping
@@ -42,6 +45,7 @@ public class AdminHarmfulKeywordController {
     public ResponseEntity<ApiResponse<HarmfulKeywordResponse>> addKeyword(
             @Valid @RequestBody HarmfulKeywordRequest request) {
         HarmfulKeywordResponse response = adminHarmfulKeywordService.addKeyword(request);
+        adminAuditLogService.record(AdminActivityType.HARMFUL_KEYWORD_ADD, response.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
@@ -49,6 +53,7 @@ public class AdminHarmfulKeywordController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteKeyword(@PathVariable Long id) {
         adminHarmfulKeywordService.deleteKeyword(id);
+        adminAuditLogService.record(AdminActivityType.HARMFUL_KEYWORD_DELETE, id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.admin.finance.service;
 
+import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.finance.dto.AdminActionResponse;
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
 import com.example.kidhackbackend.users.qrpay.entity.QrPayment;
@@ -17,8 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 관리자 자금 변경 — 역할표 No.48(강제환불)·No.50(잔액 수동조정). SUPER_ADMIN 전용(의도).
  *
- * <p>⚠️ 역할표상 두 기능 모두 "감사로그 자동기록"이 구현 포인트지만, 감사로그 모듈이 없어 제외한다
- * (그 부재가 {@code [VULN-ADMIN-4]}). 자금이 실제로 움직이므로 정상 운영이라면 감사로그 필수.
+ * <p>역할표상 두 기능 모두 "감사로그 자동기록"이 구현 포인트다. 다른 admin 기능은 컨트롤러에서
+ * 감사로그를 남기지만, 이 둘만 서비스 안에서 남긴다 — 기록할 대상(결제 id·지갑 id)이 여기서야 확정되고,
+ * 돈이 움직인 트랜잭션과 같은 범위에서 커밋돼야 "잔액은 바뀌었는데 이력은 없다" 가 생기지 않기 때문이다.
  */
 @Service
 @RequiredArgsConstructor
@@ -27,6 +30,7 @@ public class AdminFinanceCommandService {
     private final QrPaymentRepository qrPaymentRepository;
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final AdminAuditLogService adminAuditLogService;
 
     /** No.48 강제환불: 자녀 QR 결제를 강제 환불(자녀 지갑 원복 + REFUND). */
     @Transactional
@@ -50,8 +54,8 @@ public class AdminFinanceCommandService {
         WalletTransaction tx = walletTransactionRepository.save(
                 new WalletTransaction(wallet.getId(), TxType.REFUND, amount, wallet.getBalance(), qrToken));
 
-        // [VULN-ADMIN-4] 감사 추적 부재: 관리자 강제환불이 로그로 남지 않아 오남용 추적/부인방지 불가.
-        //   TODO(감사로그): 관리자 id·대상·금액·사유·시각을 audit_log에 기록.
+        // 감사로그: 누가 어느 결제를 강제환불했는지 남긴다(대상은 결제 건).
+        adminAuditLogService.record(AdminActivityType.PAYMENT_REFUND, qr.getId());
 
         return new AdminActionResponse(qr.getChildId(), wallet.getBalance(), TxResponse.from(tx));
     }
@@ -71,7 +75,8 @@ public class AdminFinanceCommandService {
         WalletTransaction tx = walletTransactionRepository.save(
                 new WalletTransaction(wallet.getId(), TxType.ADJUST, amount, wallet.getBalance(), reason));
 
-        // [VULN-ADMIN-4] 감사 추적 부재 — TODO(감사로그): 관리자 id·대상·금액·사유 기록.
+        // 감사로그: 누가 어느 지갑을 손으로 조정했는지 남긴다(대상은 지갑).
+        adminAuditLogService.record(AdminActivityType.WALLET_BALANCE_ADJUST, wallet.getId());
 
         return new AdminActionResponse(userId, wallet.getBalance(), TxResponse.from(tx));
     }

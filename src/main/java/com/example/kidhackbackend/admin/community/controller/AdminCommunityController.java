@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.admin.community.controller;
 
+import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.community.dto.AdminCommentResponse;
 import com.example.kidhackbackend.admin.community.dto.AdminPostDetailResponse;
 import com.example.kidhackbackend.admin.community.dto.AdminPostResponse;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminCommunityController {
 
     private final AdminCommunityService adminCommunityService;
+    private final AdminAuditLogService adminAuditLogService;
 
     private void requireParent(Member member) {
         if (member == null) {
@@ -110,6 +113,7 @@ public class AdminCommunityController {
             @AuthenticationPrincipal Member member,
             @PathVariable("postId") Long postId) {
         adminCommunityService.deletePost(postId);
+        adminAuditLogService.record(AdminActivityType.POST_DELETE, postId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -120,6 +124,7 @@ public class AdminCommunityController {
     public ResponseEntity<ApiResponse<MemberBanResponse>> banMember(
             @Valid @RequestBody MemberBanRequest request) {
         MemberBanResponse response = adminCommunityService.banMember(request);
+        adminAuditLogService.record(AdminActivityType.MEMBER_BAN, response.getMemberId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
 
