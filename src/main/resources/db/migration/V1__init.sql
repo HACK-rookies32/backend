@@ -47,15 +47,19 @@ create table wallet_transaction (amount number(19,0) not null, balance_after num
 create index idx_usage_child_recorded on app_usage (child_id, recorded_at);
 create index idx_usage_created_at on app_usage (created_at);
 create index idx_block_rule_child on block_rule (child_id);
-create index idx_charge_order_merchant on charge_order (merchant_uid);
+-- charge_order.merchant_uid 는 UNIQUE 라 Oracle 이 인덱스를 자동 생성한다.
+-- 같은 컬럼에 인덱스를 또 만들면 ORA-01408 로 마이그레이션 전체가 실패한다.
+-- create index idx_charge_order_merchant on charge_order (merchant_uid);
 create index idx_device_event_child on device_event (child_id, created_at);
 create index idx_notification_recipient on notification (recipient_id, created_at);
 create index idx_place_child on place (child_id);
 create index idx_event_child_place on place_event (child_id, place_id, occurred_at);
 create index idx_event_place_type on place_event (place_id, event_type);
-create index idx_qr_payment_token on qr_payment (qr_token);
+-- qr_payment.qr_token 도 UNIQUE (위와 같은 이유로 제거)
+-- create index idx_qr_payment_token on qr_payment (qr_token);
 create index idx_screenshot_child on screenshot (child_id, captured_at);
-create index idx_store_terminal_token on store_terminal (terminal_token);
+-- store_terminal.terminal_token 도 UNIQUE (위와 같은 이유로 제거)
+-- create index idx_store_terminal_token on store_terminal (terminal_token);
 create index idx_track_child_window on track_segment (child_id, segment_start);
 create index idx_track_created_at on track_segment (created_at);
 create index idx_wallet_tx_wallet on wallet_transaction (wallet_id, id);
