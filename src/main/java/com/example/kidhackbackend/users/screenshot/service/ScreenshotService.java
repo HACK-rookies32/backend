@@ -77,7 +77,15 @@ public class ScreenshotService {
     /**
      * 부모가 즉시 촬영을 요청한다. 자녀 기기로 푸시만 보내고, 실제 이미지는 자녀 앱이
      * {@link #upload} 로 {@code MANUAL} 캡처를 올려 완성된다.
+     *
+     * <p>알림 행을 남기는 쓰기 작업이므로 클래스 기본값(readOnly)을 덮는다.
+     * 지금은 알림 PK 가 IDENTITY 라 readOnly 안에서도 INSERT 가 나가지만, 전략이
+     * 바뀌거나 드라이버가 read-only 를 강제하면 조용히 사라질 자리다.
+     *
+     * <p>트리거는 자녀의 알림 설정을 타지 않는다. {@code SCREENSHOT_REQUESTED} 를
+     * 설정 대상에서 제외해 두었다(NotificationType 주석 참고).
      */
+    @Transactional
     public void requestCapture(Long childId) {
         notificationPort.publish(childId, NotificationType.SCREENSHOT_REQUESTED,
                 "부모가 화면 캡처를 요청했습니다.");

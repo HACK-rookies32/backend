@@ -54,8 +54,16 @@ public class Screenshot extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime capturedAt;
 
+    /**
+     * 촬영 계기.
+     *
+     * <p><b>컬럼명을 반드시 바꿔 둔다.</b> 필드명 그대로 두면 컬럼이 {@code trigger} 가
+     * 되는데 이는 Oracle 예약어라 운영(RDS Oracle)에서 테이블 생성부터 실패한다.
+     * 로컬/CI 의 H2 는 TRIGGER 를 예약어로 보지 않아 테스트가 전부 통과하므로,
+     * 이 문제는 배포 전까지 드러나지 않는다.
+     */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "capture_trigger", nullable = false)
     private CaptureTrigger trigger;
 
     public Screenshot(Long childId, String imagePath, LocalDateTime capturedAt, CaptureTrigger trigger) {
