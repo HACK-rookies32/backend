@@ -2,6 +2,7 @@ package com.example.kidhackbackend.adminfinance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.finance.dto.AdminActionResponse;
 import com.example.kidhackbackend.admin.finance.service.AdminFinanceCommandService;
 import com.example.kidhackbackend.users.qrpay.entity.QrPayment;
@@ -20,7 +21,11 @@ import org.springframework.context.annotation.Import;
  * (VULN-ADMIN-1 권한경계는 시큐리티/컨트롤러 계층 → 라이브에서 검증)
  */
 @DataJpaTest
-@Import({AdminFinanceCommandService.class})
+// @DataJpaTest 는 슬라이스라 컴포넌트 스캔을 하지 않는다. AdminFinanceCommandService 가
+// 생성자로 받는 AdminAuditLogService 까지 직접 넣어 줘야 컨텍스트가 뜬다.
+// 빠지면 NoSuchBeanDefinitionException('AdminAuditLogService') 로 죽는다.
+// (AdminAuditLogService 의 의존성은 JPA 리포지토리 둘뿐이라 슬라이스가 알아서 채운다)
+@Import({AdminFinanceCommandService.class, AdminAuditLogService.class})
 class AdminFinanceCommandServiceTest {
 
     private static final long CHILD_ID = 300L;
