@@ -36,21 +36,24 @@ public class AdminFinanceQueryService {
     private final WalletTransactionRepository walletTransactionRepository;
     private final QrPaymentRepository qrPaymentRepository;
 
-    /** No.47 전체 충전/결제 내역: userId(optional)·type·기간 필터 페이징. */
+    /** No.47/49 통합: 전체 충전/결제 내역. userId 지정 시 잔액도 함께 반환. */
     @Transactional(readOnly = true)
     public AdminTxPageResponse getTransactions(Long userId, TxType type, LocalDateTime from, LocalDateTime to,
                                                int page, int size) {
         Long walletId = null;
+        Long walletBalance = null;
         if (userId != null) {
-            // 해당 회원 지갑이 없으면 매칭 없는 sentinel(-1)로 → 빈 결과.
-            walletId = walletRepository.findByOwnerId(userId).map(Wallet::getId).orElse(-1L);
+            Wallet wallet = walletRepository.findByOwnerId(userId).orElse(null);
+            // 해당 회원 지갑이 없으면 매칭 없는 sentinel(-1)로 → 빈 결과. 잔액은 0으로 표시.
+            walletId = (wallet != null) ? wallet.getId() : -1L;
+            walletBalance = (wallet != null) ? wallet.getBalance() : 0L;
         }
         Pageable pageable = PageRequest.of(page, size);
         return AdminTxPageResponse.from(
-                walletTransactionRepository.adminSearch(walletId, type, from, to, pageable));
+                walletTransactionRepository.adminSearch(walletId, type, from, to, pageable), walletBalance);
     }
 
-    /** No.49 특정 회원 지갑: 잔액 + 최근거래 요약. */
+    /** 고객관리(AdminCustomerService.getSubscription)에서 재사용 — 잔액 + 최근거래 요약. */
     @Transactional(readOnly = true)
     public AdminUserWalletResponse getUserWallet(Long userId) {
         return walletRepository.findByOwnerId(userId)

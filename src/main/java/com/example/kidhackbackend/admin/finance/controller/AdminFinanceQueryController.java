@@ -45,13 +45,6 @@ public class AdminFinanceQueryController {
                 adminFinanceQueryService.getTransactions(userId, type, from, to, page, size)));
     }
 
-    /** No.49 특정 회원 지갑/거래원장(잔액 + 최근거래). */
-    @Operation(summary = "사용자 지갑 조회", description = "특정 회원의 잔액과 최근거래 요약을 조회한다.")
-    @GetMapping("/users/{userId}/wallet")
-    public ResponseEntity<ApiResponse<AdminUserWalletResponse>> userWallet(@PathVariable Long userId) {
-        return ResponseEntity.ok(ApiResponse.success(adminFinanceQueryService.getUserWallet(userId)));
-    }
-
     /** No.51 결제 통계 대시보드(DAY/MERCHANT). */
     @Operation(summary = "결제 통계 대시보드", description = "기간별 groupBy(DAY/MERCHANT)로 충전액·결제액·건수를 집계한다.")
     @GetMapping("/stats")
