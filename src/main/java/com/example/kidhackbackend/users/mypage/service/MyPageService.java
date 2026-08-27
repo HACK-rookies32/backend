@@ -3,6 +3,7 @@ package com.example.kidhackbackend.users.mypage.service;
 import com.example.kidhackbackend.users.communityboard.repository.CommunityBoardCommentRepository;
 import com.example.kidhackbackend.users.communityboard.repository.CommunityBoardLikeRepository;
 import com.example.kidhackbackend.users.communityboard.repository.CommunityBoardRepository;
+import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import com.example.kidhackbackend.users.mypage.dto.ActivityPageResponse;
@@ -35,7 +36,14 @@ public class MyPageService {
     public ProfileResponse updateProfile(Member member, ProfileUpdateRequest request) {
         if (request.getNickname() != null) member.setNickname(request.getNickname());
         if (request.getPhoneNumber() != null) member.setPhoneNumber(request.getPhoneNumber());
-        if (request.getEmail() != null) member.setEmail(request.getEmail());
+        if (request.getEmail() != null && !request.getEmail().equals(member.getEmail())) {
+            memberRepository.findByEmail(request.getEmail())
+                    .filter(existing -> !existing.getId().equals(member.getId()))
+                    .ifPresent(existing -> {
+                        throw new DuplicateResourceException("이미 사용 중인 이메일입니다.");
+                    });
+            member.setEmail(request.getEmail());
+        }
         if (request.getAddress() != null) member.setAddress(request.getAddress());
         if (request.getProfileImageUrl() != null) member.setProfileImageUrl(request.getProfileImageUrl());
 
