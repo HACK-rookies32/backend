@@ -34,9 +34,15 @@ spring:
   # 운영은 prod yml 이 이 값을 true 로 덮어쓴다.
   flyway:
     enabled: false
+  # ⚠️ spring.data.mongodb.uri 가 아니라 spring.mongodb.uri 다.
+  #    Spring Boot 4.0 에서 접속 관련 키가 spring.mongodb.* 로 옮겨졌고, 옛 키는
+  #    deprecation level=error 라 아예 바인딩되지 않는다. 그런데 Spring 은 모르는
+  #    키를 조용히 무시하므로 경고 한 줄 없이 드라이버 기본값(localhost:27017)으로
+  #    붙는다. 로컬은 compose 의 mongo 가 거기 있어 "동작하는 것처럼" 보이고,
+  #    운영에서는 DocumentDB 주소를 넣어도 무시된 채 localhost 로 붙어 실패한다.
+  mongodb:
+    uri: mongodb://localhost:27017/kidhack_chat
   data:
-    mongodb:
-      uri: mongodb://localhost:27017/kidhack_chat
     redis:
       host: localhost
       port: 6379

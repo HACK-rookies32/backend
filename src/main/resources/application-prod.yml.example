@@ -80,12 +80,18 @@ spring:
     console:
       enabled: false
 
-  data:
-    # DocumentDB. URI 에 비밀번호가 박히는 구조라 통째로 app.env 에서 받는다.
-    # (retryWrites=false, replicaSet=rs0 필수 — 인프라 쪽 주석 참고)
-    mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
+  # DocumentDB. URI 에 비밀번호가 박히는 구조라 통째로 app.env 에서 받는다.
+  # (retryWrites=false, replicaSet=rs0 필수 — 인프라 쪽 주석 참고)
+  #
+  # ⚠️ spring.data.mongodb.uri 가 아니라 spring.mongodb.uri 다. Boot 4.0 에서 접속
+  #    키가 옮겨졌고 옛 키는 deprecation level=error 라 바인딩되지 않는다. 옛 키를
+  #    쓰면 경고 없이 무시되고 드라이버 기본값 localhost:27017 로 붙는다.
+  #    (환경변수 이름 SPRING_DATA_MONGODB_URI 는 app.env 와 맞추기 위해 유지한다.
+  #     아래처럼 플레이스홀더로 직접 참조하므로 이름이 달라도 문제없다.)
+  mongodb:
+    uri: ${SPRING_DATA_MONGODB_URI}
 
+  data:
     # ElastiCache Redis. transit_encryption_enabled = true 이므로
     # ssl.enabled 를 켜지 않으면 접속 자체가 실패한다.
     redis:
