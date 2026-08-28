@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.kidhackbackend.global.crypto.CryptoException;
-import com.example.kidhackbackend.global.crypto.EncryptedStringConverter;
 import com.example.kidhackbackend.global.crypto.FieldEncryptionKey;
 import com.example.kidhackbackend.global.crypto.HybridDecryptor;
 import com.example.kidhackbackend.global.crypto.KeyRotatedException;
@@ -44,7 +43,7 @@ import org.springframework.context.annotation.Import;
  */
 @DataJpaTest
 @Import({RsaKeyProvider.class, HybridDecryptor.class,
-        NonceStore.class, FieldEncryptionKey.class, EncryptedStringConverter.class})
+        NonceStore.class, FieldEncryptionKey.class})
 class CardServiceTest {
 
     @TestConfiguration
