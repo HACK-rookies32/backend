@@ -41,4 +41,7 @@ public class PostDetailResponse {
 
     @Schema(description = "수정 시각")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "댓글 목록 (오래된 순)")
+    private List<CommentResponse> comments;
 }

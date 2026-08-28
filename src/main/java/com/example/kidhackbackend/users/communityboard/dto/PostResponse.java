@@ -14,6 +14,9 @@ public class PostResponse {
     @Schema(description = "게시글 ID", example = "15")
     private Long postId;
 
+    @Schema(description = "작성자 회원 ID (프론트가 '내 글' 판정에 사용)", example = "1")
+    private Long authorId;
+
     @Schema(description = "제목")
     private String title;
 

@@ -7,6 +7,6 @@ import lombok.Getter;
 @Getter
 public class CommentRequest {
 
-    @Schema(description = "댓글 내용")
+    @Schema(description = "댓글 내용", requiredMode = Schema.RequiredMode.REQUIRED)
     private String content;
 }
