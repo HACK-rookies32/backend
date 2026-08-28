@@ -7,6 +7,9 @@ import com.example.kidhackbackend.admin.filtering.dto.HarmfulKeywordResponse;
 import com.example.kidhackbackend.admin.filtering.service.AdminHarmfulKeywordService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -40,7 +43,25 @@ public class AdminHarmfulKeywordController {
     }
 
     @Operation(summary = "차단 키워드 추가",
-            description = "등록한 키워드는 전체 사용자의 차단 판정에 즉시 반영된다.")
+            description = """
+                    등록한 키워드는 전체 사용자의 차단 판정에 즉시 반영된다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    | --- | --- | --- |
+                    | `keyword` | ✅ | 차단할 키워드 |
+
+                    - 성공 시 **`201 CREATED`** 로 응답한다.
+                    - 이미 등록된 키워드는 `409 CONFLICT`.
+                    """)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "등록 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "이미 등록된 키워드",
+                    content = @Content(mediaType = "application/json", examples = @ExampleObject(value = """
+                            {"success": false, "data": null,
+                             "error": {"code": "CONFLICT", "message": "이미 등록된 키워드입니다."}}""")))
+    })
     @PostMapping
     public ResponseEntity<ApiResponse<HarmfulKeywordResponse>> addKeyword(
             @Valid @RequestBody HarmfulKeywordRequest request) {
