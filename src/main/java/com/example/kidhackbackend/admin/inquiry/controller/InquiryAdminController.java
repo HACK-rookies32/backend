@@ -4,7 +4,7 @@ import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
 import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.inquiry.service.InquiryAdminService;
 import com.example.kidhackbackend.global.response.ApiResponse;
-import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
+import com.example.kidhackbackend.users.inquiry.dto.InquiryDetailResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerRequest;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryPageResponse;
@@ -51,7 +51,7 @@ public class InquiryAdminController {
 
     @Operation(summary = "문의 상세 조회")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<BoardDetailResponse>> getInquiryDetail(
+    public ResponseEntity<ApiResponse<InquiryDetailResponse>> getInquiryDetail(
             @AuthenticationPrincipal Member member,
             @PathVariable Long id) {
         requireInquiryAdmin(member);

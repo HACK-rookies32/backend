@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InquiryAnswerRepository extends JpaRepository<InquiryAnswer, Long> {
-    Optional<InquiryAnswer> findByBoardId(Long boardId);
-    void deleteByBoardId(Long boardId);
+    Optional<InquiryAnswer> findByInquiryId(Long inquiryId);
+    void deleteByInquiryId(Long inquiryId);
 
     // 관리자 - 문의 기록 CSV 리포트용. 문의별 답변을 건건이 조회하지 않도록 한 번에 가져온다.
-    List<InquiryAnswer> findByBoardIdIn(Collection<Long> boardIds);
+    List<InquiryAnswer> findByInquiryIdIn(Collection<Long> inquiryIds);
 }

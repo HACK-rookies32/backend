@@ -12,7 +12,7 @@ import java.util.List;
 public class InquiryPageResponse {
 
     @Schema(description = "문의 목록")
-    private List<BoardResponse> content;
+    private List<InquiryResponse> content;
 
     @Schema(description = "현재 페이지 번호(0부터)", example = "0")
     private int page;
