@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>앱 JWT 인증이 아니라 요청 헤더의 서명({@code X-PG-Signature})으로 진위를 검증한다.
  * 시큐리티는 {@code PgWebhookSecurityConfig}(/api/pg/**, permitAll)가 담당한다.
  */
-@Tag(name = "PG Webhook", description = "PG 결제 웹훅 수신 API — 서명 검증(인증 토큰 불필요)")
+@Tag(name = "14. 지갑 - PG 웹훅", description = "PG 서버가 호출하는 결제 결과 웹훅 — X-PG-Signature 서명 검증(앱 JWT 불필요)")
 @RestController
 @RequestMapping("/api/pg")
 @RequiredArgsConstructor

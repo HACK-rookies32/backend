@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 지갑 충전 API — 역할표 No.35 (PG Mock 준비/승인 2단계). 부모(PARENT) 전용.
  */
-@Tag(name = "Wallet", description = "지갑 충전 API — JWT 인증 필요(PARENT)")
+@Tag(name = "11. 지갑 - 충전/환불", description = "지갑 충전 준비/승인 · 원장/주문 내역 · 환불 — PARENT 전용")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/wallet")

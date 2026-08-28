@@ -28,7 +28,7 @@ import java.time.LocalDateTime;
  * <p>업로드는 자녀 앱(CHILD)이, 목록 조회와 추가 촬영 요청은 부모(PARENT)가 쓴다.
  * 업로드는 명세대로 multipart 이며 presigned URL 을 쓰지 않는다.
  */
-@Tag(name = "Screenshot", description = "자녀 화면 캡처 API — JWT 인증 필요")
+@Tag(name = "10. 자녀 화면 캡처", description = "자녀 앱이 캡처 업로드(CHILD) · 부모가 목록 조회/추가 촬영 요청(PARENT)")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/children/{childId}/screenshots")

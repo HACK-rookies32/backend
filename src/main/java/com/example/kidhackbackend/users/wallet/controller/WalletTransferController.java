@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>충전 컨트롤러와 분리해 결합도를 낮춘다. 시큐리티는 기존 {@code WalletSecurityConfig}(/api/wallet/**)가 담당.
  */
-@Tag(name = "Wallet Transfer", description = "부모↔자녀 지갑 이체 API — JWT 인증 필요(PARENT)")
+@Tag(name = "12. 지갑 - 이체", description = "부모↔자녀 용돈 이체 · 잔액 회수 — PARENT 전용")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/wallet")

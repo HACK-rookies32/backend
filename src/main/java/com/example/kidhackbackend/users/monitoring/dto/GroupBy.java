@@ -1,8 +1,11 @@
 package com.example.kidhackbackend.users.monitoring.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /** 사용량 집계 기준 (No.13). */
+@Schema(description = "사용량 집계 기준")
 public enum GroupBy {
-    HOUR,   // 시간대별 (0~23시)
-    APP,    // 앱별
-    DAY     // 일별 (yyyy-MM-dd)
+    @Schema(description = "시간대별(0~23시)") HOUR,
+    @Schema(description = "앱별") APP,
+    @Schema(description = "일별(yyyy-MM-dd)") DAY
 }

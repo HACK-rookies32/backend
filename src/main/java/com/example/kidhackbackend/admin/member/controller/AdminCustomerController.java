@@ -9,6 +9,8 @@ import com.example.kidhackbackend.admin.member.dto.AdminDeviceResponse;
 import com.example.kidhackbackend.admin.member.service.AdminCustomerService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.member.entity.Role;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Admin Customer", description = "관리자 - 고객(회원) 관리 API")
+@Tag(name = "32. 관리자 - 고객 관리", description = "고객(PARENT/CHILD) 목록/상세/수정/삭제 · 기기·구독 조회 (SUPER_ADMIN)")
 @RestController
 @RequestMapping("/api/admin/members/customers")
 @RequiredArgsConstructor
@@ -27,43 +29,54 @@ public class AdminCustomerController {
     private final AdminCustomerService adminCustomerService;
     private final AdminAuditLogService adminAuditLogService;
 
+    @Operation(summary = "고객 목록 조회",
+            description = "PARENT/CHILD 회원을 role·keyword(로그인아이디/실명/닉네임 부분일치) 로 필터해 페이징 조회한다.")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<AdminCustomerResponse>>> getCustomers(
-            @RequestParam(required = false) Role role,
-            @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "역할 필터: PARENT / CHILD") @RequestParam(required = false) Role role,
+            @Parameter(description = "검색어(로그인아이디/실명/닉네임 부분일치)") @RequestParam(required = false) String keyword,
+            @Parameter(description = "페이지 번호(0부터)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지당 항목 수") @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(
                 adminCustomerService.getCustomers(role, keyword, PageRequest.of(page, size))));
     }
 
+    @Operation(summary = "고객 상세 조회")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<AdminCustomerResponse>> getCustomer(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<AdminCustomerResponse>> getCustomer(
+            @Parameter(description = "회원 ID") @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(adminCustomerService.getCustomer(id)));
     }
 
+    @Operation(summary = "고객 정보 수정", description = "감사 로그(MEMBER_UPDATE)를 남긴다.")
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<AdminCustomerResponse>> updateCustomer(
-            @PathVariable Long id, @RequestBody AdminCustomerUpdateRequest request) {
+            @Parameter(description = "회원 ID") @PathVariable Long id, @RequestBody AdminCustomerUpdateRequest request) {
         AdminCustomerResponse response = adminCustomerService.updateCustomer(id, request);
         adminAuditLogService.record(AdminActivityType.MEMBER_UPDATE, id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @Operation(summary = "고객 삭제", description = "감사 로그(MEMBER_DELETE)를 남긴다.")
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteCustomer(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteCustomer(
+            @Parameter(description = "회원 ID") @PathVariable Long id) {
         adminCustomerService.deleteCustomer(id);
         adminAuditLogService.record(AdminActivityType.MEMBER_DELETE, id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @Operation(summary = "고객 기기 목록 조회")
     @GetMapping("/{id}/devices")
-    public ResponseEntity<ApiResponse<List<AdminDeviceResponse>>> getDevices(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<AdminDeviceResponse>>> getDevices(
+            @Parameter(description = "회원 ID") @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(adminCustomerService.getDevices(id)));
     }
 
+    @Operation(summary = "고객 구독/지갑 정보 조회")
     @GetMapping("/{id}/subscription")
-    public ResponseEntity<ApiResponse<AdminUserWalletResponse>> getSubscription(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<AdminUserWalletResponse>> getSubscription(
+            @Parameter(description = "회원 ID") @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(adminCustomerService.getSubscription(id)));
     }
 }

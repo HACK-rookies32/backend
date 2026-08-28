@@ -1,12 +1,11 @@
 package com.example.kidhackbackend.users.qrpay.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
-/**
- * 매장 단말 등록/토큰 발급 요청.
- *
- * @param storeName 가맹점(매장) 이름
- */
+/** 매장 단말 등록/토큰 발급 요청. */
+@Schema(description = "매장 단말 등록/토큰 발급 요청")
 public record TerminalIssueRequest(
+        @Schema(description = "가맹점(매장) 이름", example = "GS25 역삼점")
         @NotBlank(message = "가맹점 이름은 필수입니다.") String storeName) {
 }

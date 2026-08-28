@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>시큐리티: {@code WalletSecurityConfig}에서 {@code /api/wallet/me}는 PARENT+CHILD, 그 외 wallet 경로는 PARENT.
  */
-@Tag(name = "Wallet View", description = "지갑 잔액/원장 조회 API — JWT 인증 필요")
+@Tag(name = "13. 지갑 - 조회", description = "내 지갑 잔액/원장(PARENT·CHILD) · 자녀 지갑 조회(PARENT)")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/wallet")

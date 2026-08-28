@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>권한은 {@code AdminFinanceSecurityConfig}(/api/admin/finance/**, @Order 11)가 담당.
  */
-@Tag(name = "Admin Finance View", description = "관리자 자금 조회 API — SUPER/GENERAL_ADMIN")
+@Tag(name = "39. 관리자 - 자금 조회", description = "전체 거래 내역(필터·페이징) · 결제 통계 대시보드 — SUPER/GENERAL_ADMIN")
 @RestController
 @RequestMapping("/api/admin/finance")
 @RequiredArgsConstructor

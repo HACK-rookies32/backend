@@ -5,6 +5,8 @@ import com.example.kidhackbackend.users.monitoring.dto.GroupBy;
 import com.example.kidhackbackend.users.monitoring.dto.UsageAggregateResponse;
 import com.example.kidhackbackend.users.monitoring.dto.UsageReportRequest;
 import com.example.kidhackbackend.users.monitoring.service.AppUsageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,7 +26,7 @@ import java.time.LocalDateTime;
 /**
  * 사용 모니터링 API — 역할표 No.13.
  */
-@Tag(name = "Monitoring", description = "앱 사용량 모니터링 API — JWT 인증 필요")
+@Tag(name = "08. 사용 모니터링", description = "자녀 앱이 사용량 배치 전송 · 부모가 사용량 집계 조회")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/monitoring")
@@ -33,21 +35,23 @@ public class MonitoringController {
 
     private final AppUsageService appUsageService;
 
-    /** 자녀 앱이 사용량을 배치 전송. */
-    // [VULN-MON-1] 본문 childId 소유권 미검증 → 남의 자녀 사용량 위조 주입 가능.
+    @Operation(summary = "사용량 배치 전송 (자녀 앱)",
+            description = "자녀 앱이 앱별 사용시간을 모아 전송한다. 저장된 건수를 반환한다. ⚠️ 본문 childId 소유권 미검증(IDOR).")
     @PostMapping("/usage")
     public ResponseEntity<ApiResponse<Integer>> report(@Valid @RequestBody UsageReportRequest request) {
         int saved = appUsageService.report(request);
         return ResponseEntity.ok(ApiResponse.success(saved));
     }
 
-    /** 부모가 사용량 집계 조회. groupBy=HOUR/APP/DAY, from/to 없으면 최근 1주일. */
-    // [VULN-MON-1] 경로 childId 소유권 미검증 → 남의 자녀 사용량 열람 가능(IDOR).
+    @Operation(summary = "사용량 집계 조회 (부모)",
+            description = "groupBy=HOUR/APP/DAY 로 집계한다. from/to 없으면 최근 1주일. ⚠️ 경로 childId 소유권 미검증(IDOR).")
     @GetMapping("/usage/{childId}")
     public ResponseEntity<ApiResponse<UsageAggregateResponse>> aggregate(
-            @PathVariable Long childId,
-            @RequestParam(defaultValue = "DAY") GroupBy groupBy,
+            @Parameter(description = "자녀 회원 ID") @PathVariable Long childId,
+            @Parameter(description = "집계 기준: HOUR / APP / DAY") @RequestParam(defaultValue = "DAY") GroupBy groupBy,
+            @Parameter(description = "조회 시작(ISO-8601). 생략 시 최근 1주일")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @Parameter(description = "조회 종료(ISO-8601)")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         UsageAggregateResponse data = appUsageService.aggregate(childId, groupBy, from, to);
         return ResponseEntity.ok(ApiResponse.success(data));

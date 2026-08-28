@@ -1,21 +1,43 @@
 package com.example.kidhackbackend.admin.community.dto;
 
 import com.example.kidhackbackend.users.communityboard.entity.CommunityBoard;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Schema(description = "관리자 - 커뮤니티 게시글 상세 (댓글 포함)")
 @Getter
 public class AdminPostDetailResponse {
+
+    @Schema(description = "게시글 ID", example = "15")
     private final Long id;
+
+    @Schema(description = "제목")
     private final String title;
+
+    @Schema(description = "본문")
     private final String content;
+
+    @Schema(description = "작성자 회원 ID", example = "1")
     private final Long memberId;
+
+    @Schema(description = "작성자 닉네임", example = "보라")
     private final String authorNickname;
+
+    @Schema(description = "신고 누적 수", example = "2")
     private final int reportCount;
+
+    @Schema(description = "첨부파일 URL 목록")
     private final List<String> attachments;
+
+    @Schema(description = "관련 링크 목록")
     private final List<String> links;
+
+    @Schema(description = "작성 시각")
     private final LocalDateTime createdAt;
+
+    @Schema(description = "댓글 목록")
     private final List<AdminCommentResponse> comments;
 
     public AdminPostDetailResponse(CommunityBoard post, int reportCount, List<AdminCommentResponse> comments) {

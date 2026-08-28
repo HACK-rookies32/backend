@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>시큐리티는 {@code QrPaySecurityConfig} 앱 체인(@Order 10, /api/qrpay/** 인증)이 담당.
  * 발급 본인의 지갑으로 결제되는 QR이므로 컨트롤러에서 CHILD 역할을 확인한다.
  */
-@Tag(name = "QR Payment", description = "결제 QR 발급/조회 API — JWT 인증 필요(CHILD)")
+@Tag(name = "15. QR결제 - 발급/조회", description = "자녀가 매장 결제용 1회성 QR 발급 · 상태 폴링 — CHILD 전용")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/qrpay/qr")
