@@ -50,6 +50,28 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 카드 E2E 복호 실패·형식 오류·재전송(nonce/timestamp) 위반 — 400 단일 코드.
+     * 규약 확정본: 구체 원인을 노출하지 않는다.
+     */
+    @ExceptionHandler(com.example.kidhackbackend.global.crypto.CryptoException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCrypto(
+            com.example.kidhackbackend.global.crypto.CryptoException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("INVALID_ENCRYPTED_PAYLOAD", "요청을 처리할 수 없습니다."));
+    }
+
+    /**
+     * 공개키 회전으로 요청 keyId가 만료된 경우 — 400이지만 별도 코드로 분리해
+     * 프론트가 공개키를 재조회하도록 신호한다.
+     */
+    @ExceptionHandler(com.example.kidhackbackend.global.crypto.KeyRotatedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleKeyRotated(
+            com.example.kidhackbackend.global.crypto.KeyRotatedException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("KEY_ROTATED", e.getMessage()));
+    }
+
+    /**
      * 파라미터 타입 변환 실패 — 열거형에 없는 값, 형식이 어긋난 날짜 등.
      *
      * <p>이 예외들을 잡지 않으면 아래 {@code Exception} 핸들러로 떨어져 500 이 나간다.
