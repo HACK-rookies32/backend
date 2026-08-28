@@ -1,6 +1,7 @@
 package com.example.kidhackbackend.admin.finance.controller;
 
 import com.example.kidhackbackend.admin.finance.dto.AdminTxPageResponse;
+import com.example.kidhackbackend.admin.finance.dto.AdminWalletPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminUserWalletResponse;
 import com.example.kidhackbackend.admin.finance.dto.FinanceStatsResponse;
 import com.example.kidhackbackend.admin.finance.service.AdminFinanceQueryService;
@@ -84,6 +85,44 @@ public class AdminFinanceQueryController {
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
                 adminFinanceQueryService.getTransactions(userId, type, from, to, page, size)));
+    }
+
+    /** 회원 지갑 목록 — 프론트 3차 2번(잔액 조정 진입점). */
+    @Operation(summary = "회원 지갑 목록",
+            description = """
+                    전 회원의 **현재 잔액**을 페이징 조회한다. 「회원 지갑」 탭은 조회 화면이 아니라
+                    잔액 조정(`POST /finance/users/{userId}/adjust`)의 **진입점**이라 이 목록이 있어야 대상을 고를 수 있다.
+                    거래 원장(`GET /finance/transactions`)은 거래 흐름이라 회원별 현재 잔액을 대체할 수 없다.
+
+                    **Query 파라미터**
+
+                    | 필드 | 필수 | 설명 |
+                    | --- | --- | --- |
+                    | `role` | — | `PARENT` / `CHILD`. 생략 시 둘 다 |
+                    | `keyword` | — | 실명(`username`) 또는 로그인 아이디 부분일치 |
+                    | `page` · `size` | — | 기본 0 / 20 |
+
+                    **응답 `content[]`**
+
+                    | 필드 | 설명 |
+                    | --- | --- |
+                    | `userId` | 회원 id — 잔액 조정 API 의 path 파라미터로 그대로 쓴다 |
+                    | `userName` | 회원 실명 |
+                    | `role` | `PARENT` / `CHILD` |
+                    | `balance` | 현재 잔액(원). **지갑이 아직 없으면 0** |
+                    | `updatedAt` | 지갑 최근 변동 시각. 지갑이 없으면 `null` |
+
+                    - **지갑이 없는 회원도 포함된다**(한 번도 충전·이체를 받지 않은 자녀). 빠지면 조정 대상으로 고를 수 없다.
+                    - 관리자 계정(SUPER/GENERAL/COMMUNITY/INQUIRY_ADMIN)은 목록에서 제외한다.
+                    """)
+    @GetMapping("/wallets")
+    public ResponseEntity<ApiResponse<AdminWalletPageResponse>> wallets(
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                adminFinanceQueryService.getWallets(role, keyword, page, size)));
     }
 
     /** No.51 결제 통계 대시보드(DAY/MERCHANT). */

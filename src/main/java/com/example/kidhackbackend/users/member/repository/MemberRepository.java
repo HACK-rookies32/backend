@@ -50,4 +50,33 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
                     "     m.nickname LIKE CONCAT('%', :keyword, '%'))",
             nativeQuery = true)
     Page<Member> searchCustomers(@Param("role") String role, @Param("keyword") String keyword, Pageable pageable);
+
+    /**
+     * 관리자 회원 지갑 목록(프론트 3차 2번) — 회원 + 잔액을 한 번에.
+     *
+     * <p><b>회원 기준 LEFT JOIN</b>: 지갑이 아직 없는 회원(충전·이체를 한 번도 받지 않은 자녀)도 목록에 나와야
+     * 잔액 조정 대상으로 고를 수 있다. 지갑이 없으면 balance 0, updated_at null.
+     *
+     * <p>{@code Wallet} 이 {@code Member} 를 FK 로 물지 않아(owner_id 만 보유) 파생 쿼리로는 조인이 안 된다.
+     * LIKE 바인딩이 Hibernate 7.x + H2 조합에서 깨지는 문제가 있어 위 {@code searchCustomers} 와 같이 네이티브로 쓴다.
+     */
+    @Query(value = "SELECT m.id AS userId, m.username AS userName, m.role AS role, "
+            + "COALESCE(w.balance, 0) AS balance, w.updated_at AS updatedAt "
+            + "FROM member m LEFT JOIN wallet w ON w.owner_id = m.id "
+            + "WHERE m.role IN ('PARENT', 'CHILD') "
+            + "AND (:role IS NULL OR m.role = :role) "
+            + "AND (:keyword IS NULL OR "
+            + "     m.username LIKE CONCAT('%', :keyword, '%') OR "
+            + "     m.login_id LIKE CONCAT('%', :keyword, '%')) "
+            + "ORDER BY m.id DESC",
+            countQuery = "SELECT count(*) FROM member m "
+                    + "WHERE m.role IN ('PARENT', 'CHILD') "
+                    + "AND (:role IS NULL OR m.role = :role) "
+                    + "AND (:keyword IS NULL OR "
+                    + "     m.username LIKE CONCAT('%', :keyword, '%') OR "
+                    + "     m.login_id LIKE CONCAT('%', :keyword, '%'))",
+            nativeQuery = true)
+    Page<AdminWalletProjection> searchWalletsWithBalance(@Param("role") String role,
+                                                         @Param("keyword") String keyword,
+                                                         Pageable pageable);
 }
