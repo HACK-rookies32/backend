@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.global.crypto;
 
+import jakarta.annotation.PostConstruct;
 import java.security.SecureRandom;
 import java.util.Base64;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,7 +35,12 @@ public class FieldEncryptionKey {
         }
     }
 
-    byte[] raw() {
-        return key;
+    /**
+     * 컨버터에 키를 심는다. {@link EncryptedStringConverter} 는 Hibernate 가 만들기 때문에
+     * 주입을 받을 수 없어(그러면 슬라이스 테스트의 EMF 생성이 깨진다) 이쪽에서 밀어 넣는다.
+     */
+    @PostConstruct
+    void bindToConverter() {
+        EncryptedStringConverter.useKey(key);
     }
 }
