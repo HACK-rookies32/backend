@@ -34,6 +34,8 @@ public class AppUsageService {
      * @return 저장된 건수
      */
     // [VULN-MON-1] childId를 요청값 그대로 신뢰(본인 검증 없음) → 타인 childId로 위조 사용량 주입 가능(IDOR).
+    // [VULN-MON-3] 전송 호출 자체에 rate limit이 없다. 한 요청은 500건으로 제한하지만(@Size),
+    //              반복 호출을 막지 않아 VULN-MON-1과 결합하면 타 자녀 사용량 테이블을 flood할 수 있다.
     @Transactional
     public int report(UsageReportRequest request) {
         List<AppUsage> entities = request.usages().stream()
@@ -45,6 +47,8 @@ public class AppUsageService {
 
     /**
      * 사용량 집계 조회. from/to가 없으면 최근 1주일.
+     *
+     * <p>[VULN-MON-1] 조회 쪽도 childId 소유권을 검증하지 않는다 → 임의 자녀의 사용량 집계 열람 가능(IDOR).
      */
     @Transactional(readOnly = true)
     public UsageAggregateResponse aggregate(Long childId, GroupBy groupBy, LocalDateTime from, LocalDateTime to) {

@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,7 +17,8 @@ import java.util.List;
 @Schema(description = "앱 사용량 배치 전송 요청")
 public record UsageReportRequest(
         @Schema(description = "자녀 회원 ID", example = "7") @NotNull Long childId,
-        @Schema(description = "사용 기록 목록(1건 이상)") @NotEmpty @Valid List<UsageItem> usages
+        @Schema(description = "사용 기록 목록(1~500건)")
+        @NotEmpty @Size(max = 500, message = "한 번에 500건까지 전송할 수 있습니다.") @Valid List<UsageItem> usages
 ) {
     @Schema(description = "앱별 사용 기록 1건")
     public record UsageItem(

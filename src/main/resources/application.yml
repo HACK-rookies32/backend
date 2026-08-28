@@ -81,6 +81,8 @@ kidhack:
   location:
     retention-days: 3      # 동선 세그먼트 보관 기간(일) — No.2 롤링 삭제
     segment-minutes: 5     # 세그먼트 길이(분)
+  monitoring:
+    retention-days: 7      # 앱 사용량 보관 기간(일) — No.13 롤링 삭제
 
 # ------------------------------------------------------------------
 # 첨부파일 저장소
