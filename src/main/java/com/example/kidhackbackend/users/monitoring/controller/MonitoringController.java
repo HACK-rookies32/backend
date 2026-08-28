@@ -36,7 +36,18 @@ public class MonitoringController {
     private final AppUsageService appUsageService;
 
     @Operation(summary = "사용량 배치 전송 (자녀 앱)",
-            description = "자녀 앱이 앱별 사용시간을 모아 전송한다. 저장된 건수를 반환한다. ⚠️ 본문 childId 소유권 미검증(IDOR).")
+            description = """
+                    자녀 앱이 앱별 사용시간을 모아 전송한다(한 요청 1~500건). 저장된 건수를 반환한다.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `usages` | ✅ | 사용 기록 목록(1~500건) |
+                    | `usages[].appName` | ✅ | 앱 이름 |
+                    | `usages[].durationSec` | ✅ | 사용시간(초) — ⚠️ 음수·과대값 검증 없음 |
+                    | `usages[].recordedAt` | ✅ | 기록 시각(ISO-8601) |
+
+                    ⚠️ [VULN-MON-1] 본문 childId 소유권 미검증(IDOR). [VULN-MON-2] durationSec 미검증. [VULN-MON-3] 호출 rate limit 없음.""")
     @PostMapping("/usage")
     public ResponseEntity<ApiResponse<Integer>> report(@Valid @RequestBody UsageReportRequest request) {
         int saved = appUsageService.report(request);
@@ -44,7 +55,15 @@ public class MonitoringController {
     }
 
     @Operation(summary = "사용량 집계 조회 (부모)",
-            description = "groupBy=HOUR/APP/DAY 로 집계한다. from/to 없으면 최근 1주일. ⚠️ 경로 childId 소유권 미검증(IDOR).")
+            description = """
+                    groupBy 로 사용시간(초)을 합산한다. from/to 없으면 최근 1주일. 결과는 key 오름차순.
+
+                    - `DAY`  : 일자별 (yyyy-MM-dd)
+                    - `APP`  : 앱 이름별
+                    - `HOUR` : 시간대별(00~23). 여러 날을 조회하면 **요일 무관하게 같은 시간대끼리 합산**된다.
+
+                    ⚠️ [VULN-MON-1] 경로 childId 소유권 미검증(IDOR).
+                    """)
     @GetMapping("/usage/{childId}")
     public ResponseEntity<ApiResponse<UsageAggregateResponse>> aggregate(
             @Parameter(description = "자녀 회원 ID") @PathVariable Long childId,

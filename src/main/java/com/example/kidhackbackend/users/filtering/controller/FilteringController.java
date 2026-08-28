@@ -53,8 +53,15 @@ public class FilteringController {
     }
 
     @Operation(summary = "차단 규칙 등록 (부모)",
-            description = "자녀에게 차단 패턴을 추가한다. childId 가 실재 CHILD 인지 검증. "
-                    + "⚠️ 부모-자녀 소유권은 미검증(IDOR).")
+            description = """
+                    자녀에게 차단 패턴을 추가한다. 모든 필드 필수.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `pattern` | ✅ | 차단 패턴(도메인/키워드 등) |
+
+                    childId 가 실재 CHILD 인지 검증. ⚠️ 부모-자녀 소유권은 미검증(IDOR).""")
     @PostMapping("/rules")
     public ResponseEntity<ApiResponse<BlockRuleResponse>> addRule(@Valid @RequestBody BlockRuleRequest request) {
         requireExistingChild(request.childId());
@@ -84,8 +91,15 @@ public class FilteringController {
     }
 
     @Operation(summary = "접속 대상 감지 (자녀 앱)",
-            description = "자녀 앱이 접속하려는 대상을 보고한다. 차단 대상이면 `blocked=true` 와 함께 알림을 발행한다. "
-                    + "⚠️ target 미정규화 · 본문 childId 본인 검증 없음 (의도된 취약점).")
+            description = """
+                    자녀 앱이 접속하려는 대상을 보고한다. 차단 대상이면 `blocked=true` 와 함께 알림을 발행한다. 모든 필드 필수.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `target` | ✅ | 접속하려는 대상(URL/앱 패키지 등) |
+
+                    ⚠️ target 미정규화 · 본문 childId 본인 검증 없음 (의도된 취약점).""")
     @PostMapping("/visit")
     public ResponseEntity<ApiResponse<VisitResponse>> reportVisit(@Valid @RequestBody VisitRequest request) {
         boolean blocked = filteringService.detect(request.childId(), request.target());

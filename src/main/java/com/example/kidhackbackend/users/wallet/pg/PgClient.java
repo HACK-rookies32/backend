@@ -8,6 +8,15 @@ package com.example.kidhackbackend.users.wallet.pg;
 public interface PgClient {
 
     /**
+     * 준비된 주문에 대한 결제창 정보를 만든다. (prepare 응답에 실려 프론트로 전달)
+     *
+     * @param merchantUid 가맹점 주문번호(준비 단계 발급)
+     * @param amount      결제 예정 금액(원)
+     * @return 결제창 정보(PG사·checkoutUrl·mock 여부)
+     */
+    PgCheckout checkout(String merchantUid, long amount);
+
+    /**
      * 준비된 주문번호로 결제 승인을 확인한다.
      *
      * @param merchantUid 가맹점 주문번호(준비 단계 발급)

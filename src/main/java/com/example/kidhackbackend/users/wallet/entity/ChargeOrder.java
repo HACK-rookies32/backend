@@ -64,8 +64,18 @@ public class ChargeOrder extends BaseEntity {
         this.pgTransactionId = pgTransactionId;
     }
 
-    /** 환불/취소 처리로 주문을 CANCELLED 상태로 전이한다. (No.37) */
+    /** 환불 처리로 주문을 REFUNDED 상태로 전이한다. (No.37) */
+    public void markRefunded() {
+        this.status = ChargeStatus.REFUNDED;
+    }
+
+    /** 사용자가 결제 진행 중 취소 — READY 주문만 CANCELLED 로 전이한다. */
     public void markCancelled() {
         this.status = ChargeStatus.CANCELLED;
+    }
+
+    /** approve 없이 방치된 READY 주문을 EXPIRED 로 전이한다. (만료 배치) */
+    public void markExpired() {
+        this.status = ChargeStatus.EXPIRED;
     }
 }

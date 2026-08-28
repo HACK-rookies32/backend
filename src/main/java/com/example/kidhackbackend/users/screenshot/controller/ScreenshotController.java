@@ -45,7 +45,18 @@ public class ScreenshotController {
      */
     // [VULN-SS-1] 경로 childId 소유권 미검증 → 임의 childId 로 남의 자녀 캡처를 위조 주입 가능(IDOR).
     //   기존 자녀 도메인(VULN-CHILD-*, VULN-MON-1)과 동일 계열.
-    @Operation(summary = "캡처 이미지 업로드", description = "multipart/form-data. 자녀(CHILD) 전용.")
+    @Operation(summary = "캡처 이미지 업로드",
+            description = """
+                    `multipart/form-data`. 자녀(CHILD) 전용, 성공 시 201.
+
+                    | 폼 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `file` | ✅ | 캡처 이미지 파일 |
+                    | `capturedAt` | ✅ | 촬영 시각(ISO-8601) |
+                    | `trigger` | ✅ | `SCHEDULED`(1시간 주기 자동) / `MANUAL`(부모 요청) |
+                    | `childId` (path) | ✅ | 자녀 회원 ID |
+
+                    ⚠️ [VULN-SS-1] 경로 childId 소유권 미검증(IDOR). [VULN-SS-2] 파일명 미새니타이즈 → 로컬 저장 모드 directory traversal. [VULN-10] 확장자 화이트리스트 없음.""")
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ScreenshotUploadResponse>> upload(
             @PathVariable Long childId,
@@ -61,7 +72,9 @@ public class ScreenshotController {
      * 캡처 목록 조회(부모). from/to 가 없으면 전체 기간이다.
      */
     // [VULN-SS-1] 경로 childId 소유권 미검증 → 임의 childId 로 남의 자녀 캡처 열람 가능(IDOR).
-    @Operation(summary = "캡처 목록 조회", description = "부모(PARENT) 전용. from/to/page/size 페이징.")
+    @Operation(summary = "캡처 목록 조회",
+            description = "부모(PARENT) 전용. from/to(둘 다 있어야 기간 필터 적용)·page·size 페이징, 최신 촬영순. "
+                    + "⚠️ [VULN-SS-1] 경로 childId 소유권 미검증 → 남의 자녀 캡처 열람 가능(IDOR).")
     @GetMapping
     public ResponseEntity<ApiResponse<ScreenshotPageResponse>> list(
             @PathVariable Long childId,
@@ -81,7 +94,9 @@ public class ScreenshotController {
      * 완성된다. 그래서 202(Accepted)로 응답한다.
      */
     // [VULN-SS-1] 경로 childId 소유권 미검증 → 임의 childId 로 남의 자녀 기기에 촬영 트리거 가능(IDOR).
-    @Operation(summary = "추가 촬영 요청", description = "부모(PARENT) 전용. 자녀 앱에 즉시 촬영 푸시.")
+    @Operation(summary = "추가 촬영 요청",
+            description = "부모(PARENT) 전용. 자녀 앱에 즉시 촬영 푸시만 보내고 202. 실제 이미지는 자녀 앱이 MANUAL 캡처를 업로드해 완성. "
+                    + "⚠️ [VULN-SS-1] 경로 childId 소유권 미검증 → 남의 자녀 기기에 촬영 트리거 가능(IDOR), rate limit 없음.")
     @PostMapping("/request")
     public ResponseEntity<ApiResponse<Void>> requestCapture(@PathVariable Long childId) {
         screenshotService.requestCapture(childId);

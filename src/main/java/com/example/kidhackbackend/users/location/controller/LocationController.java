@@ -65,8 +65,16 @@ public class LocationController {
     }
 
     @Operation(summary = "위치 업로드 (CHILD)",
-            description = "자녀 앱이 현재 좌표를 업로드한다. 5분 세그먼트에 반영하고 지오펜스 진입/이탈·도착을 판정한다. "
-                    + "⚠️ 본문 childId 소유권 미검증 → 다른 자녀 위치 위조 가능(IDOR).")
+            description = """
+                    자녀 앱이 현재 좌표를 업로드한다. 5분 세그먼트에 반영하고 지오펜스 진입/이탈·도착을 판정한다.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `latitude` | ✅ | 위도(문자열) |
+                    | `longitude` | ✅ | 경도(문자열) |
+
+                    ⚠️ 본문 childId 소유권 미검증 → 다른 자녀 위치 위조 가능(IDOR).""")
     @PostMapping("/track")
     public ResponseEntity<ApiResponse<TrackSegmentResponse>> track(@Valid @RequestBody TrackRequest request) {
         return ResponseEntity.ok(ApiResponse.success(TrackSegmentResponse.from(trackingService.record(request))));
@@ -118,8 +126,19 @@ public class LocationController {
     }
 
     @Operation(summary = "지오펜스/목적지 등록 (PARENT)",
-            description = "진입/이탈 알림 대상(GEOFENCE) 또는 도착 판정 대상(DESTINATION) 공간을 등록한다. "
-                    + "childId 가 실재 CHILD 인지 검증. ⚠️ 부모-자녀 소유권은 미검증(IDOR).")
+            description = """
+                    진입/이탈 알림 대상(GEOFENCE) 또는 도착 판정 대상(DESTINATION) 공간을 등록한다. 모든 필드 필수.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `name` | ✅ | 공간 이름 |
+                    | `latitude` | ✅ | 위도(-90~90) |
+                    | `longitude` | ✅ | 경도(-180~180) |
+                    | `radiusMeters` | ✅ | 반경(m, 양수) |
+                    | `type` | ✅ | `GEOFENCE`(진입/이탈) / `DESTINATION`(도착) |
+
+                    childId 가 실재 CHILD 인지 검증. ⚠️ 부모-자녀 소유권은 미검증(IDOR).""")
     @PostMapping("/places")
     public ResponseEntity<ApiResponse<PlaceResponse>> registerPlace(@Valid @RequestBody PlaceRequest request) {
         requireExistingChild(request.childId());

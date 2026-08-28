@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface AppControlRuleRepository extends JpaRepository<AppControlRule, Long> {
     List<AppControlRule> findByChildId(Long childId);
+
+    boolean existsByChildIdAndPackageName(Long childId, String packageName);
 }

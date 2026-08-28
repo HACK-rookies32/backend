@@ -30,6 +30,12 @@ public class MockPgClient implements PgClient {
     }
 
     @Override
+    public PgCheckout checkout(String merchantUid, long amount) {
+        // 모의 결제 — 실제 결제창이 없으므로 프론트는 곧바로 approve 를 호출한다.
+        return new PgCheckout("MOCK", null, true);
+    }
+
+    @Override
     public PgApproval approve(String merchantUid, long amount) {
         String pgTransactionId = "imp_" + UUID.randomUUID().toString().replace("-", "");
         return new PgApproval(pgTransactionId, amount, "paid");

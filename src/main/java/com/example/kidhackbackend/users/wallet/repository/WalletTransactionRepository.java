@@ -4,6 +4,7 @@ import com.example.kidhackbackend.users.wallet.entity.TxType;
 import com.example.kidhackbackend.users.wallet.entity.WalletTransaction;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,8 +16,14 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     /** 지갑별 원장 최신순(충전내역 조회 No.37에서 재사용). */
     List<WalletTransaction> findByWalletIdOrderByIdDesc(Long walletId);
 
+    /** 지갑별 원장 최신순 — 페이징(No.37). */
+    Page<WalletTransaction> findByWalletIdOrderByIdDesc(Long walletId, Pageable pageable);
+
     /** 지갑별 최근거래 5건(자녀 지갑 요약 No.41). */
     List<WalletTransaction> findTop5ByWalletIdOrderByIdDesc(Long walletId);
+
+    /** 참조 UID(merchantUid 등) + 유형으로 가장 최근 원장 1건 — 충전 내역 통합 뷰의 환불 시각 조회(P-3). */
+    Optional<WalletTransaction> findFirstByRefUidAndTypeOrderByIdDesc(String refUid, TxType type);
 
     /** 내 지갑 원장 필터(type·기간 optional)·페이징 조회(No.38). */
     @Query("SELECT t FROM WalletTransaction t WHERE t.walletId = :walletId "
