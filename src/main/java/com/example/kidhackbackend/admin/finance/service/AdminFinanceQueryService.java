@@ -1,6 +1,7 @@
 package com.example.kidhackbackend.admin.finance.service;
 
 import com.example.kidhackbackend.admin.finance.dto.AdminTxPageResponse;
+import com.example.kidhackbackend.admin.finance.dto.AdminWalletPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminUserWalletResponse;
 import com.example.kidhackbackend.admin.finance.dto.FinanceStatsResponse;
 import com.example.kidhackbackend.admin.finance.dto.FinanceStatsResponse.StatRow;
@@ -9,6 +10,7 @@ import com.example.kidhackbackend.users.qrpay.repository.QrPaymentRepository;
 import com.example.kidhackbackend.users.wallet.entity.TxType;
 import com.example.kidhackbackend.users.wallet.entity.Wallet;
 import com.example.kidhackbackend.users.wallet.entity.WalletTransaction;
+import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletTransactionRepository;
 import java.time.LocalDate;
@@ -35,6 +37,7 @@ public class AdminFinanceQueryService {
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final QrPaymentRepository qrPaymentRepository;
+    private final MemberRepository memberRepository;
 
     /** No.47/49 통합: 전체 충전/결제 내역. userId 지정 시 잔액도 함께 반환. */
     @Transactional(readOnly = true)
@@ -51,6 +54,20 @@ public class AdminFinanceQueryService {
         Pageable pageable = PageRequest.of(page, size);
         return AdminTxPageResponse.from(
                 walletTransactionRepository.adminSearchWithMember(walletId, type, from, to, pageable), walletBalance);
+    }
+
+    /**
+     * 회원 지갑 목록(프론트 3차 2번) — role·keyword 필터 페이징.
+     *
+     * <p>「회원 지갑」 탭은 잔액 조정의 진입점이라, <b>지갑이 아직 없는 회원도 balance 0 으로 포함</b>한다
+     * (LEFT JOIN). 그래야 한 번도 충전받지 않은 자녀를 조정 대상으로 고를 수 있다.
+     */
+    @Transactional(readOnly = true)
+    public AdminWalletPageResponse getWallets(String role, String keyword, int page, int size) {
+        String normalizedKeyword = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+        Pageable pageable = PageRequest.of(page, size);
+        return AdminWalletPageResponse.from(
+                memberRepository.searchWalletsWithBalance(role, normalizedKeyword, pageable));
     }
 
     /** 고객관리(AdminCustomerService.getSubscription)에서 재사용 — 잔액 + 최근거래 요약. */
