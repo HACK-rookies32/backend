@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.location.service;
 
+import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.users.location.dto.PlaceRequest;
 import com.example.kidhackbackend.users.location.entity.Place;
 import com.example.kidhackbackend.users.location.entity.PlaceEvent;
@@ -51,7 +52,8 @@ public class PlaceService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 자녀입니다."));
 
         if (child.getParent() == null || !child.getParent().getId().equals(requester.getId())) {
-            throw new IllegalArgumentException("본인 자녀의 장소만 삭제할 수 있습니다.");
+            // 권한 문제이므로 403. (다른 도메인과 동일하게 표준 봉투로 나간다)
+            throw new AdminAccessDeniedException("본인 자녀의 장소만 삭제할 수 있습니다.");
         }
 
         placeRepository.delete(place);
