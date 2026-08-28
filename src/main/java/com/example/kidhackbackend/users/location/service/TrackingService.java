@@ -97,10 +97,24 @@ public class TrackingService {
                 )));
     }
 
-    /** 자녀의 동선 조회(최신순). */
+    /** 자녀의 동선 조회(최신순) — 대시보드 등 "최근 1건" 용도. */
     @Transactional(readOnly = true)
     public List<TrackSegment> findTrack(Long childId) {
         return repository.findByChildIdOrderBySegmentStartDesc(childId);
+    }
+
+    /**
+     * 동선 그리기용 조회 — 시간 오름차순.
+     *
+     * @param from 시작(포함). null 이면 하한 없음
+     * @param to   종료(제외). null 이면 상한 없음
+     */
+    @Transactional(readOnly = true)
+    public List<TrackSegment> getTrack(Long childId, LocalDateTime from, LocalDateTime to) {
+        if (from != null && to != null) {
+            return repository.findTrackInRange(childId, from, to);
+        }
+        return repository.findByChildIdOrderBySegmentStartAsc(childId);
     }
 
     /** 현재 시각을 5분 경계로 내림 정렬한다. (예: 12:07 → 12:05) */

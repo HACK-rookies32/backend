@@ -43,6 +43,20 @@ public class PlaceService {
         return eventRepository.findByChildIdOrderByOccurredAtDesc(childId);
     }
 
+    /**
+     * 자녀의 이벤트 이력 조회(최신순).
+     *
+     * @param from 시작(포함). null 이면 하한 없음
+     * @param to   종료(제외). null 이면 상한 없음
+     */
+    @Transactional(readOnly = true)
+    public List<PlaceEvent> findEvents(Long childId, java.time.LocalDateTime from, java.time.LocalDateTime to) {
+        if (from != null && to != null) {
+            return eventRepository.findEventsInRange(childId, from, to);
+        }
+        return eventRepository.findByChildIdOrderByOccurredAtDesc(childId);
+    }
+
     @Transactional
     public void delete(Long placeId, Member requester) {
         Place place = placeRepository.findById(placeId)
