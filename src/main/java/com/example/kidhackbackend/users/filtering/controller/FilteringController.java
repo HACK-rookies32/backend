@@ -7,6 +7,9 @@ import com.example.kidhackbackend.users.filtering.dto.VisitResponse;
 import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
 import com.example.kidhackbackend.users.filtering.service.FilteringService;
 import com.example.kidhackbackend.global.response.ApiResponse;
+import com.example.kidhackbackend.users.member.entity.Member;
+import com.example.kidhackbackend.users.member.entity.Role;
+import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -27,7 +30,9 @@ import java.util.List;
 /**
  * 유해사이트/앱 차단 API — 역할표 No.5(감지)·No.6(부모 차단).
  */
-@Tag(name = "06. 유해사이트/앱 차단", description = "차단 규칙 등록/조회/삭제(부모) · 자녀 접속 대상 감지(자녀 앱)")
+@Tag(name = "06. 유해사이트/앱 차단",
+        description = "차단 규칙 등록/조회/삭제(부모) · 자녀 접속 대상 감지(자녀 앱). "
+                + "감지 판정은 자녀별 차단 규칙 + 관리자 전역 유해 키워드(태그 37)를 함께 사용한다.")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/filtering")
@@ -36,11 +41,23 @@ public class FilteringController {
 
     private final BlockRuleService blockRuleService;
     private final FilteringService filteringService;
+    private final MemberRepository memberRepository;
+
+    /** childId 가 실재하는(삭제되지 않은) CHILD 계정인지 확인. 소유권(IDOR)은 검증하지 않는다. */
+    private void requireExistingChild(Long childId) {
+        Member child = memberRepository.findById(childId)
+                .orElseThrow(() -> new IllegalArgumentException("자녀를 찾을 수 없습니다."));
+        if (child.isDeleted() || child.getRole() != Role.CHILD) {
+            throw new IllegalArgumentException("자녀를 찾을 수 없습니다.");
+        }
+    }
 
     @Operation(summary = "차단 규칙 등록 (부모)",
-            description = "자녀에게 차단 패턴을 추가한다. ⚠️ 본문 childId 소유권 미검증(IDOR).")
+            description = "자녀에게 차단 패턴을 추가한다. childId 가 실재 CHILD 인지 검증. "
+                    + "⚠️ 부모-자녀 소유권은 미검증(IDOR).")
     @PostMapping("/rules")
     public ResponseEntity<ApiResponse<BlockRuleResponse>> addRule(@Valid @RequestBody BlockRuleRequest request) {
+        requireExistingChild(request.childId());
         BlockRuleResponse data = BlockRuleResponse.from(
                 blockRuleService.addRule(request.childId(), request.pattern()));
         return ResponseEntity.ok(ApiResponse.success(data));
@@ -58,7 +75,7 @@ public class FilteringController {
     }
 
     @Operation(summary = "차단 규칙 삭제",
-            description = "⚠️ IDOR/하드삭제/감사 부재 (의도된 취약점).")
+            description = "없는 ruleId 는 조용히 성공(멱등). ⚠️ 소유권 미검증 / 하드 삭제 / 감사 부재 (의도된 취약점).")
     @DeleteMapping("/rules/{ruleId}")
     public ResponseEntity<ApiResponse<Void>> deleteRule(
             @Parameter(description = "차단 규칙 ID") @PathVariable Long ruleId) {
@@ -67,7 +84,8 @@ public class FilteringController {
     }
 
     @Operation(summary = "접속 대상 감지 (자녀 앱)",
-            description = "자녀 앱이 접속하려는 대상을 보고한다. 차단 대상이면 `blocked=true` 와 함께 알림을 발행한다.")
+            description = "자녀 앱이 접속하려는 대상을 보고한다. 차단 대상이면 `blocked=true` 와 함께 알림을 발행한다. "
+                    + "⚠️ target 미정규화 · 본문 childId 본인 검증 없음 (의도된 취약점).")
     @PostMapping("/visit")
     public ResponseEntity<ApiResponse<VisitResponse>> reportVisit(@Valid @RequestBody VisitRequest request) {
         boolean blocked = filteringService.detect(request.childId(), request.target());
