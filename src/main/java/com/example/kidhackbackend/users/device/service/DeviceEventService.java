@@ -28,7 +28,10 @@ public class DeviceEventService {
     public DeviceEvent report(Long childId, String deviceId, DeviceEventType type) {
         DeviceEvent event = repository.save(new DeviceEvent(childId, deviceId, type));
 
-        String reason = (type == DeviceEventType.POWER_OFF) ? "기기 전원 꺼짐" : "GPS(위치) 꺼짐";
+        String reason = switch (type) {
+            case POWER_OFF -> "기기 전원 꺼짐";
+            case GPS_OFF -> "GPS(위치) 꺼짐";
+        };
         notificationPort.publish(childId, NotificationType.DEVICE_POWER_OFF,
                 "트래킹 불가: " + reason + " 감지");
 
