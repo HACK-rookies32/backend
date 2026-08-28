@@ -81,10 +81,20 @@ kidhack:
   location:
     retention-days: 3      # 동선 세그먼트 보관 기간(일) — No.2 롤링 삭제
     segment-minutes: 5     # 세그먼트 길이(분)
+    
   monitoring:
     retention-days: 7      # 앱 사용량 보관 기간(일) — No.13 롤링 삭제
   wallet:
     charge-order-expiry-minutes: 30   # 승인 안 된 READY 충전 주문 만료 시간(분) — C-2 만료 배치
+  # 카드 CRD E2E 암호화 (역할표 추가요청 · 금취분평 대응)
+  card:
+    # 저장 필드암호화용 AES-256 키(Base64 32바이트). 운영은 반드시 시크릿으로 주입.
+    # 비우면 기동 시 임시 키를 생성한다(로컬 H2는 재시작마다 초기화되므로 무방).
+    storage-key: ""
+    # RSA 키 회전 주기(일). keyId는 프론트가 실시간 조회하므로 회전해도 앱 무영향.
+    key-rotation-days: 90
+    # 재전송 방지 nonce 유효창(초).
+    nonce-ttl-seconds: 60
 
 # ------------------------------------------------------------------
 # 첨부파일 저장소
