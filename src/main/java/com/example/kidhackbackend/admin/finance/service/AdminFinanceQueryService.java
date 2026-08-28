@@ -50,7 +50,7 @@ public class AdminFinanceQueryService {
         }
         Pageable pageable = PageRequest.of(page, size);
         return AdminTxPageResponse.from(
-                walletTransactionRepository.adminSearch(walletId, type, from, to, pageable), walletBalance);
+                walletTransactionRepository.adminSearchWithMember(walletId, type, from, to, pageable), walletBalance);
     }
 
     /** 고객관리(AdminCustomerService.getSubscription)에서 재사용 — 잔액 + 최근거래 요약. */

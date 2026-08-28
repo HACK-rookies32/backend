@@ -32,7 +32,48 @@ public class AdminFinanceQueryController {
     private final AdminFinanceQueryService adminFinanceQueryService;
 
     /** No.47 전체 충전/결제 내역(필터·페이징). */
-    @Operation(summary = "전체 충전/결제 내역", description = "전체 회원의 거래 원장을 userId·type·기간 필터로 페이징 조회한다.")
+    @Operation(summary = "전체 충전/결제 내역",
+            description = """
+                    전체 회원의 거래 원장을 `userId`·`type`·기간 필터로 페이징 조회한다.
+                    `userId` 를 지정하면 응답의 `walletBalance` 에 해당 회원의 현재 잔액이 함께 담긴다.
+
+                    **응답 `content[]` 필드**
+
+                    | 필드 | 설명 |
+                    | --- | --- |
+                    | `userId` | 거래 주체 회원 id |
+                    | `userName` | 거래 주체 실명. 탈퇴 등으로 못 찾으면 `null` |
+                    | `type` | 거래 유형 — 아래 표 참고 |
+                    | `amount` · `balanceAfter` | 거래 금액 · 거래 후 잔액(원) |
+                    | `refUid` | 거래 유형별 참조 키 — 아래 표 참고 |
+                    | `merchantName` | 매장명. `PAYMENT` 계열 전용이며 **v1 미제공(`null`)** |
+                    | `method` | 결제수단. 결제수단 정보를 저장하지 않아 `CHARGE` 계열은 고정 `"카드"`, 그 외 `null` |
+
+                    **`type` 별 발생 시점과 지갑 방향**
+
+                    | type | 발생 | 지갑 방향 |
+                    | --- | --- | --- |
+                    | `CHARGE` | 충전 승인 · PG 웹훅 확정 | 증가 |
+                    | `REFUND` | 충전 환불(부모) / 관리자 강제환불 | 차감 / (강제환불은 자녀지갑 증가) |
+                    | `TRANSFER_OUT` | 용돈 이체 — 보내는 지갑 | 차감 |
+                    | `TRANSFER_IN` | 용돈 이체 — 받는 지갑 | 증가 |
+                    | `PAYMENT` | QR 매장결제 승인 | 차감 |
+                    | `PAYMENT_CANCEL` | 매장결제 취소 | 증가 |
+                    | `ADJUST` | 관리자 잔액 수동조정 | 증가/차감(부호) |
+
+                    ⚠️ `REFUND` 는 **충전 환불**과 **관리자 강제환불(QR 결제)** 두 사건에 모두 쓰인다.
+                    화면에서 구분하려면 `refUid` 접두사(`kid_` = 충전, `qr_` = 결제)로 판단한다.
+
+                    **`refUid` — 거래 유형별 참조 키**
+
+                    | type | refUid |
+                    | --- | --- |
+                    | `CHARGE` · `REFUND`(충전 환불) | `merchantUid` |
+                    | `PAYMENT` · `PAYMENT_CANCEL` | `qrToken` |
+                    | `REFUND`(관리자 강제환불) | ⚠️ `qrToken` |
+                    | `TRANSFER_IN` · `TRANSFER_OUT` | 상대 회원 id(문자열) |
+                    | `ADJUST` | 조정 사유 텍스트 |
+                    """)
     @GetMapping("/transactions")
     public ResponseEntity<ApiResponse<AdminTxPageResponse>> transactions(
             @RequestParam(required = false) Long userId,
