@@ -1,16 +1,23 @@
 package com.example.kidhackbackend.global.exception;
 
 import com.example.kidhackbackend.global.response.ApiResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -118,8 +125,45 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("INVALID_PARAMETER", "요청 본문 JSON 을 파싱할 수 없습니다."));
     }
 
+    /**
+     * 매핑되지 않은 경로(오타 URL 등). Spring 6.1+ 의 정적 리소스 폴백에서 던져진다.
+     * 캐치올({@code Exception})이 삼켜 500 이 나가던 것을 404 로 바로잡는다.
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ApiResponse<Void>> handleNotFoundPath(Exception e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."));
+    }
+
+    /** 존재하는 경로에 지원하지 않는 HTTP 메서드(예: POST 전용에 GET). */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiResponse.error("METHOD_NOT_ALLOWED",
+                        "지원하지 않는 요청 메서드입니다: " + e.getMethod()));
+    }
+
+    /** 요청 본문 Content-Type 이 엔드포인트가 받는 형식이 아님. */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException e) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(ApiResponse.error("UNSUPPORTED_MEDIA_TYPE", "지원하지 않는 Content-Type 입니다."));
+    }
+
+    /** Accept 헤더로 요청한 응답 형식을 만들 수 없음. */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotAcceptable(HttpMediaTypeNotAcceptableException e) {
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE)
+                .body(ApiResponse.error("NOT_ACCEPTABLE", "요청한 응답 형식을 제공할 수 없습니다."));
+    }
+
+    /**
+     * 여기까지 온 예외는 진짜 예상 밖(서버 버그·의존성 장애)이다. 500 을 주되,
+     * <b>반드시 스택트레이스를 로그에 남긴다</b> — 안 남기면 원인 추적이 불가능하다.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception e) {
+        log.error("처리되지 않은 예외", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("INTERNAL_ERROR", "서버 오류가 발생했습니다."));
     }

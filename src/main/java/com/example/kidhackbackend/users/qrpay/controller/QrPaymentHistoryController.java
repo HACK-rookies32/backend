@@ -6,6 +6,7 @@ import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.qrpay.dto.QrPaymentHistoryPageResponse;
 import com.example.kidhackbackend.users.qrpay.service.QrPaymentHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -41,13 +42,23 @@ public class QrPaymentHistoryController {
     }
 
     /** 자녀 결제 내역 페이징 조회 — No.45. */
-    @Operation(summary = "자녀 결제 내역 조회", description = "결제된(PAID/CANCELLED) QR 내역을 매장명·금액·시각과 함께 페이징 조회한다.")
+    @Operation(summary = "자녀 결제 내역 조회 (PARENT/CHILD)",
+            description = """
+                    결제된(paidAt 있는) QR 내역을 매장명·금액·상태(PAID/CANCELLED)·결제시각과 함께 최신순 페이징 조회한다.
+
+                    | 파라미터 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | **PARENT 필수 / CHILD 무시** | 조회할 자녀 ID. CHILD 는 JWT 자기 id 로 강제(파라미터 무시 → 남의 것 조회 불가, 안전) |
+                    | `page` / `size` | — | 페이징(기본 0 / 20) |
+
+                    ⚠️ [VULN-WALLET-19] PARENT 경로 페어링 미검증(IDOR) — childId 가 이 부모의 자녀인지 안 본다 →
+                    아무 PARENT 나 임의 childId 로 남의 자녀 결제 내역(매장·금액·시각)을 열람 가능. (CHILD 경로는 안전)""")
     @GetMapping
     public ResponseEntity<ApiResponse<QrPaymentHistoryPageResponse>> payments(
             @AuthenticationPrincipal Member member,
-            @RequestParam(required = false) Long childId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "조회할 자녀 ID (PARENT 필수, CHILD 는 무시)") @RequestParam(required = false) Long childId,
+            @Parameter(description = "페이지 번호(0부터)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지당 항목 수") @RequestParam(defaultValue = "20") int size) {
         requireParentOrChild(member);
         return ResponseEntity.ok(ApiResponse.success(
                 qrPaymentHistoryService.getPayments(member, childId, page, size)));

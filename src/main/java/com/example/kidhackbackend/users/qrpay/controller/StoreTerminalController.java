@@ -35,7 +35,18 @@ public class StoreTerminalController {
     private final StoreTerminalService storeTerminalService;
 
     /** 매장 단말 등록 + 토큰 발급. */
-    @Operation(summary = "매장 단말 토큰 발급", description = "매장 단말을 등록하고 X-Store-Terminal-Token을 발급한다(관리자 전용 의도).")
+    @Operation(summary = "매장 단말 토큰 발급",
+            description = """
+                    매장 단말을 등록하고 `X-Store-Terminal-Token`(결제 승인 호출용 자격증명)을 발급한다.
+                    응답 `TerminalResponse.terminalToken` 에 발급 토큰이 담긴다(노출 주의).
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `storeName` | ✅ | 가맹점(매장) 이름 |
+
+                    ⚠️ [VULN-WALLET-11] 권한검증 미흡(BFLA/권한상승) — SUPER_ADMIN/GENERAL_ADMIN 전용이어야 하지만
+                    시큐리티는 '인증만' 요구하고 컨트롤러도 역할을 안 본다 → 일반 유저(PARENT·CHILD)도 로그인만 하면
+                    유효 단말 토큰을 발급받아 태그 16 결제 승인으로 임의 자녀 지갑을 차감할 수 있다(자금 이동 열쇠 탈취).""")
     @PostMapping
     public ResponseEntity<ApiResponse<TerminalResponse>> issue(
             @AuthenticationPrincipal Member member,
@@ -49,7 +60,9 @@ public class StoreTerminalController {
     }
 
     /** 등록 단말 목록 조회(관리자 전용 의도 — 위와 동일하게 역할 미검증). */
-    @Operation(summary = "매장 단말 목록", description = "등록된 매장 단말을 최신순으로 조회한다(관리자 전용 의도).")
+    @Operation(summary = "매장 단말 목록",
+            description = "등록된 매장 단말을 최신순으로 조회한다(**응답에 terminalToken 포함**). "
+                    + "⚠️ [VULN-WALLET-11] 위와 동일 — 역할 미검증으로 일반 유저가 발급된 단말 토큰 목록까지 열람 가능.")
     @GetMapping
     public ResponseEntity<ApiResponse<List<TerminalResponse>>> list(
             @AuthenticationPrincipal Member member) {
