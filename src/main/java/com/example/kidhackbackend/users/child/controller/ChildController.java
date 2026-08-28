@@ -33,8 +33,11 @@ public class ChildController {
     /** 자녀 관리 대시보드: 현재 위치·실시간 상태·최근 알림·차단목록·등록공간을 한 번에 조회(부모). */
     // [VULN-CHILD-1] 경로 childId 소유권 미검증 → 남의 자녀 대시보드 전체 열람(IDOR).
     @GetMapping("/{childId}/dashboard")
-    public ResponseEntity<ApiResponse<ChildDashboardResponse>> dashboard(@PathVariable Long childId) {
-        return ResponseEntity.ok(ApiResponse.success(childDashboardService.getDashboard(childId)));
+    public ResponseEntity<ApiResponse<ChildDashboardResponse>> dashboard(
+            @AuthenticationPrincipal Member member,
+            @PathVariable Long childId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                childDashboardService.getDashboard(childId, member.getId())));
     }
 
     @GetMapping

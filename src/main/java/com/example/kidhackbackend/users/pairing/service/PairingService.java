@@ -18,7 +18,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PairingService {
 
-    private static final long CODE_TTL_MINUTES = 10;
+    // 코드 유효/보관 시간(분). 미사용 코드는 만료 후 PairingCodeCleanupScheduler 가 삭제한다.
+    private static final long CODE_TTL_MINUTES = 5;
 
     private final PairingCodeRepository pairingCodeRepository;
     private final MemberRepository memberRepository;
@@ -29,10 +30,20 @@ public class PairingService {
     // 참고: 재발급해도 기존에 발급된 코드를 무효화하지 않음(여러 개 동시 유효) — 정책 논의 필요시 변경
     @Transactional
     public PairingCodeResponse issueCode(Long parentId) {
-        String code = generateCode();
+        String code = generateUniqueCode();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(CODE_TTL_MINUTES);
         pairingCodeRepository.save(new PairingCode(code, parentId, expiresAt));
         return new PairingCodeResponse(code, expiresAt);
+    }
+
+    /** 현재 로그인한 부모가 발급한, 아직 만료되지 않은 페어링 코드 목록(최신순). */
+    @Transactional(readOnly = true)
+    public List<PairingCodeResponse> getActiveCodes(Long parentId) {
+        return pairingCodeRepository
+                .findByParentIdAndExpiresAtAfterOrderByExpiresAtDesc(parentId, LocalDateTime.now())
+                .stream()
+                .map(pc -> new PairingCodeResponse(pc.getCode(), pc.getExpiresAt()))
+                .toList();
     }
 
     // [VULN-PAIRING-1] SQL Injection: 코드 조회를 파라미터 바인딩 없이 문자열 결합으로 수행.
@@ -60,6 +71,15 @@ public class PairingService {
         child.setParent(parent);
         memberRepository.save(child);
         pairingCodeRepository.delete(pairingCode);
+    }
+
+    // DB 에 이미 있는 코드와 겹치지 않을 때까지 재생성한다(unique 제약 위반 → 500 방지).
+    private String generateUniqueCode() {
+        String code;
+        do {
+            code = generateCode();
+        } while (pairingCodeRepository.existsByCode(code));
+        return code;
     }
 
     // 참고: 6자리 숫자, Math.random() 기반이라 예측 가능성 있음 (필요하면 별도 VULN 번호로 논의)
