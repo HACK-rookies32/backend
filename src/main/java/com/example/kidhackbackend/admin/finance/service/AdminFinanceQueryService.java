@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.admin.finance.service;
 
+import com.example.kidhackbackend.admin.finance.dto.AdminPaymentPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminTxPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminWalletPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminUserWalletResponse;
@@ -64,10 +65,27 @@ public class AdminFinanceQueryService {
      */
     @Transactional(readOnly = true)
     public AdminWalletPageResponse getWallets(String role, String keyword, int page, int size) {
-        String normalizedKeyword = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
         Pageable pageable = PageRequest.of(page, size);
         return AdminWalletPageResponse.from(
-                memberRepository.searchWalletsWithBalance(role, normalizedKeyword, pageable));
+                memberRepository.searchWalletsWithBalance(blankToNull(role), blankToNull(keyword), pageable));
+    }
+
+    /**
+     * 매장결제 목록(3분할 2/3) — childId·status·merchant·keyword 필터 페이징.
+     *
+     * <p>결제된 QR(paidAt 존재)만 대상이다. 거래 원장에 없는 <b>매장명·결제 후 잔액</b>을 제공한다.
+     */
+    @Transactional(readOnly = true)
+    public AdminPaymentPageResponse getPayments(Long childId, String status, String merchant,
+                                                String keyword, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return AdminPaymentPageResponse.from(qrPaymentRepository.adminSearchPayments(
+                childId, blankToNull(status), blankToNull(merchant), blankToNull(keyword), pageable));
+    }
+
+    /** 빈 문자열 쿼리 파라미터를 null 로 바꿔 "필터 없음"으로 처리한다. */
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 
     /** 고객관리(AdminCustomerService.getSubscription)에서 재사용 — 잔액 + 최근거래 요약. */

@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.admin.finance.controller;
 
+import com.example.kidhackbackend.admin.finance.dto.AdminPaymentPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminTxPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminWalletPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminUserWalletResponse;
@@ -123,6 +124,54 @@ public class AdminFinanceQueryController {
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ApiResponse.success(
                 adminFinanceQueryService.getWallets(role, keyword, page, size)));
+    }
+
+    /** 매장결제 목록 — 3분할 2/3. 원장에 없는 매장명·결제 후 잔액 제공. */
+    @Operation(summary = "매장결제 목록",
+            description = """
+                    자녀의 QR 매장결제 내역을 페이징 조회한다. **결제된 건(PAID·CANCELLED)만** 나온다
+                    — 발급만 되고 안 쓴 QR, 만료된 QR 은 제외된다.
+
+                    거래 원장(`GET /finance/transactions`)에는 **매장명이 없다**(원장에 매장 정보가 없음).
+                    이 API 는 QR 결제 테이블을 직접 읽어 **실제 매장명과 결제 후 잔액**을 제공한다.
+
+                    **Query 파라미터**
+
+                    | 필드 | 필수 | 설명 |
+                    | --- | --- | --- |
+                    | `childId` | — | 특정 자녀만 |
+                    | `status` | — | `PAID` / `CANCELLED` |
+                    | `merchant` | — | 매장명 부분일치 |
+                    | `keyword` | — | 자녀 또는 보호자 실명 부분일치 |
+                    | `page` · `size` | — | 기본 0 / 20 |
+
+                    **응답 `content[]`**
+
+                    | 필드 | 설명 |
+                    | --- | --- |
+                    | `paymentId` | QR 결제 id |
+                    | `childId` · `childName` | 결제한 자녀 |
+                    | `parentId` · `parentName` | 보호자. 페어링이 없으면 `null` |
+                    | `merchantName` | **매장명.** 단말 인증 없이 결제되면 `"UNKNOWN"` |
+                    | `amount` · `balanceAfter` | 결제 금액 · 결제 직후 자녀 잔액 |
+                    | `status` | `PAID` / `CANCELLED` |
+                    | `paidAt` | 결제 시각 |
+                    | `refundedAt` · `refundReason` | 환불 이력·사유를 저장하지 않아 **v1 은 항상 `null`** |
+
+                    - `balanceAfter` 는 원장에서 가장 최근 `PAYMENT` 1건을 고른다 — 같은 QR 로 중복 결제가
+                      가능해(의도된 취약점) 여러 건이 있을 수 있다.
+                    - `merchantName` 이 `UNKNOWN` 인 건은 **단말 토큰 없이 승인된 결제**다(`[VULN-WALLET-15]`).
+                    """)
+    @GetMapping("/payments")
+    public ResponseEntity<ApiResponse<AdminPaymentPageResponse>> payments(
+            @RequestParam(required = false) Long childId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String merchant,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                adminFinanceQueryService.getPayments(childId, status, merchant, keyword, page, size)));
     }
 
     /** No.51 결제 통계 대시보드(DAY/MERCHANT). */
