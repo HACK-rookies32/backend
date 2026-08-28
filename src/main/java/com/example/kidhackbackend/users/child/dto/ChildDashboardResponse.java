@@ -18,8 +18,10 @@ public record ChildDashboardResponse(
         TrackSegmentResponse currentLocation,
         /** 실시간 추적 on/off. */
         boolean realtimeEnabled,
-        /** 최근 알림 3건(최신순). */
-        List<NotificationResponse> recentNotifications,
+        /** 자녀가 수신자인 최근 알림 3건(최신순). */
+        List<NotificationResponse> childNotifications,
+        /** 요청한 부모가 수신자인 최근 알림 3건(최신순) — 결제 승인/취소, 트래킹 불가 등. */
+        List<NotificationResponse> parentNotifications,
         /** 유해 차단 목록(블랙리스트). */
         List<BlockRuleResponse> blockRules,
         /** 등록 공간(지오펜스/목적지). */

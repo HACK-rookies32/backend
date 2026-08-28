@@ -3,7 +3,9 @@ package com.example.kidhackbackend.users.child.service;
 import com.example.kidhackbackend.users.child.dto.ChildDetailResponse;
 import com.example.kidhackbackend.users.child.dto.ChildSummaryResponse;
 import com.example.kidhackbackend.users.child.dto.ChildUpdateRequest;
+import com.example.kidhackbackend.users.location.service.TrackingSettingService;
 import com.example.kidhackbackend.users.member.entity.Member;
+import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import com.example.kidhackbackend.users.member.service.RefreshTokenService;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +21,13 @@ public class ChildService {
 
     private final MemberRepository memberRepository;
     private final RefreshTokenService refreshTokenService; // 생성자 주입 추가
+    private final TrackingSettingService trackingSettingService;
 
     public List<ChildSummaryResponse> getChildren(Long parentId) {
         return memberRepository.findByParentId(parentId).stream()
-                .map(ChildSummaryResponse::from)
+                .filter(child -> !child.isDeleted()) // C3: 소프트 삭제된 자녀(본인 탈퇴 등)는 제외
+                .map(child -> ChildSummaryResponse.from(
+                        child, trackingSettingService.isRealtimeEnabled(child.getId())))
                 .toList();
     }
 
@@ -69,7 +74,9 @@ public class ChildService {
     private Member findChild(Long childId) {
         Member child = memberRepository.findById(childId)
                 .orElseThrow(() -> new IllegalArgumentException("자녀를 찾을 수 없습니다."));
-        if (child.isDeleted()) {
+        // C4: 소프트 삭제됐거나 CHILD 역할이 아니면(=부모/관리자 계정) children 리소스로 취급하지 않는다.
+        //     부모↔임의 자녀 IDOR(VULN-CHILD-*)은 유지하되, 대상 역할을 벗어난 조작은 차단한다.
+        if (child.isDeleted() || child.getRole() != Role.CHILD) {
             throw new IllegalArgumentException("자녀를 찾을 수 없습니다.");
         }
         return child;

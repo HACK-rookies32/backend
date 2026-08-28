@@ -31,6 +31,7 @@ public class PairingSecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/pairing/code").hasRole("PARENT")
+                        .requestMatchers(HttpMethod.GET, "/api/pairing/code").hasRole("PARENT")
                         .requestMatchers(HttpMethod.POST, "/api/pairing/connect").hasRole("CHILD")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex

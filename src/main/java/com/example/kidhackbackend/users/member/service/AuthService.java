@@ -89,6 +89,10 @@ public class AuthService {
             throw new InvalidCredentialException("비밀번호가 일치하지 않습니다.");
         }
 
+        if (member.isDeleted()) {
+            throw new InvalidCredentialException("탈퇴한 계정입니다.");
+        }
+
         // [VULN-4] 로그인 실패 횟수 제한/계정 잠금이 없어서 무제한 브루트포스 가능
 
         String token = jwtUtil.generateToken(member.getLoginId(), member.getRole());
@@ -102,6 +106,10 @@ public class AuthService {
 
         if (!member.getPassword().equals(request.getPassword())) {
             throw new InvalidCredentialException("비밀번호가 일치하지 않습니다."); // [VULN-3]
+        }
+
+        if (member.isDeleted()) {
+            throw new InvalidCredentialException("탈퇴한 계정입니다.");
         }
 
         if (!ADMIN_ROLES.contains(member.getRole())) {
@@ -118,6 +126,9 @@ public class AuthService {
         Long memberId = refreshTokenService.verify(request.getRefreshToken());
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+        if (member.isDeleted()) {
+            throw new IllegalArgumentException("탈퇴한 계정입니다.");
+        }
         String newToken = jwtUtil.generateToken(member.getLoginId(), member.getRole());
         return new TokenRefreshResponse(newToken);
     }
