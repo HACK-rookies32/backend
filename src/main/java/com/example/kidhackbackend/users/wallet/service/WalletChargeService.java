@@ -1,17 +1,21 @@
 package com.example.kidhackbackend.users.wallet.service;
 
+import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
 import com.example.kidhackbackend.users.wallet.dto.ChargeApproveRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargeApproveResponse;
+import com.example.kidhackbackend.users.wallet.dto.ChargeOrderResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareResponse;
 import com.example.kidhackbackend.users.wallet.dto.PgWebhookRequest;
 import com.example.kidhackbackend.users.wallet.dto.TxResponse;
 import com.example.kidhackbackend.users.wallet.entity.ChargeOrder;
+import com.example.kidhackbackend.users.wallet.entity.ChargeStatus;
 import com.example.kidhackbackend.users.wallet.entity.TxType;
 import com.example.kidhackbackend.users.wallet.entity.Wallet;
 import com.example.kidhackbackend.users.wallet.entity.WalletTransaction;
 import com.example.kidhackbackend.users.wallet.pg.PgApproval;
+import com.example.kidhackbackend.users.wallet.pg.PgCheckout;
 import com.example.kidhackbackend.users.wallet.pg.PgClient;
 import com.example.kidhackbackend.users.wallet.repository.ChargeOrderRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletRepository;
@@ -47,7 +51,34 @@ public class WalletChargeService {
         ChargeOrder order = chargeOrderRepository.save(
                 new ChargeOrder(merchantUid, ownerId, request.amount()));
 
-        return ChargePrepareResponse.from(order);
+        PgCheckout checkout = pgClient.checkout(merchantUid, request.amount());
+        return ChargePrepareResponse.from(order, checkout);
+    }
+
+    /**
+     * 결제 진행 중 취소 — 아직 승인되지 않은(READY) 주문만 CANCELLED 로 돌린다. 잔액 변화 없음.
+     *
+     * <p>승인/환불과 달리 이 신규 API 는 소유권을 검증한다(요청자 == 주문 소유자).
+     *
+     * @param requesterId 취소를 요청한(로그인한) 회원 id
+     */
+    @Transactional
+    public ChargeOrderResponse cancel(Long requesterId, String merchantUid) {
+        ChargeOrder order = chargeOrderRepository.findByMerchantUid(merchantUid)
+                .orElseThrow(() -> new ResourceNotFoundException("충전 주문을 찾을 수 없습니다."));
+
+        if (!order.getOwnerId().equals(requesterId)) {
+            throw new AdminAccessDeniedException("본인 충전 주문만 취소할 수 있습니다.");
+        }
+        if (order.getStatus() == ChargeStatus.CANCELLED) {
+            return ChargeOrderResponse.from(order); // 멱등
+        }
+        if (order.getStatus() != ChargeStatus.READY) {
+            throw new IllegalArgumentException(
+                    "결제가 진행되지 않은 주문만 취소할 수 있습니다. 이미 결제된 주문은 환불을 이용하세요.");
+        }
+        order.markCancelled();
+        return ChargeOrderResponse.from(order);
     }
 
     /**

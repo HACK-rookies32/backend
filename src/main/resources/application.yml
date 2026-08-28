@@ -83,6 +83,8 @@ kidhack:
     segment-minutes: 5     # 세그먼트 길이(분)
   monitoring:
     retention-days: 7      # 앱 사용량 보관 기간(일) — No.13 롤링 삭제
+  wallet:
+    charge-order-expiry-minutes: 30   # 승인 안 된 READY 충전 주문 만료 시간(분) — C-2 만료 배치
 
 # ------------------------------------------------------------------
 # 첨부파일 저장소

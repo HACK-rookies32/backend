@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 지갑 충전 취소·환불 — 역할표 No.37. 완료된 충전(PAID)을 환불한다.
  *
- * <p>환불: 잔액 차감 → 원장(REFUND) 기록 → 주문 CANCELLED. 전액 환불만 지원(부분 환불은 후속).
+ * <p>환불: 잔액 검증(음수 방지) → 잔액 차감 → 원장(REFUND) 기록 → 주문 REFUNDED. 전액 환불만 지원(부분 환불은 후속).
  * 충전 서비스와 분리해 결합도를 낮춘다.
  */
 @Service
@@ -45,16 +45,23 @@ public class WalletRefundService {
         //     지갑 잔액을 마음대로 차감(타인 지갑 조작)할 수 있다.
         //   방어: if (!order.getOwnerId().equals(requesterId)) throw new AccessDenied...;
 
-        // [VULN-WALLET-6] 환불 상태·잔액 검증 부재.
-        //   - 이미 CANCELLED(환불완료)인지, PAID 상태인지 확인하지 않아 같은 주문을 반복 환불(이중 환불)할 수 있다.
-        //   - 현재 잔액이 환불액보다 적어도 막지 않아 잔액이 음수가 될 수 있다.
-        //   방어: order.getStatus() == PAID 확인(아니면 거부) + wallet.getBalance() >= 환불액 확인 + 멱등/락.
+        // [VULN-WALLET-6] 환불 상태 검증 부재(부분).
+        //   PAID 상태인지, 이미 REFUNDED 인지 확인하지 않아 결제 안 된 주문도 환불을 시도할 수 있다.
+        //   단, 아래 잔액 가드 때문에 실제로 돈이 빠지려면 잔액이 충분해야 하므로, 이중 환불·미결제 환불은
+        //   대부분 잔액 부족으로 막힌다. 소유권 미검증([VULN-WALLET-5])은 그대로 열려 있다.
 
         long refundAmount = order.getAmount();
-        order.markCancelled();
 
         Wallet wallet = walletRepository.findByOwnerId(order.getOwnerId())
                 .orElseGet(() -> walletRepository.save(new Wallet(order.getOwnerId())));
+
+        // [R-2] 잔액 음수 방지 — 돈이라 이것만은 막는다. 환불액이 현재 잔액보다 크면 거부.
+        //   (부수 효과: 이중 환불·미결제 주문 환불도 여기서 대부분 차단된다.)
+        if (wallet.getBalance() < refundAmount) {
+            throw new IllegalArgumentException("환불 가능 잔액이 부족합니다.");
+        }
+
+        order.markRefunded();
         wallet.debit(refundAmount);
         walletRepository.save(wallet);
 
