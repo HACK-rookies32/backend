@@ -10,6 +10,9 @@ import com.example.kidhackbackend.admin.member.service.AdminCustomerService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.member.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +52,17 @@ public class AdminCustomerController {
     }
 
     @Operation(summary = "고객 정보 수정", description = "감사 로그(MEMBER_UPDATE)를 남긴다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 회원",
+                    content = @Content(mediaType = "application/json", examples = @ExampleObject(value = """
+                            {"success": false, "data": null,
+                             "error": {"code": "NOT_FOUND", "message": "존재하지 않는 회원입니다."}}"""))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "⚠️ 알려진 결함 — 이미 사용 중인 이메일로 수정 시 500 (회원용 PATCH /api/users/me 는 409 반환)",
+                    content = @Content(mediaType = "application/json", examples = @ExampleObject(value = """
+                            {"success": false, "data": null,
+                             "error": {"code": "INTERNAL_ERROR", "message": "서버 오류가 발생했습니다."}}""")))
+    })
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<AdminCustomerResponse>> updateCustomer(
             @Parameter(description = "회원 ID") @PathVariable Long id, @RequestBody AdminCustomerUpdateRequest request) {

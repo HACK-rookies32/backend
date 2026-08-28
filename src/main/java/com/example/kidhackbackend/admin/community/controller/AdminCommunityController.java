@@ -15,6 +15,9 @@ import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -114,7 +117,20 @@ public class AdminCommunityController {
         return ResponseEntity.ok(ApiResponse.success(adminCommunityService.getReportedCommentDetail(id)));
     }
 
-    @Operation(summary = "관리자 커뮤니티 게시글 삭제")
+    @Operation(summary = "관리자 커뮤니티 게시글 삭제",
+            description = """
+                    게시글을 삭제하고 감사 로그(`POST_DELETE`)를 남긴다.
+
+                    - 존재하지 않는 게시글: `404 NOT_FOUND`.
+                    - ⚠️ **알려진 결함**: 댓글이 달린 게시글은 FK 제약 위반으로 `500` 이 난다(자식 정리 미구현).
+                    """)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 게시글",
+                    content = @Content(mediaType = "application/json", examples = @ExampleObject(value = """
+                            {"success": false, "data": null,
+                             "error": {"code": "NOT_FOUND", "message": "존재하지 않는 게시글입니다."}}""")))
+    })
     @DeleteMapping("/api/admin/community/posts/{postId}")
     public ResponseEntity<ApiResponse<Void>> deletePost(
             @AuthenticationPrincipal Member member,

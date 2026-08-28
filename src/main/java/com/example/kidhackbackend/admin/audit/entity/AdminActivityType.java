@@ -19,6 +19,8 @@ public enum AdminActivityType {
 
     // 인증 — POST /api/admin/auth/login
     ADMIN_LOGIN("관리자 로그인", AuditTargetType.MEMBER),
+    // 인증 — POST /api/admin/auth/logout
+    ADMIN_LOGOUT("관리자 로그아웃", AuditTargetType.MEMBER),
 
     // 회원 — PATCH/DELETE /api/admin/members/customers/{id}, PATCH /api/admin/members/{id}/role
     MEMBER_UPDATE("회원 정보 수정", AuditTargetType.MEMBER),

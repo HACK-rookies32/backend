@@ -5,6 +5,9 @@ import com.example.kidhackbackend.admin.finance.dto.AdminActionResponse;
 import com.example.kidhackbackend.admin.finance.service.AdminFinanceCommandService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,14 +34,41 @@ public class AdminFinanceCommandController {
     private final AdminFinanceCommandService adminFinanceCommandService;
 
     /** No.48 강제환불: 자녀 QR 결제를 강제 환불. */
-    @Operation(summary = "관리자 강제환불", description = "자녀 QR 결제를 강제 환불하고 자녀 지갑을 원복한다.")
+    @Operation(summary = "관리자 강제환불",
+            description = """
+                    자녀 QR 결제를 강제 환불하고 자녀 지갑을 원복한다(감사 로그 `PAYMENT_REFUND` 기록).
+
+                    **요청 필드** — 없음 (경로의 `qrToken` 으로 대상 결제를 지정한다)
+
+                    - 존재하지 않는 `qrToken`: `404 NOT_FOUND`.
+                    - ⚠️ 의도적 취약점: 이미 환불된 건도 상태 확인 없이 다시 환불된다(`[VULN-ADMIN-3]`).
+                    """)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "강제환불 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "존재하지 않는 결제",
+                    content = @Content(mediaType = "application/json", examples = @ExampleObject(value = """
+                            {"success": false, "data": null,
+                             "error": {"code": "NOT_FOUND", "message": "결제를 찾을 수 없습니다."}}""")))
+    })
     @PostMapping("/payments/{qrToken}/force-refund")
     public ResponseEntity<ApiResponse<AdminActionResponse>> forceRefund(@PathVariable String qrToken) {
         return ResponseEntity.ok(ApiResponse.success(adminFinanceCommandService.forceRefund(qrToken)));
     }
 
     /** No.50 잔액 수동조정: 특정 회원 잔액 가감. */
-    @Operation(summary = "잔액 수동조정", description = "특정 회원 잔액을 사유와 함께 가감한다(ADJUST).")
+    @Operation(summary = "잔액 수동조정",
+            description = """
+                    특정 회원 잔액을 사유와 함께 가감한다(`ADJUST` 원장 + 감사 로그 `WALLET_BALANCE_ADJUST` 기록).
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    | --- | --- | --- |
+                    | `amount` | ✅ | 가감액(원). 음수면 차감 |
+                    | `reason` | ✅ | 조정 사유 — 감사 로그에 그대로 남는다 |
+
+                    - ⚠️ 의도적 취약점: 사유가 비어 있어도, 금액 한도가 없어도 그대로 통과한다(`[VULN-ADMIN-2]`).
+                    """)
     @PostMapping("/users/{userId}/adjust")
     public ResponseEntity<ApiResponse<AdminActionResponse>> adjust(
             @PathVariable Long userId,
