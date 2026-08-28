@@ -49,6 +49,30 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
                                         @Param("to") LocalDateTime to,
                                         Pageable pageable);
 
+    /**
+     * 관리자 전체 원장 + 소유 회원 정보(No.47, 프론트 3차 3번).
+     *
+     * <p>{@code Wallet} 이 {@code Member} 를 FK 로 물지 않아(ownerId 만 보유) 파생 쿼리로는 조인이 안 된다.
+     * 세 엔티티를 명시적으로 조인해 회원 id·실명까지 한 번에 가져온다 — 행마다 회원을 조회하면 N+1 이 된다.
+     * 회원이 삭제된 경우에도 거래는 남아야 하므로 {@code Member} 는 LEFT JOIN 이다(userName 이 null 가능).
+     */
+    @Query("SELECT t.id AS id, t.type AS type, t.amount AS amount, t.balanceAfter AS balanceAfter, "
+            + "t.refUid AS refUid, t.createdAt AS createdAt, "
+            + "w.ownerId AS userId, m.username AS userName "
+            + "FROM WalletTransaction t "
+            + "JOIN Wallet w ON w.id = t.walletId "
+            + "LEFT JOIN Member m ON m.id = w.ownerId "
+            + "WHERE (:walletId IS NULL OR t.walletId = :walletId) "
+            + "AND (:type IS NULL OR t.type = :type) "
+            + "AND (:from IS NULL OR t.createdAt >= :from) "
+            + "AND (:to IS NULL OR t.createdAt <= :to) "
+            + "ORDER BY t.id DESC")
+    Page<AdminTxProjection> adminSearchWithMember(@Param("walletId") Long walletId,
+                                                  @Param("type") TxType type,
+                                                  @Param("from") LocalDateTime from,
+                                                  @Param("to") LocalDateTime to,
+                                                  Pageable pageable);
+
     /** 통계 집계용(No.51 DAY): 기간 내 원장 전체(기간 null이면 전체). */
     @Query("SELECT t FROM WalletTransaction t WHERE (:from IS NULL OR t.createdAt >= :from) "
             + "AND (:to IS NULL OR t.createdAt <= :to)")
