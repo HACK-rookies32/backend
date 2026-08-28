@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
 
-@Tag(name = "InquiryAdmin", description = "1:1 문의 게시판 API (관리자)")
+@Tag(name = "40. 관리자 - 1:1 문의", description = "전체 문의 목록/상세 · 답변 등록/수정/삭제 (SUPER_ADMIN, INQUIRY_ADMIN)")
 @RestController
 @RequestMapping("/api/admin/inquiries")
 @RequiredArgsConstructor

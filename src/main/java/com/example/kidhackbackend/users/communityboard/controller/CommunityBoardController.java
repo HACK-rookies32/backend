@@ -16,7 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
-@Tag(name = "Community", description = "부모 커뮤니티 게시판 API")
+@Tag(name = "20. 커뮤니티 게시판", description = "부모 커뮤니티 게시글/댓글/좋아요/첨부 — PARENT 전용")
 @RestController
 @RequestMapping("/api/community")
 @RequiredArgsConstructor

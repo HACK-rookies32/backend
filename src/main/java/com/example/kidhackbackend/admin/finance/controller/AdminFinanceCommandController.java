@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * → 일반관리자(GENERAL_ADMIN)도 강제환불·잔액조정을 호출할 수 있다({@code [VULN-ADMIN-1]} 권한경계/BFLA).
  * 방어: SUPER_ADMIN 재확인(체인 분리 또는 컨트롤러 requireSuperAdmin).
  */
-@Tag(name = "Admin Finance Command", description = "관리자 자금 변경 API — SUPER_ADMIN(의도)")
+@Tag(name = "38. 관리자 - 자금 변경", description = "강제 환불 · 잔액 수동 조정 (SUPER_ADMIN 의도 — 실제 체인은 GENERAL_ADMIN도 허용)")
 @RestController
 @RequestMapping("/api/admin/finance")
 @RequiredArgsConstructor

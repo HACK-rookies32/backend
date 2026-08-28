@@ -19,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
-@Tag(name = "Board", description = "1:1 문의 게시판 API (회원)")
+@Tag(name = "21. 1:1 문의 (회원)", description = "회원이 본인 문의 등록/조회/수정/삭제 · 첨부 업로드 — PARENT 전용")
 @RestController
 @RequestMapping("/api/boards")
 @RequiredArgsConstructor

@@ -19,7 +19,7 @@ import java.time.LocalDate;
  * 문의 기록 CSV 리포트. 접근 권한(SUPER_ADMIN, INQUIRY_ADMIN)은
  * {@code AdminSecurityConfig#adminInquiryFilterChain} 의 {@code /api/admin/inquiries/**} 체인이 담당한다.
  */
-@Tag(name = "Admin Report", description = "관리자 - 리포트(CSV) API")
+@Tag(name = "41. 관리자 - 리포트(CSV)", description = "회원 정보 CSV · 문의 기록 CSV 다운로드")
 @RestController
 @RequestMapping("/api/admin/inquiries")
 @RequiredArgsConstructor

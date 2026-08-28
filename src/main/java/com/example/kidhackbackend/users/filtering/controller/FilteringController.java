@@ -7,6 +7,8 @@ import com.example.kidhackbackend.users.filtering.dto.VisitResponse;
 import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
 import com.example.kidhackbackend.users.filtering.service.FilteringService;
 import com.example.kidhackbackend.global.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,7 +27,7 @@ import java.util.List;
 /**
  * 유해사이트/앱 차단 API — 역할표 No.5(감지)·No.6(부모 차단).
  */
-@Tag(name = "Filtering", description = "유해사이트/앱 차단 API — JWT 인증 필요")
+@Tag(name = "06. 유해사이트/앱 차단", description = "차단 규칙 등록/조회/삭제(부모) · 자녀 접속 대상 감지(자녀 앱)")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/filtering")
@@ -35,8 +37,8 @@ public class FilteringController {
     private final BlockRuleService blockRuleService;
     private final FilteringService filteringService;
 
-    /** 차단 규칙 등록(부모) — No.6. */
-    // [VULN-FILT-3] 본문의 childId 소유권 미검증 → 남의 자녀에게 임의 차단규칙 등록 가능(IDOR).
+    @Operation(summary = "차단 규칙 등록 (부모)",
+            description = "자녀에게 차단 패턴을 추가한다. ⚠️ 본문 childId 소유권 미검증(IDOR).")
     @PostMapping("/rules")
     public ResponseEntity<ApiResponse<BlockRuleResponse>> addRule(@Valid @RequestBody BlockRuleRequest request) {
         BlockRuleResponse data = BlockRuleResponse.from(
@@ -44,23 +46,28 @@ public class FilteringController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
-    /** 자녀의 차단 규칙 목록(부모) — No.6. */
+    @Operation(summary = "차단 규칙 목록 조회 (부모)",
+            description = "자녀의 차단 규칙 목록.")
     @GetMapping("/rules/{childId}")
-    public ResponseEntity<ApiResponse<List<BlockRuleResponse>>> getRules(@PathVariable Long childId) {
+    public ResponseEntity<ApiResponse<List<BlockRuleResponse>>> getRules(
+            @Parameter(description = "자녀 회원 ID") @PathVariable Long childId) {
         List<BlockRuleResponse> data = blockRuleService.getRules(childId).stream()
                 .map(BlockRuleResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
-    /** 차단 규칙 삭제 — No.6. ([VULN-FILT-1] 참조: IDOR/하드삭제/감사부재) */
+    @Operation(summary = "차단 규칙 삭제",
+            description = "⚠️ IDOR/하드삭제/감사 부재 (의도된 취약점).")
     @DeleteMapping("/rules/{ruleId}")
-    public ResponseEntity<ApiResponse<Void>> deleteRule(@PathVariable Long ruleId) {
+    public ResponseEntity<ApiResponse<Void>> deleteRule(
+            @Parameter(description = "차단 규칙 ID") @PathVariable Long ruleId) {
         blockRuleService.deleteRule(ruleId);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
-    /** 자녀 접속 대상 감지(자녀 앱) — No.5. 차단 대상이면 알림 발행. */
+    @Operation(summary = "접속 대상 감지 (자녀 앱)",
+            description = "자녀 앱이 접속하려는 대상을 보고한다. 차단 대상이면 `blocked=true` 와 함께 알림을 발행한다.")
     @PostMapping("/visit")
     public ResponseEntity<ApiResponse<VisitResponse>> reportVisit(@Valid @RequestBody VisitRequest request) {
         boolean blocked = filteringService.detect(request.childId(), request.target());

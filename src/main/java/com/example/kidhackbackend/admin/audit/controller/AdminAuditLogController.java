@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>시큐리티는 {@code AdminAuditLogSecurityConfig}(/api/admin/audit-logs/**) 가 담당한다.
  */
-@Tag(name = "Admin Audit Log", description = "관리자 활동 이력 조회 API (SUPER_ADMIN 전용)")
+@Tag(name = "35. 관리자 - 감사 로그", description = "관리자 활동 이력 조건 조회 (SUPER_ADMIN 전용)")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/admin/audit-logs")

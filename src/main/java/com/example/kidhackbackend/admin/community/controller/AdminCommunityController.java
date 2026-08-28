@@ -13,6 +13,7 @@ import com.example.kidhackbackend.global.exception.InvalidCredentialException;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,7 +27,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "Admin Community & Report", description = "신고 접수 및 관리자 커뮤니티 관리 API")
+@Tag(name = "36. 관리자 - 커뮤니티", description = "관리자 커뮤니티 게시글 목록/상세 조회 · 삭제")
 @RestController
 @RequiredArgsConstructor
 public class AdminCommunityController {
@@ -43,8 +44,9 @@ public class AdminCommunityController {
         }
     }
 
-    // --- 사용자 신고 API ---
+    // --- 사용자 신고 API (API 명세서에서는 숨김 — 코드는 유지) ---
 
+    @Hidden
     @Operation(summary = "게시글 신고")
     @PostMapping("/api/community/posts/{postId}/report")
     public ResponseEntity<ApiResponse<String>> reportPost(
@@ -55,6 +57,7 @@ public class AdminCommunityController {
         return ResponseEntity.ok(ApiResponse.success("게시글 신고가 완료되었습니다."));
     }
 
+    @Hidden
     @Operation(summary = "댓글 신고")
     @PostMapping("/api/community/posts/{postId}/comments/{commentId}/report")
     public ResponseEntity<ApiResponse<String>> reportComment(
@@ -81,6 +84,7 @@ public class AdminCommunityController {
         return ResponseEntity.ok(ApiResponse.success(adminCommunityService.getPostDetail(id)));
     }
 
+    @Hidden
     @Operation(summary = "신고된 게시글 목록 페이징 조회 (관리자)")
     @GetMapping("/api/admin/community/reports/posts")
     public ResponseEntity<ApiResponse<Page<AdminPostResponse>>> getReportedPosts(
@@ -88,6 +92,7 @@ public class AdminCommunityController {
         return ResponseEntity.ok(ApiResponse.success(adminCommunityService.getReportedPosts(pageable)));
     }
 
+    @Hidden
     @Operation(summary = "신고된 댓글 목록 페이징 조회 (관리자)")
     @GetMapping("/api/admin/community/reports/comments")
     public ResponseEntity<ApiResponse<Page<AdminCommentResponse>>> getReportedComments(
@@ -95,12 +100,14 @@ public class AdminCommunityController {
         return ResponseEntity.ok(ApiResponse.success(adminCommunityService.getReportedComments(pageable)));
     }
 
+    @Hidden
     @Operation(summary = "신고된 게시글 상세 조회 (관리자)")
     @GetMapping("/api/admin/community/reports/posts/{id}")
     public ResponseEntity<ApiResponse<AdminPostDetailResponse>> getReportedPostDetail(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(adminCommunityService.getPostDetail(id)));
     }
 
+    @Hidden
     @Operation(summary = "신고된 댓글 상세 조회 (관리자)")
     @GetMapping("/api/admin/community/reports/comments/{id}")
     public ResponseEntity<ApiResponse<AdminCommentResponse>> getReportedCommentDetail(@PathVariable Long id) {
@@ -118,6 +125,7 @@ public class AdminCommunityController {
     }
 
 
+    @Hidden
     @Operation(summary = "커뮤니티 사용자 밴/해제 (관리자)",
             description = "durationDays 를 0 으로 보내면 밴이 해제됩니다.")
     @PostMapping("/api/admin/community/members/ban")

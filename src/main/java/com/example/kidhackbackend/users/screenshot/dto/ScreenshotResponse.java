@@ -2,6 +2,7 @@ package com.example.kidhackbackend.users.screenshot.dto;
 
 import com.example.kidhackbackend.users.screenshot.entity.CaptureTrigger;
 import com.example.kidhackbackend.users.screenshot.entity.Screenshot;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -9,17 +10,22 @@ import java.time.LocalDateTime;
 
 /**
  * 캡처 목록 항목 (명세서 4.6 GET).
- *
- * <p>명세가 목록 필드를 정하지 않아 여기서 정의한다. 부모가 언제·어떤 계기로 찍힌
- * 이미지인지 알고 열 수 있도록 촬영시각과 트리거를 함께 내린다.
  */
+@Schema(description = "캡처 목록 항목")
 @Getter
 @AllArgsConstructor
 public class ScreenshotResponse {
 
+    @Schema(description = "캡처 ID", example = "1")
     private Long screenshotId;
+
+    @Schema(description = "이미지 조회 경로(/api/files/... — 조회 시 presigned URL 로 302 리다이렉트)")
     private String imageUrl;
+
+    @Schema(description = "촬영 시각")
     private LocalDateTime capturedAt;
+
+    @Schema(description = "촬영 계기: AUTO(주기) / MANUAL(부모 요청)", example = "AUTO")
     private CaptureTrigger trigger;
 
     public static ScreenshotResponse from(Screenshot screenshot) {

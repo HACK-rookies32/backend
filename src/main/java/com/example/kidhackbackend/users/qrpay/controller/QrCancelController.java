@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>시큐리티는 {@code QrPaySecurityConfig} 앱 체인(@Order 10, /api/qrpay/** 인증)이 담당.
  * 본인 자녀 결제만 취소해야 하므로(정상) 컨트롤러에서 PARENT 역할을 확인한다.
  */
-@Tag(name = "QR Payment Cancel", description = "매장결제 취소 API — JWT 인증 필요(PARENT)")
+@Tag(name = "18. QR결제 - 취소", description = "부모가 자녀 매장결제를 취소하고 자녀 지갑에 환급 — PARENT 전용")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/qrpay/payments")

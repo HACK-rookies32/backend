@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "Admin Harmful Keyword", description = "전역 유해 사이트/키워드 관리 API (SUPER_ADMIN 전용)")
+@Tag(name = "37. 관리자 - 유해 키워드", description = "전역 유해 사이트/키워드 목록·추가·삭제 (SUPER_ADMIN 전용)")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/admin/harmful-keywords")

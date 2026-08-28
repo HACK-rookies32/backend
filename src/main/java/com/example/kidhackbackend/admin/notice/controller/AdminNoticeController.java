@@ -8,6 +8,10 @@ import com.example.kidhackbackend.global.notice.dto.NoticeRequest;
 import com.example.kidhackbackend.global.notice.service.NoticeService;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.member.entity.Member;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +26,8 @@ import org.springframework.web.bind.annotation.*;
  * {@code POST /api/admin/notifications/broadcast} 가 담당한다. 관리자 웹도 「공지 작성」과
  * 「전체 알림 발송」을 별도 버튼으로 두고 있다.
  */
+@Tag(name = "33. 관리자 - 공지", description = "공지 목록/상세 조회 · 생성/수정/삭제 (관리자). 공지 작성만으로는 알림이 나가지 않음")
+@SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/admin/notices")
 @RequiredArgsConstructor
@@ -30,18 +36,23 @@ public class AdminNoticeController {
     private final NoticeService noticeService;
     private final AdminAuditLogService adminAuditLogService;
 
+    @Operation(summary = "공지 목록 조회 (관리자)")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<AdminNoticeListResponse>>> getNotices(
-            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "페이지 번호(0부터)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지당 항목 수") @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(
                 noticeService.getNoticesForAdmin(PageRequest.of(page, size))));
     }
 
+    @Operation(summary = "공지 상세 조회 (관리자)")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<AdminNoticeDetailResponse>> getNotice(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<AdminNoticeDetailResponse>> getNotice(
+            @Parameter(description = "공지 ID") @PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(noticeService.getNoticeForAdmin(id)));
     }
 
+    @Operation(summary = "공지 생성", description = "생성 시 감사 로그(NOTICE_CREATE)를 남긴다.")
     @PostMapping
     public ResponseEntity<ApiResponse<AdminNoticeDetailResponse>> createNotice(
             @AuthenticationPrincipal Member member, @RequestBody NoticeRequest request) {
@@ -50,16 +61,19 @@ public class AdminNoticeController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @Operation(summary = "공지 수정", description = "수정 시 감사 로그(NOTICE_UPDATE)를 남긴다.")
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<AdminNoticeDetailResponse>> updateNotice(
-            @PathVariable Long id, @RequestBody NoticeRequest request) {
+            @Parameter(description = "공지 ID") @PathVariable Long id, @RequestBody NoticeRequest request) {
         AdminNoticeDetailResponse response = noticeService.updateNotice(id, request);
         adminAuditLogService.record(AdminActivityType.NOTICE_UPDATE, id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @Operation(summary = "공지 삭제", description = "삭제 시 감사 로그(NOTICE_DELETE)를 남긴다.")
     @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteNotice(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteNotice(
+            @Parameter(description = "공지 ID") @PathVariable Long id) {
         noticeService.deleteNotice(id);
         adminAuditLogService.record(AdminActivityType.NOTICE_DELETE, id);
         return ResponseEntity.ok(ApiResponse.success(null));

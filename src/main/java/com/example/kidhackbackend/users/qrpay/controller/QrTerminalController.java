@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>본 컨트롤러의 {@code /me}는 단말 토큰이 유효한지 확인하는 용도(발급 후 단말 프로비저닝 점검).
  */
-@Tag(name = "QR Terminal", description = "매장 단말 인증 경로 — X-Store-Terminal-Token 헤더 사용")
+@Tag(name = "16. QR결제 - 매장 단말", description = "매장 단말이 QR을 스캔해 결제 승인 · 단말 토큰 확인 — X-Store-Terminal-Token 헤더")
 @RestController
 @RequestMapping("/api/qrpay/terminal")
 @RequiredArgsConstructor

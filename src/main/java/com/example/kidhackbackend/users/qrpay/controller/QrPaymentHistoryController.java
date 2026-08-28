@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>시큐리티는 {@code QrPaySecurityConfig} 앱 체인(@Order 10, /api/qrpay/** 인증)이 담당.
  * CHILD는 본인 내역, PARENT는 childId로 자녀 내역을 조회한다.
  */
-@Tag(name = "QR Payment History", description = "자녀 결제 내역 조회 API — JWT 인증 필요(PARENT/CHILD)")
+@Tag(name = "19. QR결제 - 결제 내역", description = "자녀 결제 내역 페이징 조회 — CHILD는 본인, PARENT는 childId로 조회")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/qrpay/payments")

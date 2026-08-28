@@ -121,3 +121,19 @@ server:
   tomcat:
     uri-encoding: UTF-8
 
+# ------------------------------------------------------------------
+# OpenAPI(Swagger) — /swagger-ui.html, JSON 은 /v3/api-docs
+# 도메인별 SecurityConfig 의 securityMatcher 가 이 경로들을 잡지 않아
+# 전역 permitAll 로 열려 있다(모의해킹용, 의도).
+# ------------------------------------------------------------------
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha      # 오퍼레이션을 경로/메서드 알파벳순으로
+    tags-sorter: alpha            # 태그(그룹)도 알파벳순으로
+    doc-expansion: none           # 처음엔 태그만 접힌 상태로 표시
+    display-request-duration: true
+    persist-authorization: true   # 새로고침해도 Authorize 토큰 유지
+    try-it-out-enabled: true
+  default-produces-media-type: application/json
+

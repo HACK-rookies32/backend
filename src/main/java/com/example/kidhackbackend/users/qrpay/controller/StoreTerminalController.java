@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>발급되는 토큰은 매장 단말이 결제 승인(No.44)을 호출할 자격증명 — 사실상 '자금 이동 열쇠'다.
  * 시큐리티는 {@code QrPaySecurityConfig}(/api/qrpay/** 인증 체인)가 담당(로그인만 요구).
  */
-@Tag(name = "Store Terminal", description = "매장 단말 토큰 발급 API (관리자 전용 의도)")
+@Tag(name = "17. QR결제 - 단말 등록", description = "매장 단말 등록 + 토큰 발급/목록 (관리자 전용 의도 — 실제로는 로그인만 요구)")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/qrpay/terminals")

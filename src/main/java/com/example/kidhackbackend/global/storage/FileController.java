@@ -42,7 +42,7 @@ import java.util.UUID;
  * 지금은 SecurityConfig 가 permitAll 이라 실제 검사가 없지만, 넣을 자리는
  * 아래에 표시해 두었다.
  */
-@Tag(name = "첨부파일")
+@Tag(name = "26. 첨부파일", description = "presigned 업로드 URL 발급 · 완료 확인 · 다운로드")
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
