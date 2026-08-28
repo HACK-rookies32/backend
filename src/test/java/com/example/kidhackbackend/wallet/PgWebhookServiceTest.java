@@ -77,26 +77,41 @@ class PgWebhookServiceTest {
     }
 
     @Test
-    void VULN_WALLET_3_동일_웹훅_재전송시_중복_적립된다() {
+    void W2_동일_웹훅_재전송해도_중복_적립되지_않는다() {
         ChargePrepareResponse prepared = service.prepare(PARENT_ID, new ChargePrepareRequest(5000L));
         String raw = body(prepared.merchantUid(), "paid", 5000L);
         String sig = pgClient.sign(raw);
         PgWebhookRequest payload = new PgWebhookRequest(prepared.merchantUid(), "paid", 5000L, "imp_test");
 
         service.confirmByWebhook(raw, sig, payload);
-        service.confirmByWebhook(raw, sig, payload);
+        service.confirmByWebhook(raw, sig, payload); // 재전송
 
-        // 취약: 멱등성 가드가 없어 재전송에 두 번 적립된다.
-        assertThat(walletRepository.findByOwnerId(PARENT_ID).orElseThrow().getBalance()).isEqualTo(10_000L);
+        // W-2: 멱등 가드로 두 번째는 무시된다.
+        assertThat(walletRepository.findByOwnerId(PARENT_ID).orElseThrow().getBalance()).isEqualTo(5000L);
+        assertThat(chargeOrderRepository.findByMerchantUid(prepared.merchantUid()).orElseThrow()
+                .getStatus()).isEqualTo(ChargeStatus.PAID);
     }
 
     @Test
-    void status가_paid가_아니면_확정하지_않는다() {
+    void W1_결제실패_웹훅이면_READY주문이_FAILED로_전이된다() {
         ChargePrepareResponse prepared = service.prepare(PARENT_ID, new ChargePrepareRequest(5000L));
         String raw = body(prepared.merchantUid(), "cancelled", 5000L);
         String sig = pgClient.sign(raw);
 
         service.confirmByWebhook(raw, sig, new PgWebhookRequest(prepared.merchantUid(), "cancelled", 5000L, "imp_test"));
+
+        assertThat(walletRepository.findByOwnerId(PARENT_ID).orElseThrow().getBalance()).isEqualTo(0L);
+        assertThat(chargeOrderRepository.findByMerchantUid(prepared.merchantUid()).orElseThrow()
+                .getStatus()).isEqualTo(ChargeStatus.FAILED);
+    }
+
+    @Test
+    void paid도_실패도_아닌_status는_무시되고_주문이_READY로_남는다() {
+        ChargePrepareResponse prepared = service.prepare(PARENT_ID, new ChargePrepareRequest(5000L));
+        String raw = body(prepared.merchantUid(), "pending", 5000L);
+        String sig = pgClient.sign(raw);
+
+        service.confirmByWebhook(raw, sig, new PgWebhookRequest(prepared.merchantUid(), "pending", 5000L, "imp_test"));
 
         assertThat(walletRepository.findByOwnerId(PARENT_ID).orElseThrow().getBalance()).isEqualTo(0L);
         assertThat(chargeOrderRepository.findByMerchantUid(prepared.merchantUid()).orElseThrow()

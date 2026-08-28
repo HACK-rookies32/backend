@@ -69,6 +69,11 @@ public class ChargeOrder extends BaseEntity {
         this.status = ChargeStatus.REFUNDED;
     }
 
+    /** PG 결제 실패/취소 웹훅으로 주문을 FAILED 상태로 전이한다. (No.36) */
+    public void markFailed() {
+        this.status = ChargeStatus.FAILED;
+    }
+
     /** 사용자가 결제 진행 중 취소 — READY 주문만 CANCELLED 로 전이한다. */
     public void markCancelled() {
         this.status = ChargeStatus.CANCELLED;

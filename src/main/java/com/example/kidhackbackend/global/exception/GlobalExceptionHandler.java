@@ -107,6 +107,17 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("INVALID_PARAMETER", "요청 본문을 읽을 수 없습니다."));
     }
 
+    /**
+     * 컨트롤러가 ObjectMapper 로 직접 파싱하다 실패한 경우(예: PG 웹훅 raw body).
+     * Spring 메시지 컨버터를 안 거쳐 {@link HttpMessageNotReadableException} 가 아니라
+     * Jackson 예외가 그대로 올라오므로 별도로 잡아 500 대신 400 을 준다.
+     */
+    @ExceptionHandler(com.fasterxml.jackson.core.JacksonException.class)
+    public ResponseEntity<ApiResponse<Void>> handleJacksonParse(com.fasterxml.jackson.core.JacksonException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("INVALID_PARAMETER", "요청 본문 JSON 을 파싱할 수 없습니다."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception e) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

@@ -34,6 +34,10 @@ public enum NotificationType {
     PAYMENT_APPROVED("결제 승인"),   // No.44 QR 매장결제 승인(부모 알림)
     PAYMENT_CANCELED("결제 취소"),   // No.46 매장결제 취소(부모 알림)
 
+    // 지갑 이체 도메인 (No.39·40) — 자녀에게 알린다
+    ALLOWANCE_RECEIVED("용돈 받음"),     // 부모→자녀 이체
+    ALLOWANCE_RECLAIMED("잔액 회수됨"),  // 자녀→부모 회수
+
     /**
      * 부모가 자녀 앱에 즉시 촬영을 요청(자녀 기기로 트리거).
      *

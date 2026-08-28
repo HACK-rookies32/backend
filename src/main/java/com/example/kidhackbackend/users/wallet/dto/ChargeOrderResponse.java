@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public record ChargeOrderResponse(
         @Schema(description = "가맹점 주문번호") String merchantUid,
         @Schema(description = "충전 금액(원)", example = "10000") long amount,
-        @Schema(description = "주문 상태: READY / PAID / REFUNDED / CANCELLED / EXPIRED", example = "PAID") String status,
+        @Schema(description = "주문 상태: READY / PAID / FAILED / REFUNDED / CANCELLED / EXPIRED", example = "PAID") String status,
         @Schema(description = "PG 거래 ID") String pgTransactionId,
         @Schema(description = "생성 시각") LocalDateTime createdAt) {
 

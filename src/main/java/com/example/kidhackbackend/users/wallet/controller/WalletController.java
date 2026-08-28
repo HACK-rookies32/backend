@@ -130,7 +130,7 @@ public class WalletController {
 
     /** 충전내역: 본인 충전 주문(상태 포함) 목록 — No.37. */
     @Operation(summary = "충전 주문 내역 조회 (페이징)",
-            description = "본인 충전 주문을 상태(READY/PAID/REFUNDED/CANCELLED/EXPIRED)와 함께 최신순 페이징으로 조회한다.")
+            description = "본인 충전 주문을 상태(READY/PAID/FAILED/REFUNDED/CANCELLED/EXPIRED)와 함께 최신순 페이징으로 조회한다.")
     @GetMapping("/charges")
     public ResponseEntity<ApiResponse<ChargeOrderPageResponse>> charges(
             @AuthenticationPrincipal Member member,
