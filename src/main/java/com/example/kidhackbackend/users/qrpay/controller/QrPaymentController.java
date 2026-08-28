@@ -43,7 +43,13 @@ public class QrPaymentController {
     }
 
     /** 결제 QR 발급: 1회성 토큰 + 60초 만료 — No.42. */
-    @Operation(summary = "결제 QR 발급", description = "자녀가 매장 결제용 1회성 QR 토큰을 발급한다(60초 만료).")
+    @Operation(summary = "결제 QR 발급 (CHILD)",
+            description = """
+                    자녀가 매장 결제용 1회성 QR 토큰을 발급한다. 요청 본문 없음(JWT 사용자 = QR 소유자).
+                    응답: `qrToken` · `status=ISSUED` · `expiresAt`(발급 + 60초). 금액·매장은 승인(태그 16) 시 확정.
+
+                    ⚠️ [VULN-WALLET-13] QR 토큰이 예측 가능하게 생성된다(`qr_{childId}_{epochMillis}`, CWE-330) →
+                    대상 자녀 id + 대략적 발급 시각만 알면 유효 토큰을 재구성/열거 가능.""")
     @PostMapping
     public ResponseEntity<ApiResponse<QrIssueResponse>> issue(
             @AuthenticationPrincipal Member member) {
@@ -52,11 +58,17 @@ public class QrPaymentController {
     }
 
     /** 결제 QR 상태 조회(폴링) — No.43. 발급 본인만 조회(의도). */
-    @Operation(summary = "결제 QR 상태 조회", description = "qrToken으로 QR 상태(ISSUED/PAID/EXPIRED/CANCELLED)를 조회한다.")
+    @Operation(summary = "결제 QR 상태 조회 (폴링, CHILD)",
+            description = """
+                    `qrToken` 으로 QR 상태를 조회한다. 상태: `ISSUED`(결제 대기) / `PAID`(승인됨) / `EXPIRED`(60초 경과) / `CANCELLED`(취소됨).
+                    만료는 조회 시 계산해 응답에만 반영(DB 상태는 그대로). 없는 토큰 → 404.
+
+                    ⚠️ [VULN-WALLET-14] 폴링 소유권 미검증(IDOR) — 발급 본인만 봐야 하지만 qrToken 만 알면 남의 QR 상태도 조회 가능.
+                    [VULN-WALLET-13](예측 가능 토큰)과 결합하면 타 자녀 QR 을 열거·추적할 수 있다.""")
     @GetMapping("/{qrToken}")
     public ResponseEntity<ApiResponse<QrStatusResponse>> status(
             @AuthenticationPrincipal Member member,
-            @PathVariable String qrToken) {
+            @io.swagger.v3.oas.annotations.Parameter(description = "조회할 QR 토큰") @PathVariable String qrToken) {
         requireChild(member);
         return ResponseEntity.ok(ApiResponse.success(qrPaymentService.getStatus(member.getId(), qrToken)));
     }

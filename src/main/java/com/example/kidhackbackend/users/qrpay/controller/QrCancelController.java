@@ -6,6 +6,7 @@ import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.qrpay.dto.QrCancelResponse;
 import com.example.kidhackbackend.users.qrpay.service.QrCancelService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -41,11 +42,18 @@ public class QrCancelController {
     }
 
     /** 매장결제 취소: 자녀 결제를 취소하고 자녀 잔액을 환급 — No.46. */
-    @Operation(summary = "매장결제 취소", description = "qrToken의 자녀 결제를 취소하고 자녀 지갑에 전액 환급한다(부모 알림).")
+    @Operation(summary = "매장결제 취소 (PARENT)",
+            description = """
+                    `qrToken` 의 자녀 결제를 취소하고 자녀 지갑에 전액 환급한다(PAYMENT_CANCEL 원장) → QR `CANCELLED` → 부모에게 `PAYMENT_CANCELED` 알림.
+                    요청 본문 없음. 없는 qrToken → 404.
+
+                    ⚠️ [VULN-WALLET-9] 취소 소유권/페어링 미검증(IDOR) — 결제한 자녀가 이 부모의 자녀인지 안 본다 →
+                    아무 PARENT 나 qrToken 만 알면 남의 자녀 결제를 취소해 그 자녀 지갑에 임의 환급(자금 조작).
+                    [VULN-WALLET-10] 취소 상태·멱등 미검증 → 같은 qrToken 으로 N번 취소하면 결제액의 N배가 환급된다(자금 창출).""")
     @PostMapping("/{qrToken}/cancel")
     public ResponseEntity<ApiResponse<QrCancelResponse>> cancel(
             @AuthenticationPrincipal Member member,
-            @PathVariable String qrToken) {
+            @Parameter(description = "취소할 결제 QR 토큰") @PathVariable String qrToken) {
         requireParent(member);
         return ResponseEntity.ok(ApiResponse.success(qrCancelService.cancel(member.getId(), qrToken)));
     }
