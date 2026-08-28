@@ -36,9 +36,18 @@ public class MonitoringController {
     private final AppUsageService appUsageService;
 
     @Operation(summary = "사용량 배치 전송 (자녀 앱)",
-            description = "자녀 앱이 앱별 사용시간을 모아 전송한다(한 요청 1~500건). 저장된 건수를 반환한다. "
-                    + "⚠️ [VULN-MON-1] 본문 childId 소유권 미검증(IDOR). "
-                    + "[VULN-MON-2] durationSec 음수·과대값 미검증. [VULN-MON-3] 호출 rate limit 없음.")
+            description = """
+                    자녀 앱이 앱별 사용시간을 모아 전송한다(한 요청 1~500건). 저장된 건수를 반환한다.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `usages` | ✅ | 사용 기록 목록(1~500건) |
+                    | `usages[].appName` | ✅ | 앱 이름 |
+                    | `usages[].durationSec` | ✅ | 사용시간(초) — ⚠️ 음수·과대값 검증 없음 |
+                    | `usages[].recordedAt` | ✅ | 기록 시각(ISO-8601) |
+
+                    ⚠️ [VULN-MON-1] 본문 childId 소유권 미검증(IDOR). [VULN-MON-2] durationSec 미검증. [VULN-MON-3] 호출 rate limit 없음.""")
     @PostMapping("/usage")
     public ResponseEntity<ApiResponse<Integer>> report(@Valid @RequestBody UsageReportRequest request) {
         int saved = appUsageService.report(request);

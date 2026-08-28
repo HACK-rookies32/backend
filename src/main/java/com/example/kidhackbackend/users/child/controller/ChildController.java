@@ -69,7 +69,12 @@ public class ChildController {
 
     @Operation(summary = "자녀 프로필 수정 (PARENT)",
             description = """
-                    자녀의 `nickname` / `profileImageUrl` 을 부분 수정한다. 응답은 자녀 상세 조회와 동일 구조.
+                    포함된(non-null) 필드만 반영. 응답은 자녀 상세 조회와 동일 구조. **모든 필드 선택.**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `nickname` | — | 변경할 닉네임 |
+                    | `profileImageUrl` | — | 변경할 프로필 이미지 URL |
 
                     ⚠️ 소유권 미검증(IDOR). `nickname` 을 새니타이징 없이 저장 → Stored XSS 가능.
                     """)

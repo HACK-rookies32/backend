@@ -30,9 +30,18 @@ public class AppControlController {
     private final AppControlService appControlService;
 
     @Operation(summary = "설치 앱 목록 동기화 (자녀 앱)",
-            description = "자녀 앱이 설치된 앱 목록을 서버에 올린다. **기존 목록을 전부 삭제한 뒤 새로 저장**(전량 교체)하고 반영 건수를 반환한다. "
-                    + "요청 리스트의 중복 패키지는 마지막 값으로 합쳐진다. "
-                    + "⚠️ [VULN-APPCTRL-1] 본문 childId 본인 검증 없음 + 파괴적(전량 삭제) → 타 자녀 목록 파괴/위조 가능(IDOR).")
+            description = """
+                    자녀 앱이 설치된 앱 목록을 서버에 올린다. **기존 목록을 전부 삭제한 뒤 새로 저장**(전량 교체)하고 반영 건수를 반환한다.
+                    요청 리스트의 중복 패키지는 마지막 값으로 합쳐진다.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `apps` | ✅ | 설치 앱 목록(1건 이상) |
+                    | `apps[].packageName` | ✅ | 패키지명 |
+                    | `apps[].appName` | ✅ | 앱 이름 |
+
+                    ⚠️ [VULN-APPCTRL-1] 본문 childId 본인 검증 없음 + 파괴적(전량 삭제) → 타 자녀 목록 파괴/위조 가능(IDOR).""")
     @PostMapping("/sync")
     public ResponseEntity<ApiResponse<Integer>> sync(@Valid @RequestBody SyncRequest request) {
         return ResponseEntity.ok(ApiResponse.success(appControlService.sync(request)));
@@ -50,8 +59,17 @@ public class AppControlController {
     }
 
     @Operation(summary = "통제 규칙 추가 (부모)",
-            description = "패키지명 + 일일 사용시간(분, 0 이상) 제한 규칙을 추가한다. 같은 앱에 이미 규칙이 있으면 409. "
-                    + "⚠️ [VULN-APPCTRL-2] 본문 childId 소유권 미검증 → 임의 자녀에 규칙 생성 가능(IDOR).")
+            description = """
+                    패키지명 + 일일 사용시간 제한 규칙을 추가한다. 같은 앱에 이미 규칙이 있으면 409. 모든 필드 필수.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 자녀 회원 ID |
+                    | `packageName` | ✅ | 패키지명 |
+                    | `appName` | ✅ | 앱 이름 |
+                    | `dailyLimitMinutes` | ✅ | 일일 사용 제한(분, 0 이상. 0=완전 차단) |
+
+                    ⚠️ [VULN-APPCTRL-2] 본문 childId 소유권 미검증 → 임의 자녀에 규칙 생성 가능(IDOR).""")
     @PostMapping("/rules")
     public ResponseEntity<ApiResponse<RuleResponse>> addRule(@Valid @RequestBody RuleRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -73,7 +91,14 @@ public class AppControlController {
     }
 
     @Operation(summary = "통제 규칙 수정 (부모)",
-            description = "일일 제한 시간(0 이상) / 활성화 여부를 수정한다. null 인 필드는 미변경. 없는 ruleId 는 400.")
+            description = """
+                    null(생략)인 필드는 미변경. 없는 ruleId 는 400. **모든 필드 선택.**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `dailyLimitMinutes` | — | 일일 사용 제한(분, 0 이상) |
+                    | `enabled` | — | 규칙 활성화 여부 |
+                    """)
     @PatchMapping("/rules/{ruleId}")
     public ResponseEntity<ApiResponse<RuleResponse>> updateRule(
             @Parameter(description = "규칙 ID") @PathVariable Long ruleId,

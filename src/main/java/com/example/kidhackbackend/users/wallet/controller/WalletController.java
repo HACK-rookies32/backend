@@ -65,8 +65,13 @@ public class WalletController {
 
     /** 충전 1단계 — 준비: READY 주문 생성 후 merchantUid + 결제창 정보 발급. */
     @Operation(summary = "충전 준비 (1단계)",
-            description = "충전 금액(1원 이상)으로 READY 주문을 만들고 merchantUid 와 결제창 정보를 발급한다. "
-                    + "응답의 mock=true 면 결제창 없이 곧바로 승인(approve)을 호출하면 된다.")
+            description = """
+                    READY 주문을 만들고 merchantUid 와 결제창 정보를 발급한다. 응답의 `mock=true` 면 결제창 없이 곧바로 approve 를 호출.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `amount` | ✅ | 충전 금액(원, 1 이상) |
+                    """)
     @PostMapping("/charge/prepare")
     public ResponseEntity<ApiResponse<ChargePrepareResponse>> prepare(
             @AuthenticationPrincipal Member member,
@@ -91,10 +96,16 @@ public class WalletController {
 
     /** 충전 2단계 — 승인: PG 승인 확인 후 주문 확정 및 잔액 적립. */
     @Operation(summary = "충전 승인 (2단계)",
-            description = "merchantUid 로 준비 주문을 찾아(없으면 404) PG 승인을 확인하고 잔액을 적립한다. "
-                    + "⚠️ [VULN-WALLET-1] 적립액이 order.amount 가 아니라 요청 body 의 amount → 금액 변조 가능. "
-                    + "[VULN-WALLET-2] 주문 소유권 미검증(BOLA). "
-                    + "[VULN-WALLET-3] 멱등성/락 없음 → 같은 merchantUid 로 N번 호출 시 N배 적립.")
+            description = """
+                    merchantUid 로 준비 주문을 찾아(없으면 404) PG 승인을 확인하고 잔액을 적립한다.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `merchantUid` | ✅ | 준비 단계에서 받은 가맹점 주문번호 |
+                    | `amount` | ✅ | 결제 금액(원, 1 이상) |
+                    | `pgTransactionId` | — | PG 거래 ID (mock 환경에서는 생략 가능) |
+
+                    ⚠️ [VULN-WALLET-1] 적립액이 order.amount 가 아니라 요청 body 의 amount → 금액 변조. [VULN-WALLET-2] 주문 소유권 미검증(BOLA). [VULN-WALLET-3] 멱등성/락 없음 → N번 호출 시 N배 적립.""")
     @PostMapping("/charge/approve")
     public ResponseEntity<ApiResponse<ChargeApproveResponse>> approve(
             @AuthenticationPrincipal Member member,

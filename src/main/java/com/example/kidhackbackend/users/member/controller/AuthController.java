@@ -27,9 +27,23 @@ public class AuthController {
             description = """
                     회원 정보를 받아 가입 처리 후 가입된 회원 정보를 반환한다.
 
-                    - `role` 이 `CHILD` 가 아니면 `email` 필수.
-                    - `loginId/username/password/nickname/phoneNumber/birthDate/role` 누락 시 `400 INVALID_PARAMETER`.
-                    - 이미 존재하는 `loginId` 는 `409 CONFLICT`.
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `loginId` | ✅ | 로그인 아이디 |
+                    | `username` | ✅ | 실명 |
+                    | `password` | ✅ | 비밀번호(평문 저장 — 의도된 취약점) |
+                    | `nickname` | ✅ | 닉네임 |
+                    | `phoneNumber` | ✅ | 휴대폰 번호 |
+                    | `birthDate` | ✅ | 생년월일 `yyyy-MM-dd` |
+                    | `role` | ✅ | `PARENT` / `CHILD` |
+                    | `email` | ⚠️ 조건부 | `role` 이 `CHILD` 가 아니면 필수 |
+                    | `address` | — | 주소 |
+                    | `profileImageUrl` | — | 프로필 이미지 URL |
+                    | `parentId` | — | `role=CHILD` 일 때 연결할 부모 id |
+
+                    - 필수 필드 누락 시 `400 INVALID_PARAMETER`, 이미 존재하는 `loginId` 는 `409 CONFLICT`.
                     """)
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignupResponse>> signup(@Valid @RequestBody SignupRequest request) {
@@ -40,6 +54,13 @@ public class AuthController {
     @Operation(summary = "로그인",
             description = """
                     `loginId` · `password` 로 로그인하고 access token / refresh token 을 발급한다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `loginId` | ✅ | 로그인 아이디 |
+                    | `password` | ✅ | 비밀번호 |
 
                     - 아이디 없음·비밀번호 불일치·탈퇴한 계정: `401 UNAUTHORIZED`.
                     - 응답의 `refreshToken` 을 저장해 두었다가 `/api/auth/token/refresh` 에 사용한다.
@@ -53,6 +74,12 @@ public class AuthController {
     @Operation(summary = "토큰 갱신",
             description = """
                     refresh token 으로 새 access token 을 발급한다. refresh token 자체는 재사용되며 회전(rotation)되지 않는다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `refreshToken` | ✅ | 로그인 시 발급받은 refresh token |
 
                     - 존재하지 않는·만료된 refresh token, 탈퇴한 계정: `400 INVALID_PARAMETER`.
                     """)
@@ -78,6 +105,13 @@ public class AuthController {
                     실명(`username`) + 이메일(`email`) 로 계정을 조회하고 6자리 인증코드를 발송한다(유효 5분).
                     본인 이메일(PARENT/ADMIN) 또는 부모 이메일(CHILD 계정 조회) 로 찾을 수 있다.
 
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `username` | ✅ | 찾으려는 계정의 실명(자녀 계정이면 자녀 실명) |
+                    | `email` | ✅ | 본인 이메일 또는 부모의 이메일 |
+
                     ⚠️ 메일 발송은 mock 이며 인증코드가 응답 `data.code` 에도 그대로 노출된다(화면에는 노출 금지).
                     """)
     @PostMapping("/find-id/send-code")
@@ -87,7 +121,16 @@ public class AuthController {
     }
 
     @Operation(summary = "아이디 찾기 - 코드 검증",
-            description = "발송받은 인증코드를 검증하고 통과하면 해당 계정의 `loginId` 를 반환한다.")
+            description = """
+                    발송받은 인증코드를 검증하고 통과하면 해당 계정의 `loginId` 를 반환한다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `email` | ✅ | 인증코드를 받은 이메일 |
+                    | `code` | ✅ | 발송받은 6자리 인증코드 |
+                    """)
     @PostMapping("/find-id/verify")
     public ResponseEntity<ApiResponse<FindIdVerifyResponse>> verifyFindId(@RequestBody FindIdVerifyRequest request) {
         String loginId = accountRecoveryService.verifyFindId(request.getEmail(), request.getCode());
@@ -99,6 +142,13 @@ public class AuthController {
                     `loginId` + 이메일로 계정을 조회하고 6자리 인증코드를 발송한다(유효 5분).
                     본인 이메일 또는 부모 이메일(CHILD 계정) 로 요청할 수 있다.
 
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `loginId` | ✅ | 비밀번호를 재설정할 계정의 로그인 아이디 |
+                    | `email` | ✅ | 본인 이메일 또는 부모의 이메일 |
+
                     ⚠️ 메일 발송은 mock 이며 인증코드가 응답 `data.code` 에도 그대로 노출된다.
                     """)
     @PostMapping("/reset-password/send-code")
@@ -108,7 +158,17 @@ public class AuthController {
     }
 
     @Operation(summary = "비밀번호 재설정",
-            description = "인증코드를 검증하고 통과하면 `newPassword` 로 변경한다.")
+            description = """
+                    인증코드를 검증하고 통과하면 `newPassword` 로 변경한다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `email` | ✅ | 인증코드를 받은 이메일 |
+                    | `code` | ✅ | 발송받은 6자리 인증코드 |
+                    | `newPassword` | ✅ | 새로 설정할 비밀번호 |
+                    """)
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody ResetPasswordRequest request) {
         accountRecoveryService.resetPassword(request.getEmail(), request.getCode(), request.getNewPassword());

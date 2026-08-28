@@ -57,24 +57,29 @@ public class SwaggerConfig {
     /**
      * 모바일(회원) API 그룹 — {@code /api/admin/**} 를 제외한 전체.
      * Swagger UI 우측 상단 "Select a definition" 에서 전환한다. (/v3/api-docs/member)
+     *
+     * <p>그룹 문서에는 전역 {@link OperationCustomizer} 빈이 자동 적용되지 않으므로
+     * 표준 에러 응답 커스터마이저를 명시적으로 붙인다. ({@code putIfAbsent} 라 중복 적용돼도 안전)
      */
     @Bean
-    public GroupedOpenApi memberApi() {
+    public GroupedOpenApi memberApi(OperationCustomizer commonErrorResponses) {
         return GroupedOpenApi.builder()
                 .group("member")
                 .displayName("회원 (모바일 앱)")
                 .pathsToMatch("/api/**")
                 .pathsToExclude("/api/admin/**")
+                .addOperationCustomizer(commonErrorResponses)
                 .build();
     }
 
     /** 관리자(웹) API 그룹 — {@code /api/admin/**}. (/v3/api-docs/admin) */
     @Bean
-    public GroupedOpenApi adminApi() {
+    public GroupedOpenApi adminApi(OperationCustomizer commonErrorResponses) {
         return GroupedOpenApi.builder()
                 .group("admin")
                 .displayName("관리자 (웹)")
                 .pathsToMatch("/api/admin/**")
+                .addOperationCustomizer(commonErrorResponses)
                 .build();
     }
 

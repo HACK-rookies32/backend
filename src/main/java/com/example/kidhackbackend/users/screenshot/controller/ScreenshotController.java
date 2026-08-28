@@ -46,10 +46,17 @@ public class ScreenshotController {
     // [VULN-SS-1] 경로 childId 소유권 미검증 → 임의 childId 로 남의 자녀 캡처를 위조 주입 가능(IDOR).
     //   기존 자녀 도메인(VULN-CHILD-*, VULN-MON-1)과 동일 계열.
     @Operation(summary = "캡처 이미지 업로드",
-            description = "multipart/form-data(file · capturedAt · trigger). 자녀(CHILD) 전용, 성공 시 201. "
-                    + "⚠️ [VULN-SS-1] 경로 childId 소유권 미검증 → 남의 자녀 캡처 위조 주입(IDOR). "
-                    + "[VULN-SS-2] 업로드 파일명 미새니타이즈 → 로컬 저장 모드 directory traversal. "
-                    + "[VULN-10] 확장자 화이트리스트 없음.")
+            description = """
+                    `multipart/form-data`. 자녀(CHILD) 전용, 성공 시 201.
+
+                    | 폼 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `file` | ✅ | 캡처 이미지 파일 |
+                    | `capturedAt` | ✅ | 촬영 시각(ISO-8601) |
+                    | `trigger` | ✅ | `SCHEDULED`(1시간 주기 자동) / `MANUAL`(부모 요청) |
+                    | `childId` (path) | ✅ | 자녀 회원 ID |
+
+                    ⚠️ [VULN-SS-1] 경로 childId 소유권 미검증(IDOR). [VULN-SS-2] 파일명 미새니타이즈 → 로컬 저장 모드 directory traversal. [VULN-10] 확장자 화이트리스트 없음.""")
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<ApiResponse<ScreenshotUploadResponse>> upload(
             @PathVariable Long childId,

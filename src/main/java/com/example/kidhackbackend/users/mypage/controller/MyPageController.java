@@ -44,7 +44,15 @@ public class MyPageController {
 
     @Operation(summary = "프로필 수정",
             description = """
-                    닉네임/전화번호/이메일/주소/프로필이미지를 부분 수정한다. 값이 있는 필드만 반영되고 `null` 은 미변경.
+                    값이 있는 필드만 반영되고 `null`(생략)은 미변경. **모든 필드 선택.**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `nickname` | — | 닉네임 |
+                    | `phoneNumber` | — | 전화번호 |
+                    | `email` | — | 이메일 |
+                    | `address` | — | 주소 |
+                    | `profileImageUrl` | — | 프로필 이미지 URL |
 
                     - 다른 회원이 사용 중인 이메일로 변경 시 `409 CONFLICT`.
                     """)

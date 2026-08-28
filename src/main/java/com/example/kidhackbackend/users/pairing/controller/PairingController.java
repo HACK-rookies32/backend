@@ -48,6 +48,10 @@ public class PairingController {
             description = """
                     자녀가 부모에게 받은 코드를 입력해 부모 계정과 연결한다. 성공 시 자녀의 `parent` 가 해당 부모로 설정되고 코드는 삭제된다.
 
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `code` | ✅ | 부모가 발급받은 6자리 페어링 코드 |
+
                     - 존재하지 않는 코드: `400 INVALID_PARAMETER` "유효하지 않은 페어링 코드입니다."
                     - 만료된 코드: `400 INVALID_PARAMETER` "만료된 페어링 코드입니다."
 
