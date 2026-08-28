@@ -46,6 +46,10 @@ public class ScreenshotService {
     public ScreenshotUploadResponse upload(Long childId, MultipartFile file,
                                            LocalDateTime capturedAt, CaptureTrigger trigger) {
         // [VULN-10] 확장자 화이트리스트 검증이 없다. 커뮤니티/문의 업로드와 같은 수준으로 맞춘다.
+        // [VULN-SS-2] 파일명(getOriginalFilename)을 새니타이즈 없이 저장 이름에 그대로 붙인다.
+        //   FileController(presign 경로)는 baseName()으로 디렉터리 부분을 떼는데 여기는 떼지 않는다.
+        //   로컬 디스크 저장 모드(app.s3.bucket 비어 있음)에서 '../' 를 넣으면 uploads/ 밖으로
+        //   파일을 쓸 수 있다(directory traversal). S3 모드에서는 키만 이상해진다.
         String savedFilename = UUID.randomUUID() + "_" + file.getOriginalFilename();
         String imagePath = storage.store(UploadCategory.SCREENSHOT, savedFilename, file);
 

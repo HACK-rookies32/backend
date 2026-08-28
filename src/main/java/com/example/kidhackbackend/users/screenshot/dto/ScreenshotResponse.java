@@ -25,7 +25,7 @@ public class ScreenshotResponse {
     @Schema(description = "촬영 시각")
     private LocalDateTime capturedAt;
 
-    @Schema(description = "촬영 계기: AUTO(주기) / MANUAL(부모 요청)", example = "AUTO")
+    @Schema(description = "촬영 계기: SCHEDULED(1시간 주기 자동) / MANUAL(부모 요청)", example = "SCHEDULED")
     private CaptureTrigger trigger;
 
     public static ScreenshotResponse from(Screenshot screenshot) {
