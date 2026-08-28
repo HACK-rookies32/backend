@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.location.service;
 
+import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.users.location.dto.PlaceRequest;
 import com.example.kidhackbackend.users.location.entity.Place;
 import com.example.kidhackbackend.users.location.entity.PlaceEvent;
@@ -42,6 +43,20 @@ public class PlaceService {
         return eventRepository.findByChildIdOrderByOccurredAtDesc(childId);
     }
 
+    /**
+     * 자녀의 이벤트 이력 조회(최신순).
+     *
+     * @param from 시작(포함). null 이면 하한 없음
+     * @param to   종료(제외). null 이면 상한 없음
+     */
+    @Transactional(readOnly = true)
+    public List<PlaceEvent> findEvents(Long childId, java.time.LocalDateTime from, java.time.LocalDateTime to) {
+        if (from != null && to != null) {
+            return eventRepository.findEventsInRange(childId, from, to);
+        }
+        return eventRepository.findByChildIdOrderByOccurredAtDesc(childId);
+    }
+
     @Transactional
     public void delete(Long placeId, Member requester) {
         Place place = placeRepository.findById(placeId)
@@ -51,7 +66,8 @@ public class PlaceService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 자녀입니다."));
 
         if (child.getParent() == null || !child.getParent().getId().equals(requester.getId())) {
-            throw new IllegalArgumentException("본인 자녀의 장소만 삭제할 수 있습니다.");
+            // 권한 문제이므로 403. (다른 도메인과 동일하게 표준 봉투로 나간다)
+            throw new AdminAccessDeniedException("본인 자녀의 장소만 삭제할 수 있습니다.");
         }
 
         placeRepository.delete(place);
