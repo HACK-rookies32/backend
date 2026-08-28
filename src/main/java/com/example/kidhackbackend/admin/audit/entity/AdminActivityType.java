@@ -31,9 +31,13 @@ public enum AdminActivityType {
     MEMBER_BAN("계정 정지", AuditTargetType.MEMBER),
     POST_DELETE("게시글 삭제", AuditTargetType.POST),
 
-    // 자금 — POST /api/admin/finance/users/{userId}/adjust, .../payments/{qrToken}/force-refund
+    // 자금 — POST /api/admin/finance/users/{userId}/adjust, .../payments/{qrToken}/force-refund,
+    //        .../charges/{merchantUid}/cancel
     WALLET_BALANCE_ADJUST("지갑 잔액 수동 조정", AuditTargetType.WALLET),
     PAYMENT_REFUND("환불 처리", AuditTargetType.PAYMENT),
+    // 대상이 '취소된 충전 주문' 이 아니라 '돈이 빠진 지갑' 인 이유: 잔액조정과 나란히 놓고 읽어야
+    // "이 지갑에 무슨 일이 있었나" 가 한 줄로 추적된다. 주문번호는 description 에 함께 남는다.
+    CHARGE_CANCEL("충전 취소", AuditTargetType.WALLET),
 
     // 1:1 문의 — POST/PUT/DELETE /api/admin/inquiries/{id}/answer
     INQUIRY_ANSWER_CREATE("문의 답변 등록", AuditTargetType.INQUIRY),

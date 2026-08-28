@@ -18,6 +18,8 @@ public record AuditLogResponse(
         @Schema(description = "활동 유형 표시 문구", example = "공지 생성") String activityLabel,
         @Schema(description = "대상 리소스 유형", example = "NOTICE") String targetType,
         @Schema(description = "대상 리소스 ID(전체 대상이면 null)", example = "10") Long targetId,
+        @Schema(description = "활동 사유·설명. 사유를 받지 않는 활동은 null",
+                example = "잘못 충전 민원 처리") String description,
         @Schema(description = "발생 시각") LocalDateTime occurredAt
 ) {
     public static AuditLogResponse from(AdminAuditLog log) {
@@ -29,6 +31,7 @@ public record AuditLogResponse(
                 log.getActivityType().getLabel(),
                 log.getTargetType().name(),
                 log.getTargetId(),
+                log.getDescription(),
                 log.getOccurredAt());
     }
 }

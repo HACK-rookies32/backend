@@ -63,16 +63,35 @@ public class AdminAuditLog {
     @Column(name = "occurred_at", nullable = false)
     private LocalDateTime occurredAt;
 
-    private AdminAuditLog(Long adminId, String adminLoginId, AdminActivityType activityType, Long targetId) {
+    /**
+     * 활동 사유·설명. 관리자가 입력한 문구를 그대로 남긴다(예: 충전 취소 사유).
+     *
+     * <p>사유를 받지 않는 활동이 대부분이라 nullable 이다 — 기존에 쌓인 이력도 전부 null 로 남는다.
+     * 사유가 <b>필수</b>인 활동(충전 취소)은 컨트롤러에서 {@code @NotBlank} 로 걸러 여기까지 빈 값이
+     * 내려오지 않게 한다.
+     */
+    @Column(name = "description", length = 500)
+    private String description;
+
+    private AdminAuditLog(Long adminId, String adminLoginId, AdminActivityType activityType, Long targetId,
+                          String description) {
         this.adminId = adminId;
         this.adminLoginId = adminLoginId;
         this.activityType = activityType;
         this.targetType = activityType.getTargetType();
         this.targetId = targetId;
+        this.description = description;
         this.occurredAt = LocalDateTime.now();
     }
 
+    /** 사유를 받지 않는 활동용(기존 호출부 전부 이쪽). {@code description} 은 null 로 남는다. */
     public static AdminAuditLog of(Long adminId, String adminLoginId, AdminActivityType activityType, Long targetId) {
-        return new AdminAuditLog(adminId, adminLoginId, activityType, targetId);
+        return new AdminAuditLog(adminId, adminLoginId, activityType, targetId, null);
+    }
+
+    /** 사유를 함께 남기는 활동용(충전 취소 등). */
+    public static AdminAuditLog of(Long adminId, String adminLoginId, AdminActivityType activityType, Long targetId,
+                                   String description) {
+        return new AdminAuditLog(adminId, adminLoginId, activityType, targetId, description);
     }
 }

@@ -59,6 +59,17 @@ public class AdminAuditLogService {
      */
     @Transactional
     public void record(AdminActivityType activityType, Long targetId) {
+        record(activityType, targetId, null);
+    }
+
+    /**
+     * 사유를 함께 남기는 기록. 관리자가 입력한 문구가 {@code description} 에 그대로 들어간다.
+     *
+     * <p>충전 취소처럼 "왜 했는지" 가 있어야 이력이 의미를 갖는 활동에 쓴다. 사유를 받지 않는 활동은
+     * 인자 2개짜리를 그대로 쓰면 된다.
+     */
+    @Transactional
+    public void record(AdminActivityType activityType, Long targetId, String description) {
         Member admin = currentAdmin();
         if (admin == null) {
             // 관리자 시큐리티 체인 뒤에서만 불리므로 정상 흐름에서는 나올 수 없다.
@@ -66,7 +77,7 @@ public class AdminAuditLogService {
                     activityType, targetId);
             return;
         }
-        record(admin, activityType, targetId);
+        record(admin, activityType, targetId, description);
     }
 
     /**
@@ -84,8 +95,13 @@ public class AdminAuditLogService {
 
     @Transactional
     public void record(Member admin, AdminActivityType activityType, Long targetId) {
+        record(admin, activityType, targetId, null);
+    }
+
+    @Transactional
+    public void record(Member admin, AdminActivityType activityType, Long targetId, String description) {
         adminAuditLogRepository.save(
-                AdminAuditLog.of(admin.getId(), admin.getLoginId(), activityType, targetId));
+                AdminAuditLog.of(admin.getId(), admin.getLoginId(), activityType, targetId, description));
     }
 
     /**
