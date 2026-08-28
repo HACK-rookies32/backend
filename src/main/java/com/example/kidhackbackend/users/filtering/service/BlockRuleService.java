@@ -42,7 +42,11 @@ public class BlockRuleService {
      */
     @Transactional
     public void deleteRule(Long ruleId) {
-        repository.deleteById(ruleId);
+        // 없는 id 면 조용히 통과(멱등). deleteById 를 그냥 호출하면
+        // EmptyResultDataAccessException → 500 으로 나가버린다.
+        if (repository.existsById(ruleId)) {
+            repository.deleteById(ruleId);
+        }
     }
 
     /**
