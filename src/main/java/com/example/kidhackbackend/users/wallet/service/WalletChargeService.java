@@ -13,13 +13,16 @@ import com.example.kidhackbackend.users.wallet.entity.ChargeOrder;
 import com.example.kidhackbackend.users.wallet.entity.ChargeStatus;
 import com.example.kidhackbackend.users.wallet.entity.TxType;
 import com.example.kidhackbackend.users.wallet.entity.Wallet;
+import com.example.kidhackbackend.users.wallet.entity.PgWebhookEvent;
 import com.example.kidhackbackend.users.wallet.entity.WalletTransaction;
 import com.example.kidhackbackend.users.wallet.pg.PgApproval;
 import com.example.kidhackbackend.users.wallet.pg.PgCheckout;
 import com.example.kidhackbackend.users.wallet.pg.PgClient;
 import com.example.kidhackbackend.users.wallet.repository.ChargeOrderRepository;
+import com.example.kidhackbackend.users.wallet.repository.PgWebhookEventRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletTransactionRepository;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,7 +41,11 @@ public class WalletChargeService {
     private final WalletRepository walletRepository;
     private final ChargeOrderRepository chargeOrderRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final PgWebhookEventRepository pgWebhookEventRepository;
     private final PgClient pgClient;
+
+    /** 결제 실패로 볼 웹훅 status 값들. */
+    private static final Set<String> FAILURE_STATUSES = Set.of("failed", "cancelled", "canceled", "aborted");
 
     /** 충전 준비: 로그인한 회원 소유로 READY 주문을 만들고 merchantUid를 돌려준다. */
     @Transactional
@@ -99,7 +106,7 @@ public class WalletChargeService {
 
         PgApproval approval = pgClient.approve(order.getMerchantUid(), request.amount());
 
-        // [VULN-WALLET-3] 멱등성/재생(replay) 방어 부재.
+        // [VULN-WALLET-3] 멱등성/재생(replay) 방어 부재 (approve 경로에만 남음 — 웹훅 경로는 confirmByWebhook 에서 멱등 처리).
         //   status가 이미 PAID인지 확인하지 않고 무조건 다시 적립한다. 동일 merchantUid로
         //   approve를 N번 호출하면 잔액이 N배로 불어난다(중복 충전). 낙관적 락/멱등키도 없다.
         //   방어: if (order.getStatus() != ChargeStatus.READY) return 기존결과; + @Version 락.
@@ -135,27 +142,46 @@ public class WalletChargeService {
      */
     @Transactional
     public void confirmByWebhook(String rawBody, String signature, PgWebhookRequest payload) {
-        // [VULN-WALLET-4] 웹훅 서명검증 우회.
-        //   서명 헤더가 '있을 때만' 검증하고, 없으면(null/blank) 검증을 통째로 건너뛴다.
-        //   → 공격자가 X-PG-Signature 헤더 없이 위조 웹훅 바디만 보내면 그대로 통과되어,
-        //     임의 merchantUid를 원하는 paidAmount로 확정·적립할 수 있다(결제 위조).
-        //   방어: 서명 헤더를 '필수'로 강제하고, 항상 verify() 실패 시 거부(상수시간 비교 권장).
-        //         즉 `if (!pgClient.verify(rawBody, signature)) throw ...;` 로 무조건 검증.
-        if (signature != null && !pgClient.verify(rawBody, signature)) {
+        boolean sigProvided = signature != null && !signature.isBlank();
+
+        // [VULN-WALLET-4] 웹훅 서명검증 우회 — 서명 헤더가 '있을 때만' 검증하고, 없으면 통째로 건너뛴다.
+        //   → 공격자가 X-PG-Signature 헤더 없이 위조 바디만 보내면 그대로 통과되어 결제 위조 가능.
+        //   방어: 서명 헤더를 필수로 강제 + 항상 verify().
+        if (sigProvided && !pgClient.verify(rawBody, signature)) {
+            // 잘못된 서명은 거부(400). 이 케이스는 트랜잭션이 롤백되므로 이벤트는 남기지 않는다.
             throw new IllegalArgumentException("유효하지 않은 웹훅 서명입니다.");
         }
 
-        // 결제 성공 콜백만 확정한다. (취소/실패 상태 처리는 No.37에서 다룸)
-        if (!"paid".equalsIgnoreCase(payload.status())) {
+        String status = payload.status() == null ? "" : payload.status().toLowerCase();
+        ChargeOrder order = chargeOrderRepository.findByMerchantUid(payload.merchantUid()).orElse(null);
+
+        if (order == null) {
+            recordWebhook(payload, sigProvided, "ORDER_NOT_FOUND");
             return;
         }
 
-        ChargeOrder order = chargeOrderRepository.findByMerchantUid(payload.merchantUid())
-                .orElseThrow(() -> new ResourceNotFoundException("충전 주문을 찾을 수 없습니다."));
+        // [W-1] 결제 실패/취소 웹훅 반영 — READY 주문만 FAILED 로 전이(이미 처리된 건 건드리지 않음).
+        if (FAILURE_STATUSES.contains(status)) {
+            if (order.getStatus() == ChargeStatus.READY) {
+                order.markFailed();
+            }
+            recordWebhook(payload, sigProvided, "MARKED_FAILED");
+            return;
+        }
 
-        // [VULN-WALLET-3] 멱등성/재생 방어 부재 — PG는 응답 실패 시 웹훅을 재전송한다.
-        //   status 가드/멱등키 없이 매번 재적립하므로, 동일 웹훅 재전송·재생으로 중복 충전된다.
-        //   방어: 이미 PAID면 재적립 금지(멱등 처리) + @Version 락.
+        // 결제 성공("paid") 외의 상태는 무시한다.
+        if (!"paid".equals(status)) {
+            recordWebhook(payload, sigProvided, "IGNORED_STATUS");
+            return;
+        }
+
+        // [W-2] 멱등 처리 — 이미 처리된 주문(READY 아님)이면 재적립하지 않는다.
+        //   ([VULN-WALLET-3] 의 재생 취약점은 웹훅 경로에서는 이 가드로 막았고, approve 경로에만 남아 있다.)
+        if (order.getStatus() != ChargeStatus.READY) {
+            recordWebhook(payload, sigProvided, "IGNORED_NOT_READY");
+            return;
+        }
+
         order.markPaid(payload.pgTransactionId());
 
         Wallet wallet = walletRepository.findByOwnerId(order.getOwnerId())
@@ -169,5 +195,13 @@ public class WalletChargeService {
         walletTransactionRepository.save(
                 new WalletTransaction(wallet.getId(), TxType.CHARGE, creditAmount,
                         wallet.getBalance(), order.getMerchantUid()));
+
+        recordWebhook(payload, sigProvided, "CONFIRMED");
+    }
+
+    /** [W-3] 웹훅 수신 기록. */
+    private void recordWebhook(PgWebhookRequest payload, boolean signatureProvided, String outcome) {
+        pgWebhookEventRepository.save(new PgWebhookEvent(
+                payload.merchantUid(), payload.status(), payload.paidAmount(), signatureProvided, outcome));
     }
 }

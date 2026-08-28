@@ -13,7 +13,8 @@ public class ApiResponse<T> {
     @Schema(description = "성공 시 응답 데이터 (실패 시 null)")
     private final T data;
 
-    @Schema(description = "실패 시 에러 정보 (성공 시 null)")
+    @Schema(description = "실패 시 에러 정보 (성공 시 null). 상세 형태는 400/401/403/500 응답 예시 참고.",
+            nullable = true)
     private final ErrorResponse error;
 
     private ApiResponse(boolean success, T data, ErrorResponse error) {

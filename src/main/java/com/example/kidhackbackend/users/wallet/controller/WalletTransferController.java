@@ -42,7 +42,18 @@ public class WalletTransferController {
     }
 
     /** 용돈 이체: 부모 지갑 → 자녀 지갑 — No.39. */
-    @Operation(summary = "용돈 이체", description = "부모 지갑에서 자녀 지갑으로 용돈을 이체한다.")
+    @Operation(summary = "용돈 이체",
+            description = """
+                    부모 지갑에서 자녀 지갑으로 용돈을 이체한다(보내는 쪽 debit + 받는 쪽 credit + 원장 TRANSFER_OUT/IN 2건).
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 대상 자녀 회원 ID(실재하는 CHILD 여야 함, 자기 자신 불가) |
+                    | `amount` | ✅ | 이체 금액(원). 보내는 쪽 잔액보다 크면 400(잔액 부족) |
+
+                    이체 성공 시 자녀에게 `ALLOWANCE_RECEIVED` 알림이 간다.
+
+                    ⚠️ [VULN-WALLET-7] 부모-자녀 페어링(소유권) 미검증(IDOR) → PARENT 권한만 있으면 **남의 자녀** 지갑에도 입금 가능. (유령 id·비-CHILD·자기 자신만 차단됨)""")
     @PostMapping("/transfer")
     public ResponseEntity<ApiResponse<TransferResponse>> transfer(
             @AuthenticationPrincipal Member member,
@@ -53,7 +64,18 @@ public class WalletTransferController {
     }
 
     /** 잔액 회수: 자녀 지갑 → 부모 지갑 — No.40. */
-    @Operation(summary = "자녀 잔액 회수", description = "자녀 지갑에서 부모 지갑으로 잔액을 회수한다.")
+    @Operation(summary = "자녀 잔액 회수",
+            description = """
+                    자녀 지갑에서 부모 지갑으로 잔액을 회수한다. 방향만 반대인 이체와 동일 로직.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `childId` | ✅ | 잔액을 회수할 자녀 회원 ID(실재하는 CHILD, 자기 자신 불가) |
+                    | `amount` | ✅ | 회수 금액(원). 자녀 잔액보다 크면 400(잔액 부족) |
+
+                    회수 성공 시 자녀에게 `ALLOWANCE_RECLAIMED` 알림이 간다.
+
+                    ⚠️ [VULN-WALLET-7] 페어링(소유권) 미검증(IDOR) → **남의 자녀** 잔액도 회수(탈취) 가능. (유령 id·비-CHILD·자기 자신만 차단됨)""")
     @PostMapping("/recover")
     public ResponseEntity<ApiResponse<TransferResponse>> recover(
             @AuthenticationPrincipal Member member,
