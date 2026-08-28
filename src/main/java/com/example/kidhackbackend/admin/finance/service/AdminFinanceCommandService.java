@@ -3,13 +3,18 @@ package com.example.kidhackbackend.admin.finance.service;
 import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
 import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.finance.dto.AdminActionResponse;
+import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
 import com.example.kidhackbackend.users.qrpay.entity.QrPayment;
 import com.example.kidhackbackend.users.qrpay.repository.QrPaymentRepository;
+import com.example.kidhackbackend.users.wallet.dto.RefundResponse;
 import com.example.kidhackbackend.users.wallet.dto.TxResponse;
+import com.example.kidhackbackend.users.wallet.entity.ChargeOrder;
+import com.example.kidhackbackend.users.wallet.entity.ChargeStatus;
 import com.example.kidhackbackend.users.wallet.entity.TxType;
 import com.example.kidhackbackend.users.wallet.entity.Wallet;
 import com.example.kidhackbackend.users.wallet.entity.WalletTransaction;
+import com.example.kidhackbackend.users.wallet.repository.ChargeOrderRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletTransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminFinanceCommandService {
 
     private final QrPaymentRepository qrPaymentRepository;
+    private final ChargeOrderRepository chargeOrderRepository;
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final AdminAuditLogService adminAuditLogService;
@@ -79,5 +85,64 @@ public class AdminFinanceCommandService {
         adminAuditLogService.record(AdminActivityType.WALLET_BALANCE_ADJUST, wallet.getId());
 
         return new AdminActionResponse(userId, wallet.getBalance(), TxResponse.from(tx));
+    }
+
+    /**
+     * #139 관리자 충전 취소: 완료된 충전을 관리자 권한으로 되돌린다(프론트 3차 1번).
+     *
+     * <p>부모용 {@code WalletRefundService.refund} 와 결과는 같지만 <b>일부러 재사용하지 않고</b>
+     * 여기에 따로 둔다. 부모용에는 의도된 취약점 두 개가 심겨 있어서다.
+     * <ul>
+     *   <li>{@code [VULN-WALLET-5]} 소유권 미검증 — 관리자 경로는 남의 주문을 다루는 게 정상이라 무의미</li>
+     *   <li>{@code [VULN-WALLET-6]} 상태 미검증 — <b>이건 물려받으면 안 된다</b>. 잔액만 남아 있으면
+     *       이미 REFUNDED 인 주문을 다시 취소해 이중 환불(자금 창출)이 된다.</li>
+     * </ul>
+     * 관리자 자금 조작은 감사 대상이라 장부가 깨지면 안 되므로 {@code PAID} 검증을 넣는다.
+     * 모의해킹 소재는 {@code VULN-ADMIN-1/3} 으로 이미 충분하다.
+     *
+     * <p>부모용 메서드는 취약점 유지를 위해 <b>손대지 않는다</b>.
+     *
+     * @param merchantUid 취소할 충전 주문번호(거래내역 {@code CHARGE} 행의 {@code refUid})
+     * @param reason      취소 사유 — 감사로그에 그대로 남는다. 공백은 컨트롤러의 {@code @NotBlank} 가 막는다
+     */
+    @Transactional
+    public RefundResponse cancelCharge(String merchantUid, String reason) {
+        ChargeOrder order = chargeOrderRepository.findByMerchantUid(merchantUid)
+                .orElseThrow(() -> new ResourceNotFoundException("충전 주문을 찾을 수 없습니다."));
+
+        // 상태 검증 — 부모용에 없는(=[VULN-WALLET-6] 를 물려받지 않는) 방어.
+        // READY/FAILED/EXPIRED 는 애초에 돈이 들어온 적이 없고, REFUNDED/CANCELLED 는 이미 되돌린 건이다.
+        if (order.getStatus() != ChargeStatus.PAID) {
+            throw new DuplicateResourceException(
+                    "이미 처리되었거나 취소할 수 없는 충전입니다. 현재 상태: " + order.getStatus());
+        }
+
+        long refundAmount = order.getAmount();
+
+        Wallet wallet = walletRepository.findByOwnerId(order.getOwnerId())
+                .orElseGet(() -> walletRepository.save(new Wallet(order.getOwnerId())));
+
+        // 잔액 음수 방지 — 이미 써버린 돈은 되돌릴 수 없다. 프론트 요청대로 409 로 내보낸다.
+        if (wallet.getBalance() < refundAmount) {
+            throw new DuplicateResourceException(
+                    "환불 가능 잔액이 부족합니다. 현재 잔액: " + wallet.getBalance() + ", 환불액: " + refundAmount);
+        }
+
+        order.markRefunded();
+        wallet.debit(refundAmount);
+        walletRepository.save(wallet);
+
+        // 원장의 refUid 는 merchantUid 여야 한다 — 프론트가 kid_ 접두사로 '충전 환불' 을 식별한다(#131 확정).
+        // 그래서 취소 사유는 이 자리에 넣을 수 없고, 감사로그 description 으로 간다(V8 에서 컬럼 추가).
+        WalletTransaction tx = walletTransactionRepository.save(
+                new WalletTransaction(wallet.getId(), TxType.REFUND, refundAmount,
+                        wallet.getBalance(), order.getMerchantUid()));
+
+        // 감사로그: 누가 · 어느 지갑에서 · 왜 충전을 되돌렸는지. 돈이 움직인 트랜잭션과 같은 범위에서
+        // 커밋돼야 "잔액은 바뀌었는데 이력은 없다" 가 생기지 않는다.
+        adminAuditLogService.record(AdminActivityType.CHARGE_CANCEL, wallet.getId(),
+                "[" + merchantUid + "] " + reason);
+
+        return new RefundResponse(order.getMerchantUid(), refundAmount, wallet.getBalance(), TxResponse.from(tx));
     }
 }
