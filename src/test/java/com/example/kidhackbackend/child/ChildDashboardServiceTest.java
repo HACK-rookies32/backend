@@ -7,6 +7,7 @@ import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
 import com.example.kidhackbackend.global.config.JpaAuditingConfig;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.push.MockPushSender;
+import com.example.kidhackbackend.global.notification.push.PushDispatcher;
 import com.example.kidhackbackend.global.notification.service.NotificationService;
 import com.example.kidhackbackend.global.notification.service.NotificationSettingService;
 import com.example.kidhackbackend.users.location.dto.TrackRequest;
@@ -36,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({ChildDashboardService.class, TrackingService.class, TrackingSettingService.class,
         PlaceService.class, GeofenceService.class, LogAlertAdapter.class,
         NotificationService.class, NotificationSettingService.class, BlockRuleService.class,
-        MockPushSender.class, JpaAuditingConfig.class})
+        PushDispatcher.class, MockPushSender.class, JpaAuditingConfig.class})
 class ChildDashboardServiceTest {
 
     @Autowired ChildDashboardService dashboardService;

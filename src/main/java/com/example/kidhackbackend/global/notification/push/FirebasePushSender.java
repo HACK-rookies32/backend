@@ -44,6 +44,11 @@ public class FirebasePushSender implements PushPort {
             return PushResult.SUCCESS;
         } catch (FirebaseMessagingException e) {
             return classify(e, deviceToken);
+        } catch (RuntimeException e) {
+            // FCM 예외가 아닌 unchecked(잘못된 토큰/페이로드 등). PushPort 계약상 예외를
+            // 흘리면 안 되므로(호출부 트랜잭션이 함께 롤백된다) 여기서 막고 FAILED 로 본다.
+            log.warn("FCM 발송 중 비정상 예외: token={}, error={}", deviceToken, e.toString());
+            return PushResult.FAILED;
         }
     }
 
@@ -75,10 +80,10 @@ public class FirebasePushSender implements PushPort {
                         ? PushResult.SUCCESS
                         : classify(response.getException(), chunk.get(i)));
             }
-        } catch (FirebaseMessagingException e) {
-            // 청크 전체가 실패한 경우(인증·네트워크). 개별 토큰 문제가 아니므로
-            // TOKEN_INVALID 로 오해해서 멀쩡한 토큰을 지우면 안 된다.
-            log.warn("FCM 멀티캐스트 실패: {} 건, error={}", chunk.size(), e.getMessage());
+        } catch (FirebaseMessagingException | RuntimeException e) {
+            // 청크 전체가 실패한 경우(인증·네트워크·비정상 페이로드). 개별 토큰 문제가
+            // 아니므로 TOKEN_INVALID 로 오해해서 멀쩡한 토큰을 지우면 안 된다.
+            log.warn("FCM 멀티캐스트 실패: {} 건, error={}", chunk.size(), e.toString());
             chunk.forEach(token -> results.put(token, PushResult.FAILED));
         }
         return results;

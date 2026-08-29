@@ -47,7 +47,15 @@ public class PushConfig {
             @Value("${firebase.credentials-path:}") String credentialsPath) {
 
         if (!FIREBASE.equalsIgnoreCase(provider)) {
-            log.info("푸시 제공자: {} — 실제 발송 없이 로그만 남긴다.", provider);
+            if (environment.acceptsProfiles(Profiles.of("prod"))) {
+                // 운영인데 firebase 가 아니면 푸시가 조용히 안 나간다. 기동은 시키되(푸시가
+                // 없어도 서비스는 돌아야 하므로) 로그로 확실히 티를 낸다.
+                log.error("운영 프로파일인데 app.push.provider={} 다 — FCM 이 실제로 나가지 않는다. "
+                        + "의도한 게 아니라면 배포 설정에서 app.push.provider=firebase 와 "
+                        + "firebase.credentials-path 키 마운트를 확인할 것.", provider);
+            } else {
+                log.info("푸시 제공자: {} — 실제 발송 없이 로그만 남긴다.", provider);
+            }
             return new MockPushSender();
         }
 
