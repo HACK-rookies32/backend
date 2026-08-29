@@ -31,7 +31,7 @@ import java.util.UUID;
  *
  * <p>업로드 API 가 돌려준 경로({@code /api/files/{category}/{filename}})가 그대로
  * 이 컨트롤러로 들어온다. 그 문자열은 PostDetailResponse.attachments 와
- * BoardDetailResponse.attachmentUrl 로 조회 응답에도 실려 나가므로, 프론트는
+ * InquiryDetailResponse.attachments 로 조회 응답에도 실려 나가므로, 프론트는
  * 받은 값을 {@code <a href>} 나 {@code <img src>} 에 그대로 쓰면 된다.
  *
  * <p><b>왜 S3 URL 을 직접 내려주지 않는가.</b> 버킷은 퍼블릭 접근이 차단되어 있어
