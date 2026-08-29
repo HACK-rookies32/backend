@@ -49,7 +49,7 @@ public class AdminFinanceQueryController {
                     | `type` | 거래 유형 — 아래 표 참고 |
                     | `amount` · `balanceAfter` | 거래 금액 · 거래 후 잔액(원) |
                     | `refUid` | 거래 유형별 참조 키 — 아래 표 참고 |
-                    | `merchantName` | 매장명. `PAYMENT` 계열 전용이며 **v1 미제공(`null`)** |
+                    | `storeName` | 매장명. `PAYMENT` 계열 전용이며 **v1 미제공(`null`)** — 실제 매장명은 `GET /finance/payments` 를 쓸 것 |
                     | `method` | 결제수단. 결제수단 정보를 저장하지 않아 `CHARGE` 계열은 고정 `"카드"`, 그 외 `null` |
 
                     **`type` 별 발생 시점과 지갑 방향**
@@ -150,10 +150,10 @@ public class AdminFinanceQueryController {
 
                     | 필드 | 설명 |
                     | --- | --- |
-                    | `paymentId` | QR 결제 id |
+                    | `id` | QR 결제 id |
                     | `childId` · `childName` | 결제한 자녀 |
                     | `parentId` · `parentName` | 보호자. 페어링이 없으면 `null` |
-                    | `merchantName` | **매장명.** 단말 인증 없이 결제되면 `"UNKNOWN"` |
+                    | `storeName` | **매장명.** 단말 인증 없이 결제되면 `"UNKNOWN"` (모바일 `QrPaymentHistoryResponse.storeName` 과 같은 이름) |
                     | `amount` · `balanceAfter` | 결제 금액 · 결제 직후 자녀 잔액 |
                     | `status` | `PAID` / `CANCELLED` |
                     | `paidAt` | 결제 시각 |
@@ -161,7 +161,7 @@ public class AdminFinanceQueryController {
 
                     - `balanceAfter` 는 원장에서 가장 최근 `PAYMENT` 1건을 고른다 — 같은 QR 로 중복 결제가
                       가능해(의도된 취약점) 여러 건이 있을 수 있다.
-                    - `merchantName` 이 `UNKNOWN` 인 건은 **단말 토큰 없이 승인된 결제**다(`[VULN-WALLET-15]`).
+                    - `storeName` 이 `UNKNOWN` 인 건은 **단말 토큰 없이 승인된 결제**다(`[VULN-WALLET-15]`).
                     """)
     @GetMapping("/payments")
     public ResponseEntity<ApiResponse<AdminPaymentPageResponse>> payments(
@@ -218,7 +218,10 @@ public class AdminFinanceQueryController {
 
                     ⚠️ `CANCELLED` 는 **L 이 2개**다. DB check 제약(`ck_charge_order_status`)에 그렇게 박혀 있다.
 
-                    **취소 사유·시각**
+                    **필드명은 모바일(회원) 응답에 맞춘다** — PK 는 `id`, 환불 시각·사유는
+                    모바일 `ChargeHistoryResponse.refundedAt` 과 같은 `refundedAt`/`refundReason` 이다.
+
+                    **환불 사유·시각**
 
                     `cancelReason`·`canceledAt` 은 **관리자 충전취소**(`POST /finance/charges/{merchantUid}/cancel`)로
                     되돌린 건만 값이 있다. 부모가 직접 환불한 건은 사유를 받지 않아 `null` 이다

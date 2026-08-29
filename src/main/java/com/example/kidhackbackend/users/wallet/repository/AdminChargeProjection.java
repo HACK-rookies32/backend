@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 public interface AdminChargeProjection {
 
     /** 충전 주문 id. */
-    Long getChargeId();
+    Long getId();
 
     /**
      * 가맹점 주문번호({@code kid_} 접두사).
@@ -48,9 +48,9 @@ public interface AdminChargeProjection {
     /** 주문 생성(충전 준비) 시각. */
     LocalDateTime getCreatedAt();
 
-    /** 취소 시각. 관리자 충전취소로 되돌린 건만 값이 있다. */
-    LocalDateTime getCanceledAt();
+    /** 환불 시각. REFUNDED 주문이면 경로와 무관하게 값이 있다(모바일과 같은 의미). */
+    LocalDateTime getRefundedAt();
 
-    /** 취소 사유. 부모가 직접 환불한 건은 사유를 받지 않아 null 이다. */
-    String getCancelReason();
+    /** 환불 사유. 부모가 직접 환불한 건은 사유를 받지 않아 null 이다. */
+    String getRefundReason();
 }

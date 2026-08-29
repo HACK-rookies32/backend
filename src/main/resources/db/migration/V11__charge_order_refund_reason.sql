@@ -1,5 +1,5 @@
 -- ==================================================================
--- V10 : charge_order 에 취소 사유·시각 컬럼 추가.
+-- V11 : charge_order 에 환불 사유·시각 컬럼 추가.
 --
 -- 이슈 #145 (관리자 충전 목록 API, 3분할 3/3). 관리자 웹 「충전」 탭이 취소 사유와 시각을 보여줘야 하는데,
 -- #139(충전 취소)에서 그 정보를 감사로그(admin_audit_log.description)에만 남겼다.
@@ -19,19 +19,24 @@
 --   주문이 언제·왜 취소됐는지는 '주문 자신의 상태' 이므로 charge_order 에 둔다.
 --   감사로그의 CHARGE_CANCEL 기록은 그대로 유지한다 — 목적이 다르다.
 --
--- ⚠️ V8·V9 는 소진됐다 — V8=충전취소(#139/PR #141), V9=board→inquiry 개명(#143).
---    (V8 은 팀원과 번호가 겹쳐 #143 에서 상대 쪽이 V9 로 밀린 이력이 있다. 번호는 반드시 확인하고 딸 것)
--- ⚠️ 이미 적용된 V1~V9 는 절대 수정하지 않는다 — 체크섬이 어긋나면 앱이 뜨지 않는다.
+-- ⚠️ V8·V9·V10 은 소진됐다 — V8=충전취소(#139/PR #141), V9=board→inquiry 개명(#143),
+--    V10=기기별 FCM 토큰(#147).
+--    번호 충돌이 이 프로젝트에서 두 번 났다. V8 때는 팀원 쪽이 V9 로 밀렸고, V10 은 #147 이
+--    먼저 머지돼 이 파일이 V11 로 밀렸다. **반드시 origin/main 을 확인하고 번호를 딸 것.**
+-- ⚠️ 이미 적용된 V1~V10 은 절대 수정하지 않는다 — 체크섬이 어긋나면 앱이 뜨지 않는다.
 --
 -- 로컬·CI 는 H2 + ddl-auto:update 라 엔티티만 고쳐도 증상이 없다. 운영은 Oracle + Flyway +
 -- ddl-auto:validate 라 이 파일이 없으면 컬럼 부재로 기동이 실패한다(#134 에서 운영 WAS 2대 크래시 전례).
 -- ==================================================================
 
 -- 둘 다 nullable 이다.
---   - 부모가 직접 환불한 건(WalletRefundService)은 사유를 받지 않으므로 null 로 남는다.
---     → 이 컬럼의 유무로 '관리자 취소' 와 '부모 환불' 이 구분된다.
+--   - refund_reason 은 부모가 직접 환불한 건(WalletRefundService)에서 null 이다(사유를 받지 않는다).
+--     → '관리자 취소' 와 '부모 환불' 은 이 컬럼의 유무로 구분한다.
+--   - refunded_at 은 두 경로 모두 채워진다. 모바일 충전내역(ChargeHistoryResponse.refundedAt)이
+--     'REFUNDED 주문의 환불 시각' 을 뜻하므로 같은 이름이 다른 의미가 되지 않게 맞춘 것이다.
+--     (모바일은 지금 REFUND 원장을 주문마다 조회해 유도한다 — 이 컬럼으로 그 N+1 을 없앨 수 있다)
 --   - #139 이전에 이미 REFUNDED 가 된 주문도 소급 값이 없어 null 이다.
 -- 길이 500 은 admin_audit_log.description(V8)과 맞춘 값이다 — 같은 사유 문구가 양쪽에 남는다.
-alter table charge_order add cancel_reason varchar2(500 char);
+alter table charge_order add refund_reason varchar2(500 char);
 
-alter table charge_order add canceled_at timestamp(9);
+alter table charge_order add refunded_at timestamp(9);

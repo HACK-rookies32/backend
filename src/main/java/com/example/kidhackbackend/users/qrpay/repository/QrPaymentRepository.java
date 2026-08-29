@@ -37,9 +37,9 @@ public interface QrPaymentRepository extends JpaRepository<QrPayment, Long> {
      *
      * <p>LIKE 바인딩 이슈(MemberRepository.searchCustomers 주석)와 서브쿼리 때문에 네이티브로 작성한다.
      */
-    @Query(value = "SELECT q.id AS paymentId, q.child_id AS childId, c.username AS childName, "
+    @Query(value = "SELECT q.id AS id, q.child_id AS childId, c.username AS childName, "
             + "p.id AS parentId, p.username AS parentName, "
-            + "q.store_name AS merchantName, q.amount AS amount, q.status AS status, "
+            + "q.store_name AS storeName, q.amount AS amount, q.status AS status, "
             + "(SELECT t.balance_after FROM wallet_transaction t "
             + " WHERE t.id = (SELECT MAX(t2.id) FROM wallet_transaction t2 "
             + "               WHERE t2.ref_uid = q.qr_token AND t2.type = 'PAYMENT')) AS balanceAfter, "

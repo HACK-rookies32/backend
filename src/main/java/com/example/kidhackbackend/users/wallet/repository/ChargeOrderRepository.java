@@ -41,11 +41,11 @@ public interface ChargeOrderRepository extends JpaRepository<ChargeOrder, Long> 
      * @param status  주문 상태. null 이면 전체
      * @param keyword 주문자 실명 또는 이메일 부분일치. null 이면 전체
      */
-    @Query(value = "SELECT co.id AS chargeId, co.merchant_uid AS merchantUid, co.owner_id AS userId, "
+    @Query(value = "SELECT co.id AS id, co.merchant_uid AS merchantUid, co.owner_id AS userId, "
             + "m.username AS userName, m.email AS userEmail, "
             + "co.amount AS amount, co.status AS status, "
             + "co.pg_transaction_id AS pgTransactionId, co.created_at AS createdAt, "
-            + "co.canceled_at AS canceledAt, co.cancel_reason AS cancelReason "
+            + "co.refunded_at AS refundedAt, co.refund_reason AS refundReason "
             + "FROM charge_order co "
             + "LEFT JOIN member m ON m.id = co.owner_id "
             + "WHERE (:userId IS NULL OR co.owner_id = :userId) "

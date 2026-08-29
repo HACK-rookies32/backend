@@ -27,7 +27,7 @@ import org.springframework.data.domain.PageRequest;
  * <ul>
  *   <li>거래 원장에 없는 <b>주문 상태·PG 거래 ID</b> 가 내려오는가 (이 API 의 존재 이유)</li>
  *   <li>원장에 아예 안 나타나는 <b>READY·EXPIRED 주문도 목록에 보이는가</b></li>
- *   <li><b>취소 사유</b>가 감사로그가 아니라 주문 컬럼(V10)에서 나오는가 —
+ *   <li><b>환불 사유</b>가 감사로그가 아니라 주문 컬럼(V11)에서 나오는가 —
  *       부모 환불은 사유가 없어 관리자 취소와 구분되는가</li>
  * </ul>
  */
@@ -72,6 +72,7 @@ class AdminChargeListTest {
 
         // 충전취소 API 의 경로 파라미터. 목록에서 바로 취소를 걸려면 반드시 있어야 한다.
         assertThat(row.merchantUid()).isEqualTo("kid_paid");
+        assertThat(row.id()).isNotNull();
         assertThat(row.userId()).isEqualTo(p.getId());
         assertThat(row.userName()).isEqualTo("김보호");
         assertThat(row.userEmail()).isEqualTo("cl1@test.com");
@@ -102,7 +103,7 @@ class AdminChargeListTest {
     }
 
     @Test
-    void 관리자취소는_사유가_있고_부모환불은_null이다() {
+    void 관리자취소만_사유가_있다_환불시각은_둘다_남는다() {
         Member p = member("cl3", "김보호", "cl3@test.com");
 
         ChargeOrder byAdmin = order(p.getId(), "kid_admin", 50_000L);
@@ -119,13 +120,15 @@ class AdminChargeListTest {
         AdminChargeRow admin = rows.stream().filter(r -> r.amount() == 50_000L).findFirst().orElseThrow();
         AdminChargeRow parent = rows.stream().filter(r -> r.amount() == 30_000L).findFirst().orElseThrow();
 
-        // 둘 다 REFUNDED 지만, 사유 유무로 구분된다.
+        // 둘 다 REFUNDED 이고 환불 시각도 둘 다 있다 — 구분 근거는 '사유' 뿐이다.
+        // (refundedAt 을 모바일 ChargeHistoryResponse.refundedAt 과 같은 의미로 맞췄기 때문이다:
+        //  거기서는 REFUNDED 주문이면 경로와 무관하게 값이 있다)
         assertThat(admin.status()).isEqualTo("REFUNDED");
         assertThat(parent.status()).isEqualTo("REFUNDED");
-        assertThat(admin.cancelReason()).isEqualTo("잘못 충전 민원 처리");
-        assertThat(admin.canceledAt()).isNotNull();
-        assertThat(parent.cancelReason()).isNull();
-        assertThat(parent.canceledAt()).isNull();
+        assertThat(admin.refundedAt()).isNotNull();
+        assertThat(parent.refundedAt()).isNotNull();
+        assertThat(admin.refundReason()).isEqualTo("잘못 충전 민원 처리");
+        assertThat(parent.refundReason()).isNull();
     }
 
     @Test
