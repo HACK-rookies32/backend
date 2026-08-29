@@ -25,7 +25,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "notification",
-        indexes = @Index(name = "idx_notification_recipient", columnList = "recipientId,createdAt")
+        indexes = {
+                @Index(name = "idx_notification_recipient", columnList = "recipientId,createdAt"),
+                @Index(name = "idx_notification_child", columnList = "recipientId,childId,createdAt")
+        }
 )
 public class Notification extends BaseEntity {
 
@@ -36,6 +39,17 @@ public class Notification extends BaseEntity {
     /** 알림을 받는 사용자(예: 부모). */
     @Column(nullable = false)
     private Long recipientId;
+
+    /**
+     * 이 알림이 <b>어느 자녀에 대한 것인지</b>. 수신자({@link #recipientId})와는 다르다.
+     *
+     * <p>자녀를 여럿 둔 보호자가 목록에서 자녀별로 걸러 볼 수 있게 하려고 둔다. 예전에는
+     * 이 값이 없어 본문으로도 구분할 수 없었다("'학원'에 진입했습니다." 에는 자녀 이름이 없다).
+     *
+     * <p>nullable 인 이유: 자녀 맥락이 없는 알림이 있다(1:1 문의 답변, 관리자 전체 발송).
+     * 이 컬럼이 생기기 전에 쌓인 행도 null 이다.
+     */
+    private Long childId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -57,14 +71,25 @@ public class Notification extends BaseEntity {
     @Column(name = "is_read", nullable = false)
     private boolean read;
 
-    /** 단건 알림. 제목은 유형이 정한 것을 쓴다. */
+    /** 자녀 맥락이 없는 단건 알림. 제목은 유형이 정한 것을 쓴다. */
     public Notification(Long recipientId, NotificationType type, String message) {
-        this(recipientId, type, type.getTitle(), message);
+        this(recipientId, null, type, type.getTitle(), message);
     }
 
-    /** 제목을 직접 정하는 알림(관리자 전체 알림). */
+    /** 자녀에 대한 단건 알림. 제목은 유형이 정한 것을 쓴다. */
+    public Notification(Long recipientId, Long childId, NotificationType type, String message) {
+        this(recipientId, childId, type, type.getTitle(), message);
+    }
+
+    /** 제목을 직접 정하는 알림(관리자 전체 알림). 자녀 맥락 없음. */
     public Notification(Long recipientId, NotificationType type, String title, String message) {
+        this(recipientId, null, type, title, message);
+    }
+
+    public Notification(Long recipientId, Long childId, NotificationType type,
+                        String title, String message) {
         this.recipientId = recipientId;
+        this.childId = childId;
         this.type = type;
         this.title = title;
         this.message = message;

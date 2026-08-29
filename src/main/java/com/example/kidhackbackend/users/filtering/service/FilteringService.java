@@ -2,6 +2,8 @@ package com.example.kidhackbackend.users.filtering.service;
 
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.service.NotificationPort;
+import com.example.kidhackbackend.users.member.entity.Member;
+import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,7 @@ public class FilteringService {
 
     private final BlockRuleService blockRuleService;
     private final NotificationPort notificationPort;
+    private final MemberRepository memberRepository;
 
     /**
      * 자녀의 접속 대상을 검사하고, 차단 대상이면 알림을 생성한다.
@@ -30,8 +33,13 @@ public class FilteringService {
     public boolean detect(Long childId, String target) {
         boolean blocked = blockRuleService.isBlocked(childId, target);
         if (blocked) {
-            notificationPort.publish(childId, NotificationType.HARMFUL_SITE,
-                    "유해 사이트/앱 접속이 감지되었습니다: " + target);
+            // 감지 사실을 알아야 하는 쪽은 부모다. 예전에는 수신자가 자녀라
+            // 부모 알림 목록에 뜨지 않았다. 미연결 자녀면 보낼 곳이 없어 건너뛴다.
+            memberRepository.findById(childId)
+                    .map(Member::getParent)
+                    .ifPresent(parent -> notificationPort.publish(parent.getId(), childId,
+                            NotificationType.HARMFUL_SITE,
+                            "유해 사이트/앱 접속이 감지되었습니다: " + target));
         }
         return blocked;
     }
