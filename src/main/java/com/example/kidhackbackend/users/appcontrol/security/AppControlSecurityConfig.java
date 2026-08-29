@@ -38,6 +38,12 @@ public class AppControlSecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/appcontrol/rules/*").hasRole("PARENT")
                         // 부모/자녀: 통제 규칙 조회 (자녀 앱이 규칙을 받아서 차단 적용)
                         .requestMatchers(HttpMethod.GET, "/api/appcontrol/rules/*").authenticated()
+                        // 부모: 하루 스크린타임 한도 설정
+                        .requestMatchers(HttpMethod.PUT, "/api/appcontrol/screentime/*").hasRole("PARENT")
+                        // 자녀: 한도 도달 보고 (사용량을 실측하는 쪽이 자녀 앱이다)
+                        .requestMatchers(HttpMethod.POST, "/api/appcontrol/screentime/*/reached").hasRole("CHILD")
+                        // 부모/자녀: 한도 조회 (자녀 앱이 받아서 스스로 판정)
+                        .requestMatchers(HttpMethod.GET, "/api/appcontrol/screentime/*").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) ->

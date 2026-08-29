@@ -7,10 +7,17 @@ import com.example.kidhackbackend.users.chat.entity.ChatMessage;
 import com.example.kidhackbackend.users.chat.repository.ChatMessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.service.NotificationPort;
+import com.example.kidhackbackend.users.chat.entity.ChatRoom;
+import com.example.kidhackbackend.users.chat.repository.ChatRoomRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.List;
 
 @Service
@@ -19,13 +26,60 @@ public class ChatMessageService {
 
     private static final LocalDateTime EPOCH = LocalDateTime.of(1970, 1, 1, 0, 0);
 
+    /** 알림 본문에 실을 메시지 길이 상한. 길면 잘라서 붙인다. */
+    private static final int PREVIEW_MAX = 40;
+
+    private static final Logger log = LoggerFactory.getLogger(ChatMessageService.class);
+
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatRoomRepository chatRoomRepository;
+    private final NotificationPort notificationPort;
 
     public ChatMessageResponse saveMessage(String roomId, ChatMessageRequest request) {
         // [VULN-CHAT-1] senderId를 클라이언트가 보낸 값 그대로 사용
         ChatMessage message = new ChatMessage(roomId, request.getSenderId(), request.getContent());
         chatMessageRepository.save(message);
+        notifyCounterpart(roomId, message);
         return ChatMessageResponse.from(message);
+    }
+
+    /**
+     * 방의 상대방에게 새 메시지 알림을 보낸다.
+     *
+     * <p>앱을 닫아 둔 사이에도 메시지가 온 걸 알 수 있어야 한다. WebSocket 은 앱이 떠 있을
+     * 때만 닿는다.
+     *
+     * <p>알림 발행이 실패해도 <b>메시지 저장은 되돌리지 않는다.</b> 알림 때문에 채팅이
+     * 실패하면 안 되기 때문이다. 실패는 로그만 남긴다.
+     */
+    private void notifyCounterpart(String roomId, ChatMessage message) {
+        try {
+            ChatRoom room = chatRoomRepository.findById(roomId).orElse(null);
+            if (room == null) {
+                return;
+            }
+            Long sender = message.getSenderId();
+            Long recipient = Objects.equals(room.getParentId(), sender)
+                    ? room.getChildId()
+                    : room.getParentId();
+            if (recipient == null || Objects.equals(recipient, sender)) {
+                return;
+            }
+            notificationPort.publish(recipient, room.getChildId(),
+                    NotificationType.CHAT_MESSAGE, preview(message.getContent()));
+        } catch (RuntimeException e) {
+            log.warn("채팅 알림 발행 실패 roomId={}", roomId, e);
+        }
+    }
+
+    private String preview(String content) {
+        if (content == null) {
+            return "";
+        }
+        String oneLine = content.lines().findFirst().orElse("").trim();
+        return (oneLine.length() <= PREVIEW_MAX)
+                ? oneLine
+                : oneLine.substring(0, PREVIEW_MAX) + "…";
     }
 
     /**

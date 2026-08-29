@@ -51,6 +51,18 @@ public enum NotificationType {
      */
     SCREENSHOT_REQUESTED("화면 캡처 요청", false),
 
+    // 채팅 — 상대가 보낸 메시지를 앱을 닫아 둔 사이에도 알린다
+    CHAT_MESSAGE("새 메시지"),
+
+    /**
+     * 자녀의 하루 스크린타임이 부모가 정한 한도에 도달.
+     *
+     * <p>부모와 자녀 **양쪽에** 발행한다. 자녀도 왜 앱이 막히는지 알아야 하기 때문이다.
+     * 판정은 사용량을 실측하는 자녀 앱이 하고 서버는 알림만 낸다
+     * ({@code POST /api/appcontrol/screentime/{childId}/reached}).
+     */
+    SCREEN_TIME_LIMIT("스크린타임 한도 도달"),
+
     ETC("알림");                     // 기타
 
     private final String title;
