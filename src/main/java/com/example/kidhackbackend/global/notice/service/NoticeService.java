@@ -2,6 +2,10 @@ package com.example.kidhackbackend.global.notice.service;
 
 import com.example.kidhackbackend.admin.notice.dto.AdminNoticeDetailResponse;
 import com.example.kidhackbackend.admin.notice.dto.AdminNoticeListResponse;
+import com.example.kidhackbackend.admin.notice.dto.AdminNoticePageResponse;
+import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
+import com.example.kidhackbackend.global.notice.dto.NoticeListItemResponse;
+import com.example.kidhackbackend.global.notice.dto.NoticePageResponse;
 import com.example.kidhackbackend.global.notice.dto.NoticeRequest;
 import com.example.kidhackbackend.global.notice.dto.NoticeResponse;
 import com.example.kidhackbackend.global.notice.entity.Notice;
@@ -22,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 알림을 원하면 {@code POST /api/admin/notifications/broadcast} 를 따로 호출한다.
  *
  * <p>응답이 둘로 갈린다. 관리자 웹은 작성자 이름과 첨부·링크 배열이 필요하고, 모바일은
- * 예전 계약을 그대로 쓴다({@link NoticeResponse} 주석 참고).
+ * 목록에서 본문 없이 개수만, 상세에서 배열을 받는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,9 +37,11 @@ public class NoticeService {
 
     /* ---------------------------------------------------------------- 관리자 */
 
-    public Page<AdminNoticeListResponse> getNoticesForAdmin(Pageable pageable) {
-        return noticeRepository.findAllByOrderByCreatedAtDesc(pageable)
-                .map(AdminNoticeListResponse::from);
+    public AdminNoticePageResponse getNoticesForAdmin(String keyword, Pageable pageable) {
+        Page<AdminNoticeListResponse> page = search(keyword, pageable).map(AdminNoticeListResponse::from);
+        return new AdminNoticePageResponse(
+                page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
     }
 
     public AdminNoticeDetailResponse getNoticeForAdmin(Long noticeId) {
@@ -71,8 +77,12 @@ public class NoticeService {
 
     /* ---------------------------------------------------------------- 사용자 */
 
-    public Page<NoticeResponse> getNotices(Pageable pageable) {
-        return noticeRepository.findAllByOrderByCreatedAtDesc(pageable).map(NoticeResponse::from);
+    /** 목록 — 본문 없이 개수만. keyword 가 있으면 제목에서 검색. 최신순. */
+    public NoticePageResponse getNotices(String keyword, Pageable pageable) {
+        Page<NoticeListItemResponse> page = search(keyword, pageable).map(NoticeListItemResponse::from);
+        return new NoticePageResponse(
+                page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
     }
 
     public NoticeResponse getNotice(Long noticeId) {
@@ -81,8 +91,15 @@ public class NoticeService {
 
     /* ------------------------------------------------------------------ 공통 */
 
+    private Page<Notice> search(String keyword, Pageable pageable) {
+        String kw = (keyword == null) ? "" : keyword.trim();
+        return kw.isEmpty()
+                ? noticeRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : noticeRepository.searchByTitle(kw, pageable);
+    }
+
     private Notice findNotice(Long noticeId) {
         return noticeRepository.findById(noticeId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공지입니다: " + noticeId));
+                .orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 공지입니다: " + noticeId));
     }
 }

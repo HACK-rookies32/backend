@@ -69,7 +69,7 @@ class NoticeServiceTest {
                         List.of("/api/files/notice/a.png", "/api/files/notice/b.png"),
                         List.of("https://example.com")));
 
-        assertThat(created.noticeId()).isNotNull();
+        assertThat(created.id()).isNotNull();
         assertThat(created.authorName()).isEqualTo("김슈퍼");
         assertThat(created.attachments()).hasSize(2);
         assertThat(created.links()).containsExactly("https://example.com");
@@ -82,7 +82,7 @@ class NoticeServiceTest {
         noticeService.createNotice(admin,
                 request("공지", "본문", List.of("/api/files/notice/a.png"), List.of()));
 
-        assertThat(noticeService.getNoticesForAdmin(PageRequest.of(0, 10)).getContent())
+        assertThat(noticeService.getNoticesForAdmin(null, PageRequest.of(0, 10)).content())
                 .singleElement()
                 .satisfies(row -> {
                     assertThat(row.authorName()).isEqualTo("김슈퍼");
@@ -98,44 +98,65 @@ class NoticeServiceTest {
                         List.of("/api/files/notice/a.png"), List.of("https://example.com")));
 
         // title 만 바꾸고 나머지는 null → 그대로
-        AdminNoticeDetailResponse kept = noticeService.updateNotice(created.noticeId(),
+        AdminNoticeDetailResponse kept = noticeService.updateNotice(created.id(),
                 request("새 제목", null, null, null));
         assertThat(kept.title()).isEqualTo("새 제목");
         assertThat(kept.content()).isEqualTo("원래 본문");
         assertThat(kept.attachments()).hasSize(1);
 
         // 빈 배열 → 비운다
-        AdminNoticeDetailResponse cleared = noticeService.updateNotice(created.noticeId(),
+        AdminNoticeDetailResponse cleared = noticeService.updateNotice(created.id(),
                 request(null, null, List.of(), List.of()));
         assertThat(cleared.attachments()).isEmpty();
         assertThat(cleared.links()).isEmpty();
     }
 
     @Test
-    void 사용자용_응답은_예전_계약을_유지한다() {
+    void 사용자용_상세는_첨부_링크를_배열로_내려준다() {
         AdminNoticeDetailResponse created = noticeService.createNotice(admin,
                 request("공지", "본문",
                         List.of("/api/files/notice/a.png", "/api/files/notice/b.png"),
                         List.of("https://example.com")));
 
-        NoticeResponse forUser = noticeService.getNotice(created.noticeId());
+        NoticeResponse forUser = noticeService.getNotice(created.id());
 
-        // 모바일이 이미 붙여 둔 화면을 깨지 않도록 필드 이름과 모양을 그대로 둔다.
-        assertThat(forUser.id()).isEqualTo(created.noticeId());
+        assertThat(forUser.id()).isEqualTo(created.id());
         assertThat(forUser.authorId()).isEqualTo(admin.getId());
-        assertThat(forUser.attachmentUrl()).isEqualTo("/api/files/notice/a.png"); // 첫 값
-        assertThat(forUser.linkUrl()).isEqualTo("https://example.com");
+        assertThat(forUser.content()).isEqualTo("본문");
+        assertThat(forUser.attachments())
+                .containsExactly("/api/files/notice/a.png", "/api/files/notice/b.png");
+        assertThat(forUser.links()).containsExactly("https://example.com");
     }
 
     @Test
-    void 첨부가_없으면_사용자용_응답의_URL_은_null_이다() {
+    void 첨부가_없으면_사용자용_상세의_배열은_비어_있다() {
         AdminNoticeDetailResponse created = noticeService.createNotice(admin,
                 request("공지", "본문", List.of(), List.of()));
 
-        NoticeResponse forUser = noticeService.getNotice(created.noticeId());
+        NoticeResponse forUser = noticeService.getNotice(created.id());
 
-        assertThat(forUser.attachmentUrl()).isNull();
-        assertThat(forUser.linkUrl()).isNull();
+        assertThat(forUser.attachments()).isEmpty();
+        assertThat(forUser.links()).isEmpty();
+    }
+
+    @Test
+    void 사용자_목록은_최신순이고_제목검색이_된다() {
+        noticeService.createNotice(admin,
+                request("점검 안내", "본문A", List.of("/api/files/notice/a.png"), List.of()));
+        noticeService.createNotice(admin,
+                request("이벤트 공지", "본문B", List.of(), List.of()));
+
+        var all = noticeService.getNotices(null, PageRequest.of(0, 10));
+        assertThat(all.content()).hasSize(2);
+        assertThat(all.content().get(0).title()).isEqualTo("이벤트 공지"); // 최신순
+        assertThat(all.totalElements()).isEqualTo(2);
+
+        var searched = noticeService.getNotices("점검", PageRequest.of(0, 10));
+        assertThat(searched.content()).singleElement()
+                .satisfies(row -> {
+                    assertThat(row.title()).isEqualTo("점검 안내");
+                    assertThat(row.attachmentCount()).isEqualTo(1);
+                });
     }
 
     private NoticeRequest request(String title, String content,

@@ -15,15 +15,17 @@ import java.util.List;
 @Getter
 public class NoticeRequest {
 
-    @Schema(description = "제목", example = "8월 정기 점검 안내")
+    @Schema(description = "제목", example = "8월 정기 점검 안내",
+            requiredMode = Schema.RequiredMode.REQUIRED)
     private String title;
 
-    @Schema(description = "본문")
+    @Schema(description = "본문", requiredMode = Schema.RequiredMode.REQUIRED)
     private String content;
 
-    @Schema(description = "첨부파일 URL 목록 (업로드는 /api/files/{category}/presign 이 담당)")
+    @Schema(description = "첨부 공개 경로 목록. 관리자 웹이 `/api/files/notice/presign` → `/api/files/notice/complete` "
+            + "로 업로드한 뒤 받은 URL 을 넣는다.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private List<String> attachments;
 
-    @Schema(description = "관련 링크 목록")
+    @Schema(description = "관련 링크 목록", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private List<String> links;
 }

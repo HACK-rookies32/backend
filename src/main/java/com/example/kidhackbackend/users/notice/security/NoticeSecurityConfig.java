@@ -21,10 +21,12 @@ public class NoticeSecurityConfig {
     @Bean
     @Order(9)
     public SecurityFilterChain noticeFilterChain(HttpSecurity http) throws Exception {
+        // 공지 열람은 인증 불필요 — 부모/자녀 누구나(비로그인 포함) 볼 수 있다.
+        // (JWT 필터는 그대로 태워서, 토큰이 있으면 principal 은 채워진다.)
         http
                 .securityMatcher("/api/notices/**")
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .csrf(csrf -> csrf.disable())
                 .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class);
