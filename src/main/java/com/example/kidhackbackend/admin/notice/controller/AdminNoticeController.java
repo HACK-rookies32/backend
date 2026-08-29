@@ -3,7 +3,7 @@ package com.example.kidhackbackend.admin.notice.controller;
 import com.example.kidhackbackend.admin.audit.entity.AdminActivityType;
 import com.example.kidhackbackend.admin.audit.service.AdminAuditLogService;
 import com.example.kidhackbackend.admin.notice.dto.AdminNoticeDetailResponse;
-import com.example.kidhackbackend.admin.notice.dto.AdminNoticeListResponse;
+import com.example.kidhackbackend.admin.notice.dto.AdminNoticePageResponse;
 import com.example.kidhackbackend.global.notice.dto.NoticeRequest;
 import com.example.kidhackbackend.global.notice.service.NoticeService;
 import com.example.kidhackbackend.global.response.ApiResponse;
@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,13 +35,15 @@ public class AdminNoticeController {
     private final NoticeService noticeService;
     private final AdminAuditLogService adminAuditLogService;
 
-    @Operation(summary = "공지 목록 조회 (관리자)")
+    @Operation(summary = "공지 목록 조회 (관리자)",
+            description = "최신순 페이징. `keyword` 로 제목 부분 검색(대소문자 무시).")
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<AdminNoticeListResponse>>> getNotices(
+    public ResponseEntity<ApiResponse<AdminNoticePageResponse>> getNotices(
+            @Parameter(description = "제목 검색어") @RequestParam(required = false) String keyword,
             @Parameter(description = "페이지 번호(0부터)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지당 항목 수") @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.success(
-                noticeService.getNoticesForAdmin(PageRequest.of(page, size))));
+                noticeService.getNoticesForAdmin(keyword, PageRequest.of(page, size))));
     }
 
     @Operation(summary = "공지 상세 조회 (관리자)")
@@ -57,7 +58,7 @@ public class AdminNoticeController {
     public ResponseEntity<ApiResponse<AdminNoticeDetailResponse>> createNotice(
             @AuthenticationPrincipal Member member, @RequestBody NoticeRequest request) {
         AdminNoticeDetailResponse response = noticeService.createNotice(member, request);
-        adminAuditLogService.record(member, AdminActivityType.NOTICE_CREATE, response.noticeId());
+        adminAuditLogService.record(member, AdminActivityType.NOTICE_CREATE, response.id());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

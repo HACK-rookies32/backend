@@ -14,6 +14,8 @@ public enum UploadCategory {
 
     COMMUNITY("community"),
     INQUIRY("inquiry"),
+    /** 관리자 공지 첨부. 관리자 웹이 /api/files/notice/presign → /complete 로 올린 뒤 URL 을 공지에 담는다. */
+    NOTICE("notice"),
     /** 프로필 이미지. 회원가입·프로필 수정에서 profileImageUrl 로 저장된다. */
     PROFILE("profile"),
     /** 자녀 화면 캡처. 1시간 주기 자동 또는 부모 요청분. */

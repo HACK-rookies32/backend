@@ -9,7 +9,7 @@ import java.util.List;
 /** 관리자 공지 상세. 작성·수정 응답도 이 모양이다. */
 @Schema(description = "관리자 공지 상세")
 public record AdminNoticeDetailResponse(
-        @Schema(description = "공지 ID", example = "1") Long noticeId,
+        @Schema(description = "공지 ID", example = "1") Long id,
         @Schema(description = "제목") String title,
         @Schema(description = "본문") String content,
         @Schema(description = "작성자 이름(실명)", example = "관리자") String authorName,
