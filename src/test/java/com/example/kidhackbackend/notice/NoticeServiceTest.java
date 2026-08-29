@@ -6,6 +6,7 @@ import com.example.kidhackbackend.global.notice.dto.NoticeRequest;
 import com.example.kidhackbackend.global.notice.dto.NoticeResponse;
 import com.example.kidhackbackend.global.notice.service.NoticeService;
 import com.example.kidhackbackend.global.notification.FakePushSender;
+import com.example.kidhackbackend.global.notification.push.PushDispatcher;
 import com.example.kidhackbackend.global.notification.service.NotificationService;
 import com.example.kidhackbackend.global.notification.service.NotificationSettingService;
 import com.example.kidhackbackend.users.member.entity.Member;
@@ -37,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DataJpaTest
 @Import({NoticeService.class, NotificationService.class, NotificationSettingService.class,
-        FakePushSender.class, JpaAuditingConfig.class})
+        PushDispatcher.class, FakePushSender.class, JpaAuditingConfig.class})
 class NoticeServiceTest {
 
     @Autowired NoticeService noticeService;

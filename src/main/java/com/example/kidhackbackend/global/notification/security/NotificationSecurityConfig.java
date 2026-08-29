@@ -13,8 +13,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * 알림 도메인 전용 시큐리티 체인 (/api/notifications/**).
  *
- * <p>알림 조회/읽음은 부모가 확인하는 기능이므로 PARENT 권한을 요구한다.
- * (다른 도메인처럼 {@code securityMatcher}로 알림 경로만 담당한다.)
+ * <p>알림은 부모(결제·위치)와 자녀(용돈 받음·유해사이트 등) 양쪽에 저장·발송되므로
+ * PARENT/CHILD 모두 조회/읽음이 가능해야 한다. (다른 도메인처럼 {@code securityMatcher}로
+ * 알림 경로만 담당한다.)
  */
 @Configuration
 public class NotificationSecurityConfig {
@@ -32,12 +33,12 @@ public class NotificationSecurityConfig {
                 .securityMatcher("/api/notifications/**")
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // 알림 조회/읽음 = 부모만
-                // [VULN-NOTI-1] childId(=수신자) 소유권은 검증하지 않는다.
-                //   → 부모 권한만 있으면 임의 recipientId로 남의 알림을 조회/읽음 처리할 수 있다(IDOR).
-                //     (수신자를 부모 Member로 매핑하는 2단계에서 해결 예정)
+                // 알림 조회/읽음 = 로그인한 부모·자녀
+                // [VULN-NOTI-1] recipientId 소유권은 검증하지 않는다.
+                //   → 로그인만 하면(부모든 자녀든) 임의 recipientId로 남의 알림을 조회/읽음
+                //     처리할 수 있다(IDOR). 수신자를 인증 주체로 묶는 2단계에서 해결 예정.
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().hasRole("PARENT"))
+                        .anyRequest().hasAnyRole("PARENT", "CHILD"))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) ->
                                 res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다."))
