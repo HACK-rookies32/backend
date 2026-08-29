@@ -72,7 +72,7 @@ class AdminPaymentListTest {
 
         assertThat(page.getContent()).hasSize(1);
         AdminPaymentProjection row = page.getContent().get(0);
-        assertThat(row.getMerchantName()).isEqualTo("GS25 Gangnam");   // 원장엔 없는 값
+        assertThat(row.getStoreName()).isEqualTo("GS25 Gangnam");   // 원장엔 없는 값
         assertThat(row.getChildName()).isEqualTo("김자녀");
         assertThat(row.getParentName()).isEqualTo("김보호");
         assertThat(row.getParentId()).isEqualTo(parent.getId());
@@ -118,7 +118,7 @@ class AdminPaymentListTest {
         Page<AdminPaymentProjection> page = search(null, null, null, null);
 
         assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).getMerchantName()).isEqualTo("CU");
+        assertThat(page.getContent().get(0).getStoreName()).isEqualTo("CU");
     }
 
     @Test

@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public interface AdminPaymentProjection {
 
     /** QR 결제 id. */
-    Long getPaymentId();
+    Long getId();
 
     Long getChildId();
 
@@ -29,7 +29,7 @@ public interface AdminPaymentProjection {
     String getParentName();
 
     /** 매장명 — {@code QrPayment.storeName}. 단말 인증 없이 결제되면 "UNKNOWN". */
-    String getMerchantName();
+    String getStoreName();
 
     Long getAmount();
 

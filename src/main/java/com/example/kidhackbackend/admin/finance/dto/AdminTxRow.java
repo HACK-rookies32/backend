@@ -33,8 +33,8 @@ public record AdminTxRow(
                 + "⚠️ 관리자 강제환불의 REFUND 는 예외적으로 qrToken",
                 example = "kid_ab12cd") String refUid,
 
-        @Schema(description = "매장명 — PAYMENT 계열에서만 채워진다. v1 미제공(null)", example = "null")
-        String merchantName,
+        @Schema(description = "매장명 — PAYMENT 계열에서만 채워진다. 원장에는 매장명이 없어 v1 은 항상 null. 실제 매장명은 GET /finance/payments 의 storeName 을 쓸 것", example = "null")
+        String storeName,
 
         @Schema(description = "결제수단 — CHARGE 계열 표시용. 현재 결제수단 정보를 저장하지 않아 고정값",
                 example = "카드") String method,
@@ -54,7 +54,7 @@ public record AdminTxRow(
                 p.getAmount(),
                 p.getBalanceAfter(),
                 p.getRefUid(),
-                null,                                   // merchantName — v1 미제공
+                null,                                   // storeName — 원장에 매장명이 없다
                 chargeLike ? DEFAULT_METHOD : null,     // method — CHARGE 계열만
                 p.getCreatedAt());
     }

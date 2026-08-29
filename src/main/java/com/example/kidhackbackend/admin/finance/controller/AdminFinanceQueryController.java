@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.admin.finance.controller;
 
+import com.example.kidhackbackend.admin.finance.dto.AdminChargePageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminPaymentPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminTxPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminWalletPageResponse;
@@ -48,7 +49,7 @@ public class AdminFinanceQueryController {
                     | `type` | 거래 유형 — 아래 표 참고 |
                     | `amount` · `balanceAfter` | 거래 금액 · 거래 후 잔액(원) |
                     | `refUid` | 거래 유형별 참조 키 — 아래 표 참고 |
-                    | `merchantName` | 매장명. `PAYMENT` 계열 전용이며 **v1 미제공(`null`)** |
+                    | `storeName` | 매장명. `PAYMENT` 계열 전용이며 **v1 미제공(`null`)** — 실제 매장명은 `GET /finance/payments` 를 쓸 것 |
                     | `method` | 결제수단. 결제수단 정보를 저장하지 않아 `CHARGE` 계열은 고정 `"카드"`, 그 외 `null` |
 
                     **`type` 별 발생 시점과 지갑 방향**
@@ -149,10 +150,10 @@ public class AdminFinanceQueryController {
 
                     | 필드 | 설명 |
                     | --- | --- |
-                    | `paymentId` | QR 결제 id |
+                    | `id` | QR 결제 id |
                     | `childId` · `childName` | 결제한 자녀 |
                     | `parentId` · `parentName` | 보호자. 페어링이 없으면 `null` |
-                    | `merchantName` | **매장명.** 단말 인증 없이 결제되면 `"UNKNOWN"` |
+                    | `storeName` | **매장명.** 단말 인증 없이 결제되면 `"UNKNOWN"` (모바일 `QrPaymentHistoryResponse.storeName` 과 같은 이름) |
                     | `amount` · `balanceAfter` | 결제 금액 · 결제 직후 자녀 잔액 |
                     | `status` | `PAID` / `CANCELLED` |
                     | `paidAt` | 결제 시각 |
@@ -160,7 +161,7 @@ public class AdminFinanceQueryController {
 
                     - `balanceAfter` 는 원장에서 가장 최근 `PAYMENT` 1건을 고른다 — 같은 QR 로 중복 결제가
                       가능해(의도된 취약점) 여러 건이 있을 수 있다.
-                    - `merchantName` 이 `UNKNOWN` 인 건은 **단말 토큰 없이 승인된 결제**다(`[VULN-WALLET-15]`).
+                    - `storeName` 이 `UNKNOWN` 인 건은 **단말 토큰 없이 승인된 결제**다(`[VULN-WALLET-15]`).
                     """)
     @GetMapping("/payments")
     public ResponseEntity<ApiResponse<AdminPaymentPageResponse>> payments(
@@ -182,5 +183,61 @@ public class AdminFinanceQueryController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         return ResponseEntity.ok(ApiResponse.success(adminFinanceQueryService.getStats(groupBy, from, to)));
+    }
+
+    /** #145 충전 목록 (3분할 3/3): 원장에 없는 주문 상태·PG 거래 ID·취소 사유를 제공한다. */
+    @Operation(summary = "충전 목록",
+            description = """
+                    충전 주문(`charge_order`)을 회원 정보와 함께 페이징 조회한다. 관리자 웹 「자금·결제 관리」의
+                    **충전 탭** 전용이다.
+
+                    **왜 거래내역(`GET /finance/transactions`)으로 대체할 수 없나**
+
+                    거래 원장은 "얼마가 오갔는가"만 남긴다. 그래서 **아직 결제되지 않은 `READY` 주문이나
+                    만료된 주문은 원장에 아예 나타나지 않고**, 주문 상태·PG 거래 ID 도 알 수 없다.
+
+                    **Query 파라미터**
+
+                    | 파라미터 | 필수 | 설명 |
+                    | --- | --- | --- |
+                    | `userId` | | 주문자 회원 id. 생략 시 전체 |
+                    | `status` | | 주문 상태. 생략 시 전체 |
+                    | `keyword` | | 주문자 실명 또는 이메일 부분일치 |
+                    | `page` · `size` | | 기본 0 / 20 |
+
+                    **`status` 값은 6개다 — 철자 주의**
+
+                    | 값 | 뜻 |
+                    | --- | --- |
+                    | `READY` | 준비 완료, PG 결제 대기 |
+                    | `PAID` | 승인 완료, 잔액 적립됨 |
+                    | `FAILED` | PG 가 결제 실패/취소 웹훅을 보냄 |
+                    | `REFUNDED` | 결제됐다가 환불·취소됨 |
+                    | `CANCELLED` | 사용자가 결제 진행 중 취소(READY 에서만 전이) |
+                    | `EXPIRED` | approve 없이 방치돼 자동 만료된 READY 주문 |
+
+                    ⚠️ `CANCELLED` 는 **L 이 2개**다. DB check 제약(`ck_charge_order_status`)에 그렇게 박혀 있다.
+
+                    **필드명은 모바일(회원) 응답에 맞춘다** — PK 는 `id`, 환불 시각·사유는
+                    모바일 `ChargeHistoryResponse.refundedAt` 과 같은 `refundedAt`/`refundReason` 이다.
+
+                    **환불 사유·시각**
+
+                    `cancelReason`·`canceledAt` 은 **관리자 충전취소**(`POST /finance/charges/{merchantUid}/cancel`)로
+                    되돌린 건만 값이 있다. 부모가 직접 환불한 건은 사유를 받지 않아 `null` 이다
+                    → **이 필드의 유무로 관리자 취소와 부모 환불이 구분된다.**
+
+                    - `method` 는 MockPG 라 결제수단을 저장하지 않아 **고정 `"카드"`** 다.
+                    - `userName`·`userEmail` 은 회원이 삭제되면 `null` 이다(충전 이력은 남는다).
+                    """)
+    @GetMapping("/charges")
+    public ResponseEntity<ApiResponse<AdminChargePageResponse>> charges(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.success(
+                adminFinanceQueryService.getCharges(userId, status, keyword, page, size)));
     }
 }

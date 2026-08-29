@@ -128,7 +128,10 @@ public class AdminFinanceCommandService {
                     "환불 가능 잔액이 부족합니다. 현재 잔액: " + wallet.getBalance() + ", 환불액: " + refundAmount);
         }
 
-        order.markRefunded();
+        // 사유·시각을 주문에도 남긴다(#145). 감사로그에도 같은 사유가 가지만 목적이 다르다 —
+        // 감사로그는 '누가 했는가'(부인방지), 주문 필드는 '주문이 어떻게 됐는가'(업무 상태)다.
+        // 충전 목록(GET /finance/charges)이 감사로그를 문자열로 뒤지지 않아도 되게 하는 것이 요점이다.
+        order.markRefunded(reason);
         wallet.debit(refundAmount);
         walletRepository.save(wallet);
 

@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.admin.finance.service;
 
+import com.example.kidhackbackend.admin.finance.dto.AdminChargePageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminPaymentPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminTxPageResponse;
 import com.example.kidhackbackend.admin.finance.dto.AdminWalletPageResponse;
@@ -12,6 +13,7 @@ import com.example.kidhackbackend.users.wallet.entity.TxType;
 import com.example.kidhackbackend.users.wallet.entity.Wallet;
 import com.example.kidhackbackend.users.wallet.entity.WalletTransaction;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import com.example.kidhackbackend.users.wallet.repository.ChargeOrderRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletTransactionRepository;
 import java.time.LocalDate;
@@ -39,6 +41,7 @@ public class AdminFinanceQueryService {
     private final WalletTransactionRepository walletTransactionRepository;
     private final QrPaymentRepository qrPaymentRepository;
     private final MemberRepository memberRepository;
+    private final ChargeOrderRepository chargeOrderRepository;
 
     /** No.47/49 통합: 전체 충전/결제 내역. userId 지정 시 잔액도 함께 반환. */
     @Transactional(readOnly = true)
@@ -81,6 +84,22 @@ public class AdminFinanceQueryService {
         Pageable pageable = PageRequest.of(page, size);
         return AdminPaymentPageResponse.from(qrPaymentRepository.adminSearchPayments(
                 childId, blankToNull(status), blankToNull(merchant), blankToNull(keyword), pageable));
+    }
+
+    /**
+     * 관리자 충전 목록 (3분할 3/3, #145).
+     *
+     * <p>거래 원장에 없는 <b>주문 상태·PG 거래 ID·취소 사유</b>를 제공한다. 원장은 "얼마가 오갔는가"만
+     * 남기므로, 아직 결제되지 않은 READY 주문이나 만료된 주문은 원장에 아예 나타나지 않는다.
+     *
+     * <p>취소 사유·시각은 {@code charge_order} 자체 컬럼(V10)에서 읽는다 — 감사로그를 조인하지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public AdminChargePageResponse getCharges(Long userId, String status, String keyword,
+                                              int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return AdminChargePageResponse.from(chargeOrderRepository.adminSearchCharges(
+                userId, blankToNull(status), blankToNull(keyword), pageable));
     }
 
     /** 빈 문자열 쿼리 파라미터를 null 로 바꿔 "필터 없음"으로 처리한다. */
