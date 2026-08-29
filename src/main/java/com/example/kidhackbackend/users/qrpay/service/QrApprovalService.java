@@ -89,7 +89,7 @@ public class QrApprovalService {
         // 부모 알림: 자녀의 부모를 찾아 결제 승인 알림을 발행(부모가 없으면 건너뜀).
         memberRepository.findById(qr.getChildId())
                 .map(Member::getParent)
-                .ifPresent(parent -> notificationPort.publish(parent.getId(),
+                .ifPresent(parent -> notificationPort.publish(parent.getId(), qr.getChildId(),
                         NotificationType.PAYMENT_APPROVED,
                         "자녀가 " + storeName + "에서 " + amount + "원을 결제했습니다."));
 

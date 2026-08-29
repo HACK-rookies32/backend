@@ -70,7 +70,7 @@ public class QrCancelService {
         // 부모 알림: 자녀의 부모를 찾아 취소 알림 발행(부모 없으면 건너뜀).
         memberRepository.findById(qr.getChildId())
                 .map(Member::getParent)
-                .ifPresent(parent -> notificationPort.publish(parent.getId(),
+                .ifPresent(parent -> notificationPort.publish(parent.getId(), qr.getChildId(),
                         NotificationType.PAYMENT_CANCELED,
                         "자녀의 " + qr.getStoreName() + " 결제(" + cancelAmount + "원)가 취소되었습니다."));
 

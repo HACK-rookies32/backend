@@ -49,12 +49,17 @@ public class NotificationService implements NotificationPort {
 
     @Override
     public void publish(Long recipientId, NotificationType type, String message) {
+        publish(recipientId, null, type, message);
+    }
+
+    @Override
+    public void publish(Long recipientId, Long childId, NotificationType type, String message) {
         PushMessage push = txTemplate.execute(status -> {
             if (!notificationSettingService.isEnabled(recipientId, type)) {
                 log.info("알림 설정이 꺼져있어 발송 생략: recipientId={}, type={}", recipientId, type);
                 return null;
             }
-            Notification saved = repository.save(new Notification(recipientId, type, message));
+            Notification saved = repository.save(new Notification(recipientId, childId, type, message));
             return toPushMessage(saved);
         });
 
