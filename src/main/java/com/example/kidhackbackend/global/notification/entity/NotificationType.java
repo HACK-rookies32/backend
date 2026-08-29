@@ -38,6 +38,9 @@ public enum NotificationType {
     ALLOWANCE_RECEIVED("용돈 받음"),     // 부모→자녀 이체
     ALLOWANCE_RECLAIMED("잔액 회수됨"),  // 자녀→부모 회수
 
+    // 1:1 문의 도메인 — 관리자가 답변을 등록하면 문의한 회원(부모)에게 알린다
+    INQUIRY_ANSWERED("문의 답변 등록"),
+
     /**
      * 부모가 자녀 앱에 즉시 촬영을 요청(자녀 기기로 트리거).
      *

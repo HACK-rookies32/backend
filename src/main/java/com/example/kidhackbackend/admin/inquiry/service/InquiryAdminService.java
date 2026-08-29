@@ -1,14 +1,16 @@
 package com.example.kidhackbackend.admin.inquiry.service;
 
-import com.example.kidhackbackend.users.inquiry.dto.BoardDetailResponse;
-import com.example.kidhackbackend.users.inquiry.dto.BoardResponse;
+import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.service.NotificationPort;
+import com.example.kidhackbackend.users.inquiry.dto.InquiryDetailResponse;
+import com.example.kidhackbackend.users.inquiry.dto.InquiryResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerRequest;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryAnswerResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryPageResponse;
-import com.example.kidhackbackend.users.inquiry.entity.Board;
+import com.example.kidhackbackend.users.inquiry.entity.Inquiry;
 import com.example.kidhackbackend.users.inquiry.entity.InquiryAnswer;
-import com.example.kidhackbackend.users.inquiry.repository.BoardRepository;
 import com.example.kidhackbackend.users.inquiry.repository.InquiryAnswerRepository;
+import com.example.kidhackbackend.users.inquiry.repository.InquiryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,14 +27,15 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class InquiryAdminService {
 
-    private final BoardRepository boardRepository;
+    private final InquiryRepository inquiryRepository;
     private final InquiryAnswerRepository inquiryAnswerRepository;
+    private final NotificationPort notificationPort;
 
     public InquiryPageResponse getAllInquiries(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Board> result = boardRepository.findAllByOrderByCreatedAtDesc(pageable);
+        Page<Inquiry> result = inquiryRepository.findAllByOrderByCreatedAtDesc(pageable);
 
-        List<BoardResponse> content = result.getContent().stream()
+        List<InquiryResponse> content = result.getContent().stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
 
@@ -44,78 +48,83 @@ public class InquiryAdminService {
         );
     }
 
-    public BoardDetailResponse getInquiryDetail(Long boardId) {
-        Board board = findBoard(boardId);
-        return toDetailResponse(board);
+    public InquiryDetailResponse getInquiryDetail(Long inquiryId) {
+        Inquiry inquiry = findInquiry(inquiryId);
+        return toDetailResponse(inquiry);
     }
 
     @Transactional
-    public InquiryAnswerResponse createAnswer(Long boardId, InquiryAnswerRequest request) {
-        Board board = findBoard(boardId);
-        if (inquiryAnswerRepository.findByBoardId(boardId).isPresent()) {
+    public InquiryAnswerResponse createAnswer(Long inquiryId, InquiryAnswerRequest request) {
+        Inquiry inquiry = findInquiry(inquiryId);
+        if (inquiryAnswerRepository.findByInquiryId(inquiryId).isPresent()) {
             throw new IllegalArgumentException("이미 답변이 등록된 문의입니다.");
         }
 
         InquiryAnswer answer = new InquiryAnswer();
-        answer.setBoard(board);
+        answer.setInquiry(inquiry);
         answer.setContent(request.getContent());
         inquiryAnswerRepository.save(answer);
 
-        board.setAnswered(true);
+        inquiry.setAnswered(true);
+
+        // 문의한 회원(부모)에게 답변 등록을 알린다. 설정에서 끈 회원은 NotificationService 가 걸러낸다.
+        notificationPort.publish(inquiry.getMember().getId(), NotificationType.INQUIRY_ANSWERED,
+                "문의하신 '" + inquiry.getTitle() + "' 에 답변이 등록되었습니다.");
+
         return toAnswerResponse(answer);
     }
 
     @Transactional
-    public InquiryAnswerResponse updateAnswer(Long boardId, InquiryAnswerRequest request) {
-        InquiryAnswer answer = findAnswer(boardId);
+    public InquiryAnswerResponse updateAnswer(Long inquiryId, InquiryAnswerRequest request) {
+        InquiryAnswer answer = findAnswer(inquiryId);
         answer.setContent(request.getContent());
         return toAnswerResponse(answer);
     }
 
     @Transactional
-    public void deleteAnswer(Long boardId) {
-        InquiryAnswer answer = findAnswer(boardId);
+    public void deleteAnswer(Long inquiryId) {
+        InquiryAnswer answer = findAnswer(inquiryId);
         inquiryAnswerRepository.delete(answer);
-        findBoard(boardId).setAnswered(false);
+        findInquiry(inquiryId).setAnswered(false);
     }
 
-    private Board findBoard(Long boardId) {
-        return boardRepository.findById(boardId)
+    private Inquiry findInquiry(Long inquiryId) {
+        return inquiryRepository.findById(inquiryId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문의입니다."));
     }
 
-    private InquiryAnswer findAnswer(Long boardId) {
-        return inquiryAnswerRepository.findByBoardId(boardId)
+    private InquiryAnswer findAnswer(Long inquiryId) {
+        return inquiryAnswerRepository.findByInquiryId(inquiryId)
                 .orElseThrow(() -> new IllegalArgumentException("등록된 답변이 없습니다."));
     }
 
-    private BoardResponse toResponse(Board board) {
-        return new BoardResponse(
-                board.getId(),
-                board.getMember().getId(),
-                board.getMember().getNickname(),
-                board.getTitle(),
-                board.isAnswered(),
-                board.getCreatedAt()
+    private InquiryResponse toResponse(Inquiry inquiry) {
+        return new InquiryResponse(
+                inquiry.getId(),
+                inquiry.getMember().getId(),
+                inquiry.getMember().getNickname(),
+                inquiry.getTitle(),
+                inquiry.isAnswered(),
+                inquiry.getCreatedAt()
         );
     }
 
-    private BoardDetailResponse toDetailResponse(Board board) {
-        InquiryAnswerResponse answerResponse = inquiryAnswerRepository.findByBoardId(board.getId())
+    private InquiryDetailResponse toDetailResponse(Inquiry inquiry) {
+        InquiryAnswerResponse answerResponse = inquiryAnswerRepository.findByInquiryId(inquiry.getId())
                 .map(this::toAnswerResponse)
                 .orElse(null);
 
-        return new BoardDetailResponse(
-                board.getId(),
-                board.getMember().getId(),
-                board.getMember().getNickname(),
-                board.getTitle(),
-                board.getContent(),
-                board.getAttachmentUrl(),
-                board.getLinkUrl(),
-                board.isAnswered(),
-                board.getCreatedAt(),
-                board.getUpdatedAt(),
+        return new InquiryDetailResponse(
+                inquiry.getId(),
+                inquiry.getMember().getId(),
+                inquiry.getMember().getNickname(),
+                inquiry.getTitle(),
+                inquiry.getContent(),
+                new ArrayList<>(inquiry.getAttachments()),
+                inquiry.getLinkUrl(),
+                inquiry.isAnswered(),
+                inquiry.getCreatedAt(),
+                inquiry.getUpdatedAt(),
                 answerResponse
         );
     }

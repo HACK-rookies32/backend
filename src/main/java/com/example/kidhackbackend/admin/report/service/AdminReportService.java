@@ -3,9 +3,9 @@ package com.example.kidhackbackend.admin.report.service;
 import com.example.kidhackbackend.admin.member.dto.AdminCustomerResponse;
 import com.example.kidhackbackend.admin.member.service.AdminCustomerService;
 import com.example.kidhackbackend.admin.report.support.CsvBuilder;
-import com.example.kidhackbackend.users.inquiry.entity.Board;
+import com.example.kidhackbackend.users.inquiry.entity.Inquiry;
 import com.example.kidhackbackend.users.inquiry.entity.InquiryAnswer;
-import com.example.kidhackbackend.users.inquiry.repository.BoardRepository;
+import com.example.kidhackbackend.users.inquiry.repository.InquiryRepository;
 import com.example.kidhackbackend.users.inquiry.repository.InquiryAnswerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,7 +31,7 @@ public class AdminReportService {
     private static final LocalDateTime PERIOD_MAX = LocalDateTime.of(9999, 12, 31, 23, 59, 59);
 
     private final AdminCustomerService adminCustomerService;
-    private final BoardRepository boardRepository;
+    private final InquiryRepository inquiryRepository;
     private final InquiryAnswerRepository inquiryAnswerRepository;
 
     /**
@@ -72,26 +72,26 @@ public class AdminReportService {
         LocalDateTime start = (from != null) ? from.atStartOfDay() : PERIOD_MIN;
         LocalDateTime end = (to != null) ? to.atTime(LocalTime.MAX) : PERIOD_MAX;
 
-        List<Board> boards = boardRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end);
-        Map<Long, InquiryAnswer> answers = findAnswers(boards);
+        List<Inquiry> inquiries = inquiryRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(start, end);
+        Map<Long, InquiryAnswer> answers = findAnswers(inquiries);
 
         CsvBuilder csv = new CsvBuilder(
                 "문의ID", "작성자ID", "작성자닉네임", "제목", "내용", "첨부파일URL", "링크URL",
                 "답변여부", "작성일", "수정일", "답변내용", "답변일");
 
-        for (Board board : boards) {
-            InquiryAnswer answer = answers.get(board.getId());
+        for (Inquiry inquiry : inquiries) {
+            InquiryAnswer answer = answers.get(inquiry.getId());
             csv.row(
-                    board.getId(),
-                    board.getMember().getId(),
-                    board.getMember().getNickname(),
-                    board.getTitle(),
-                    board.getContent(),
-                    board.getAttachmentUrl(),
-                    board.getLinkUrl(),
-                    board.isAnswered() ? "Y" : "N",
-                    CsvBuilder.format(board.getCreatedAt()),
-                    CsvBuilder.format(board.getUpdatedAt()),
+                    inquiry.getId(),
+                    inquiry.getMember().getId(),
+                    inquiry.getMember().getNickname(),
+                    inquiry.getTitle(),
+                    inquiry.getContent(),
+                    String.join(" | ", inquiry.getAttachments()),
+                    inquiry.getLinkUrl(),
+                    inquiry.isAnswered() ? "Y" : "N",
+                    CsvBuilder.format(inquiry.getCreatedAt()),
+                    CsvBuilder.format(inquiry.getUpdatedAt()),
                     answer != null ? answer.getContent() : null,
                     answer != null ? CsvBuilder.format(answer.getCreatedAt()) : null);
         }
@@ -99,12 +99,12 @@ public class AdminReportService {
         return csv.toBytes();
     }
 
-    private Map<Long, InquiryAnswer> findAnswers(List<Board> boards) {
-        if (boards.isEmpty()) {
+    private Map<Long, InquiryAnswer> findAnswers(List<Inquiry> inquiries) {
+        if (inquiries.isEmpty()) {
             return Map.of();
         }
-        List<Long> boardIds = boards.stream().map(Board::getId).toList();
-        return inquiryAnswerRepository.findByBoardIdIn(boardIds).stream()
-                .collect(Collectors.toMap(answer -> answer.getBoard().getId(), Function.identity()));
+        List<Long> inquiryIds = inquiries.stream().map(Inquiry::getId).toList();
+        return inquiryAnswerRepository.findByInquiryIdIn(inquiryIds).stream()
+                .collect(Collectors.toMap(answer -> answer.getInquiry().getId(), Function.identity()));
     }
 }

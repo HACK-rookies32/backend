@@ -16,8 +16,8 @@ public class InquiryAnswer extends BaseEntity {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "board_id", nullable = false, unique = true)
-    private Board board;
+    @JoinColumn(name = "inquiry_id", nullable = false, unique = true)
+    private Inquiry inquiry;
 
     @Column(nullable = false, columnDefinition = "CLOB")
     private String content;
