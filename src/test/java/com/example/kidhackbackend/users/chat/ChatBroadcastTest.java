@@ -78,7 +78,7 @@ class ChatBroadcastTest {
 
         assertThat(sent).hasSize(1);
         assertThat(sent.get(0).getHeaders().get(SimpMessageHeaderAccessor.DESTINATION_HEADER))
-                .isEqualTo("/topic/chat/" + response.getRoomId());
+                .isEqualTo("/sub/chat/" + response.getRoomId());
 
         // STOMP 로 넘어가는 페이로드가 DTO 를 직접 직렬화한 것과 글자까지 같아야 한다.
         assertThat(objectMapper.writeValueAsString(sent.get(0).getPayload()))

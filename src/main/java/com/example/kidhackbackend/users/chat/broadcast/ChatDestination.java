@@ -9,7 +9,7 @@ package com.example.kidhackbackend.users.chat.broadcast;
 public final class ChatDestination {
 
     public static String of(String roomId) {
-        return "/topic/chat/" + roomId;
+        return "/sub/chat/" + roomId;
     }
 
     private ChatDestination() {
