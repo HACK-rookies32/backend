@@ -3,6 +3,7 @@ package com.example.kidhackbackend.users.appcontrol.controller;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.appcontrol.dto.*;
 import com.example.kidhackbackend.users.appcontrol.service.AppControlService;
+import com.example.kidhackbackend.users.appcontrol.service.ScreenTimeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -28,6 +29,7 @@ import java.util.List;
 public class AppControlController {
 
     private final AppControlService appControlService;
+    private final ScreenTimeService screenTimeService;
 
     @Operation(summary = "설치 앱 목록 동기화 (자녀 앱)",
             description = """
@@ -114,5 +116,57 @@ public class AppControlController {
             @Parameter(description = "규칙 ID") @PathVariable Long ruleId) {
         appControlService.deleteRule(ruleId);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @Operation(summary = "하루 스크린타임 한도 조회 (PARENT/CHILD)",
+            description = """
+                    자녀의 하루 총 사용 한도(분)를 조회한다. 부모와 자녀 모두 호출할 수 있다 —
+                    자녀 앱이 한도를 받아 도달 여부를 스스로 판정한다.
+
+                    - 설정한 적이 없으면 `dailyLimitMinutes` 가 **null**(제한 없음)로 온다.
+                    - `0` 은 "한도 0분"(사실상 사용 금지)이라 null 과 의미가 다르다.
+
+                    ⚠️ 경로 childId 소유권을 검증하지 않는다(IDOR). 다른 도메인과 같은 사정이다.""")
+    @GetMapping("/screentime/{childId}")
+    public ResponseEntity<ApiResponse<ScreenTimeResponse>> getScreenTime(
+            @Parameter(description = "자녀 회원 ID") @PathVariable Long childId) {
+        return ResponseEntity.ok(ApiResponse.success(screenTimeService.get(childId)));
+    }
+
+    @Operation(summary = "하루 스크린타임 한도 설정 (PARENT)",
+            description = """
+                    자녀의 하루 총 사용 한도(분)를 정한다.
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `dailyLimitMinutes` | ❌ | 한도(분). **null 이면 제한 해제**. 0~1440 |
+
+                    앱 통제 규칙(`/rules`)의 `dailyLimitMinutes` 는 **앱별** 한도이고,
+                    이 값은 **하루 전체** 한도다. 둘은 별개다.""")
+    @PutMapping("/screentime/{childId}")
+    public ResponseEntity<ApiResponse<ScreenTimeResponse>> setScreenTime(
+            @Parameter(description = "자녀 회원 ID") @PathVariable Long childId,
+            @Valid @RequestBody ScreenTimeRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                screenTimeService.set(childId, request.getDailyLimitMinutes())));
+    }
+
+    @Operation(summary = "스크린타임 한도 도달 보고 (자녀 앱)",
+            description = """
+                    자녀 앱이 오늘 사용량이 한도에 도달했다고 보고한다. 서버는 **부모와 자녀 양쪽에**
+                    `SCREEN_TIME_LIMIT` 알림을 발행한다(자녀도 왜 앱이 막히는지 알아야 한다).
+
+                    판정을 서버가 하지 않는 이유: 사용량을 실측하는 쪽이 앱이고, 서버가 집계로
+                    판정하려면 주기 배치가 필요한데 그 집계도 결국 앱이 올린 값이라 신뢰 수준은
+                    같으면서 지연만 늘어난다.
+
+                    - 한도가 설정돼 있지 않으면(제한 없음) 보고를 무시하고 `false` 를 반환한다.
+                      앱이 낡은 한도를 들고 보고하는 경우를 거른다.""")
+    @PostMapping("/screentime/{childId}/reached")
+    public ResponseEntity<ApiResponse<Boolean>> reportLimitReached(
+            @Parameter(description = "자녀 회원 ID") @PathVariable Long childId,
+            @Parameter(description = "오늘 사용한 시간(분)") @RequestParam int usedMinutes) {
+        return ResponseEntity.ok(ApiResponse.success(
+                screenTimeService.reportLimitReached(childId, usedMinutes)));
     }
 }
