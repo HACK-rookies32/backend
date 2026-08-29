@@ -4,6 +4,8 @@ import com.example.kidhackbackend.admin.community.entity.MemberBan;
 import com.example.kidhackbackend.admin.community.repository.MemberBanRepository;
 import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
+import com.example.kidhackbackend.global.storage.AttachmentValidator;
+import com.example.kidhackbackend.global.storage.UploadCategory;
 import com.example.kidhackbackend.users.communityboard.dto.*;
 import com.example.kidhackbackend.users.communityboard.entity.CommunityBoard;
 import com.example.kidhackbackend.users.communityboard.entity.CommunityBoardComment;
@@ -32,10 +34,12 @@ public class CommunityBoardService {
     private final CommunityBoardLikeRepository likeRepository;
     private final FileStorageService fileStorageService;
     private final MemberBanRepository memberBanRepository;
+    private final AttachmentValidator attachmentValidator;
 
     @Transactional
     public PostResponse createPost(Member member, PostRequest request) {
         checkBan(member);
+        attachmentValidator.requireAllUploaded(request.getAttachments(), UploadCategory.COMMUNITY);
         CommunityBoard board = new CommunityBoard();
         board.setMember(member);
         board.setTitle(request.getTitle());
@@ -73,6 +77,7 @@ public class CommunityBoardService {
     @Transactional
     public PostResponse updatePost(Long postId, Member member, PostRequest request) {
         CommunityBoard board = findBoard(postId);
+        attachmentValidator.requireAllUploaded(request.getAttachments(), UploadCategory.COMMUNITY);
         // [VULN-11] board.getMember() 와 요청자(member) 비교가 없음(IDOR) — 로그인만 확인하고
         //           실제 작성자인지는 검증하지 않아, postId 만 알면 남의 글을 수정할 수 있다.
         if (request.getTitle() != null) board.setTitle(request.getTitle());

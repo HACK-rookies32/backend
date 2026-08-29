@@ -26,13 +26,22 @@ public class StorageProperties {
     private String prefix = "uploads";
 
     /**
-     * presigned URL 유효 기간.
+     * 업로드용 presigned PUT URL 유효 기간.
      *
-     * <p>짧을수록 URL 유출 시 노출 창이 좁다. 다만 사용자가 페이지를 열어 둔 채
-     * 나중에 클릭하는 경우가 있으므로 지나치게 짧으면 만료된 링크를 보게 된다.
-     * 매 요청마다 새로 발급되는 구조라 5 분이면 충분하다.
+     * <p>짧을수록 URL 유출 시 노출 창이 좁다. 업로드는 발급 직후 바로 PUT 하는
+     * 흐름이라 5 분이면 충분하다.
      */
     private Duration presignTtl = Duration.ofMinutes(5);
+
+    /**
+     * 다운로드용 presigned GET URL 유효 기간.
+     *
+     * <p>업로드보다 길게 둔다. {@code GET /api/files/...} 가 매 요청마다 302 로
+     * 새 서명 URL 을 발급하므로, 브라우저가 리다이렉트 결과를 이 기간만큼 캐시하면
+     * (Cache-Control) 이미지가 많은 화면에서 왕복과 서명 연산을 줄일 수 있다.
+     * 캐시 유효기간은 이 값보다 짧게 잡아 서명이 캐시 도중 만료되지 않게 한다.
+     */
+    private Duration downloadTtl = Duration.ofHours(1);
 
     public boolean usesS3() {
         return StringUtils.hasText(bucket);

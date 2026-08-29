@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -68,7 +69,7 @@ public class CommunityBoardController {
     @PostMapping("/posts")
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
             @AuthenticationPrincipal Member member,
-            @RequestBody PostRequest request) {
+            @RequestBody @Valid PostRequest request) {
         requireParent(member);
         return ResponseEntity.ok(ApiResponse.success(communityBoardService.createPost(member, request)));
     }
@@ -90,7 +91,7 @@ public class CommunityBoardController {
     public ResponseEntity<ApiResponse<PostResponse>> updatePost(
             @AuthenticationPrincipal Member member,
             @Parameter(description = "게시글 ID") @PathVariable Long postId,
-            @RequestBody PostRequest request) {
+            @RequestBody @Valid PostRequest request) {
         requireParent(member);
         return ResponseEntity.ok(ApiResponse.success(communityBoardService.updatePost(postId, member, request)));
     }

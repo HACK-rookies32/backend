@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -56,7 +57,7 @@ public class AdminNoticeController {
     @Operation(summary = "공지 생성", description = "생성 시 감사 로그(NOTICE_CREATE)를 남긴다.")
     @PostMapping
     public ResponseEntity<ApiResponse<AdminNoticeDetailResponse>> createNotice(
-            @AuthenticationPrincipal Member member, @RequestBody NoticeRequest request) {
+            @AuthenticationPrincipal Member member, @RequestBody @Valid NoticeRequest request) {
         AdminNoticeDetailResponse response = noticeService.createNotice(member, request);
         adminAuditLogService.record(member, AdminActivityType.NOTICE_CREATE, response.id());
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -65,7 +66,7 @@ public class AdminNoticeController {
     @Operation(summary = "공지 수정", description = "수정 시 감사 로그(NOTICE_UPDATE)를 남긴다.")
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<AdminNoticeDetailResponse>> updateNotice(
-            @Parameter(description = "공지 ID") @PathVariable Long id, @RequestBody NoticeRequest request) {
+            @Parameter(description = "공지 ID") @PathVariable Long id, @RequestBody @Valid NoticeRequest request) {
         AdminNoticeDetailResponse response = noticeService.updateNotice(id, request);
         adminAuditLogService.record(AdminActivityType.NOTICE_UPDATE, id);
         return ResponseEntity.ok(ApiResponse.success(response));

@@ -1,6 +1,8 @@
 package com.example.kidhackbackend.users.inquiry.service;
 
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
+import com.example.kidhackbackend.global.storage.AttachmentValidator;
+import com.example.kidhackbackend.global.storage.UploadCategory;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryDetailResponse;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryRequest;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryResponse;
@@ -29,9 +31,11 @@ public class InquiryService {
     private final InquiryRepository inquiryRepository;
     private final InquiryAnswerRepository inquiryAnswerRepository;
     private final InquiryFileStorageService inquiryFileStorageService;
+    private final AttachmentValidator attachmentValidator;
 
     @Transactional
     public InquiryResponse createInquiry(Member member, InquiryRequest request) {
+        attachmentValidator.requireAllUploaded(request.getAttachments(), UploadCategory.INQUIRY);
         Inquiry inquiry = new Inquiry();
         inquiry.setMember(member);
         inquiry.setTitle(request.getTitle());
@@ -77,6 +81,7 @@ public class InquiryService {
         if (inquiry.isAnswered()) {
             throw new IllegalArgumentException("답변이 완료된 문의는 수정할 수 없습니다.");
         }
+        attachmentValidator.requireAllUploaded(request.getAttachments(), UploadCategory.INQUIRY);
         // [VULN-9] inquiry.getMember() 와 요청자(member) 비교가 없음(IDOR).
         inquiry.setTitle(request.getTitle());
         inquiry.setContent(request.getContent());

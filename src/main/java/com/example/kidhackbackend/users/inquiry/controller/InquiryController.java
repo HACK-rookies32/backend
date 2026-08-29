@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,7 +54,7 @@ public class InquiryController {
     @PostMapping
     public ResponseEntity<ApiResponse<InquiryResponse>> createInquiry(
             @AuthenticationPrincipal Member member,
-            @RequestBody InquiryRequest request) {
+            @RequestBody @Valid InquiryRequest request) {
         requireParent(member);
         return ResponseEntity.ok(ApiResponse.success(inquiryService.createInquiry(member, request)));
     }
@@ -93,7 +94,7 @@ public class InquiryController {
     public ResponseEntity<ApiResponse<InquiryResponse>> updateInquiry(
             @Parameter(description = "문의 ID") @PathVariable Long id,
             @AuthenticationPrincipal Member member,
-            @RequestBody InquiryRequest request) {
+            @RequestBody @Valid InquiryRequest request) {
         requireParent(member);
         return ResponseEntity.ok(ApiResponse.success(inquiryService.updateInquiry(id, member, request)));
     }

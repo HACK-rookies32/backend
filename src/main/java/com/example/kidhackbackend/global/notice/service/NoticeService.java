@@ -10,6 +10,8 @@ import com.example.kidhackbackend.global.notice.dto.NoticeRequest;
 import com.example.kidhackbackend.global.notice.dto.NoticeResponse;
 import com.example.kidhackbackend.global.notice.entity.Notice;
 import com.example.kidhackbackend.global.notice.repository.NoticeRepository;
+import com.example.kidhackbackend.global.storage.AttachmentValidator;
+import com.example.kidhackbackend.global.storage.UploadCategory;
 import com.example.kidhackbackend.users.member.entity.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -34,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NoticeService {
 
     private final NoticeRepository noticeRepository;
+    private final AttachmentValidator attachmentValidator;
 
     /* ---------------------------------------------------------------- 관리자 */
 
@@ -51,6 +54,7 @@ public class NoticeService {
     /** 공지를 저장한다. 알림은 나가지 않는다. */
     @Transactional
     public AdminNoticeDetailResponse createNotice(Member author, NoticeRequest request) {
+        attachmentValidator.requireAllUploaded(request.getAttachments(), UploadCategory.NOTICE);
         Notice notice = new Notice(
                 request.getTitle(),
                 request.getContent(),
@@ -64,6 +68,7 @@ public class NoticeService {
 
     @Transactional
     public AdminNoticeDetailResponse updateNotice(Long noticeId, NoticeRequest request) {
+        attachmentValidator.requireAllUploaded(request.getAttachments(), UploadCategory.NOTICE);
         Notice notice = findNotice(noticeId);
         notice.update(request.getTitle(), request.getContent(),
                 request.getAttachments(), request.getLinks());
