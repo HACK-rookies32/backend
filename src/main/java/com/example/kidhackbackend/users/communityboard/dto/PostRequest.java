@@ -1,6 +1,7 @@
 package com.example.kidhackbackend.users.communityboard.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
 import java.util.List;
@@ -16,8 +17,9 @@ public class PostRequest {
     @Schema(description = "본문", requiredMode = Schema.RequiredMode.REQUIRED)
     private String content;
 
-    @Schema(description = "첨부 공개 경로 목록(POST /api/community/attachments 응답의 url)",
+    @Schema(description = "첨부 공개 경로 목록(POST /api/community/attachments 응답의 url). 최대 10개",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    @Size(max = 10, message = "첨부는 최대 10개입니다.")
     private List<String> attachments;
 
     @Schema(description = "관련 링크 목록", requiredMode = Schema.RequiredMode.NOT_REQUIRED)

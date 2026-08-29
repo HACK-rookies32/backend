@@ -48,3 +48,5 @@ src/main/resources/application-prod.yml
 ### test code ###
 TestPushController
 TestSecurityConfig
+# 로컬 디스크 저장소(app.s3.bucket 미설정 시 LocalObjectStorage 가 여기 씀)
+/uploads/

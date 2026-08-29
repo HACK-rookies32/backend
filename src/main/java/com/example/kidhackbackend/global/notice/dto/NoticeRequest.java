@@ -1,6 +1,7 @@
 package com.example.kidhackbackend.global.notice.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 
 import java.util.List;
@@ -23,9 +24,11 @@ public class NoticeRequest {
     private String content;
 
     @Schema(description = "첨부 공개 경로 목록. 관리자 웹이 `/api/files/notice/presign` → `/api/files/notice/complete` "
-            + "로 업로드한 뒤 받은 URL 을 넣는다.", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            + "로 업로드한 뒤 받은 URL 을 넣는다. 최대 10개", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    @Size(max = 10, message = "첨부는 최대 10개입니다.")
     private List<String> attachments;
 
-    @Schema(description = "관련 링크 목록", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    @Schema(description = "관련 링크 목록. 최대 20개", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+    @Size(max = 20, message = "링크는 최대 20개입니다.")
     private List<String> links;
 }

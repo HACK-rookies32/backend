@@ -129,7 +129,7 @@ public class S3ObjectStorage implements ObjectStorage, DisposableBean {
                 .build();
 
         GetObjectPresignRequest presign = GetObjectPresignRequest.builder()
-                .signatureDuration(props.getPresignTtl())
+                .signatureDuration(props.getDownloadTtl())
                 .getObjectRequest(get)
                 .build();
 

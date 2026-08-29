@@ -1,16 +1,21 @@
 package com.example.kidhackbackend.global.storage;
 
+import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
+import com.example.kidhackbackend.global.exception.InvalidCredentialException;
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.global.storage.dto.PresignRequest;
 import com.example.kidhackbackend.global.storage.dto.PresignResponse;
 import com.example.kidhackbackend.global.storage.dto.UploadCompleteRequest;
 import com.example.kidhackbackend.users.member.entity.Member;
+import com.example.kidhackbackend.users.member.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 
@@ -66,7 +72,9 @@ public class FileController {
      * 넣으면 {@code ../} 로 prefix 밖의 객체를 덮어쓸 수 있다.
      */
     @Operation(summary = "첨부파일 업로드 URL 발급",
-            description = "S3 모드에서만 동작한다. 로컬 디스크 모드에서는 409 를 주므로 기존 multipart 업로드를 쓸 것.")
+            description = "S3 모드에서만 동작한다. 로컬 디스크 모드에서는 409 를 주므로 기존 multipart 업로드를 쓸 것. "
+                    + "분류별 권한: community·inquiry=PARENT, notice=관리자, screenshot=CHILD, profile=로그인 회원.")
+    @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/{category}/presign")
     public ResponseEntity<ApiResponse<PresignResponse>> presign(
             @AuthenticationPrincipal Member member,
@@ -75,6 +83,7 @@ public class FileController {
 
         requireLogin(member);
         UploadCategory uploadCategory = requireCategory(category);
+        requireUploadPermission(member, uploadCategory);
 
         // [VULN-10] 확장자 화이트리스트 검증이 없다.
         //
@@ -101,7 +110,7 @@ public class FileController {
         StoredObject stored = new StoredObject(uploadCategory, filename);
         return ResponseEntity.ok(ApiResponse.success(new PresignResponse(
                 uploadUrl.toString(),
-                stored.publicPath(),
+                stored.publicPath(),   // 응답 필드명은 url — multipart/complete API 와 동일
                 filename,
                 contentType,
                 props.getPresignTtl().toSeconds())));
@@ -119,6 +128,7 @@ public class FileController {
      */
     @Operation(summary = "첨부파일 업로드 완료 확인",
             description = "S3 에 실제로 올라갔는지 확인하고 DB 에 넣을 공개 경로를 확정한다.")
+    @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/{category}/complete")
     public ResponseEntity<ApiResponse<Map<String, String>>> complete(
             @AuthenticationPrincipal Member member,
@@ -127,6 +137,7 @@ public class FileController {
 
         requireLogin(member);
         UploadCategory uploadCategory = requireCategory(category);
+        requireUploadPermission(member, uploadCategory);
 
         String filename = request.getFilename();
         if (StoredObject.isUnsafe(filename)) {
@@ -155,27 +166,57 @@ public class FileController {
         // 소유권 검사를 넣는다면 이 자리다.
         // 첨부를 참조하는 게시글/문의를 역조회해 요청자와 대조하면 된다.
 
+        // 브라우저가 결과를 잠시 재사용하도록 Cache-Control 을 싣는다. 이게 없으면
+        // Spring Security 기본 헤더 라이터가 no-store 를 붙여 <img src> 가 매번 왕복한다.
+        // 302 의 경우 리다이렉트 대상 presigned URL 이 캐시 도중 만료되지 않게 서명 기간보다
+        // 짧게 잡는다.
+        CacheControl cacheControl = CacheControl.maxAge(redirectCacheAge()).cachePrivate();
+
         return storage.downloadUrl(uploadCategory, filename)
                 .map(uri -> ResponseEntity.status(HttpStatus.FOUND)
                         .location(uri)
+                        .cacheControl(cacheControl)
                         .<Resource>build())
                 .orElseGet(() -> {
                     Resource resource = storage.loadAsResource(uploadCategory, filename);
                     return resource.exists()
-                            ? ResponseEntity.ok(resource)
+                            ? ResponseEntity.ok().cacheControl(cacheControl).body(resource)
                             : ResponseEntity.notFound().build();
                 });
     }
 
+    /** presigned GET 서명 기간에서 5 분 여유를 뺀 값. 최소 0. */
+    private Duration redirectCacheAge() {
+        Duration ttl = props.getDownloadTtl().minusMinutes(5);
+        return ttl.isNegative() ? Duration.ZERO : ttl;
+    }
+
     private void requireLogin(Member member) {
         if (member == null) {
-            throw new IllegalArgumentException("로그인이 필요합니다.");
+            throw new InvalidCredentialException("로그인이 필요합니다.");
         }
     }
 
     private UploadCategory requireCategory(String category) {
         return UploadCategory.from(category)
-                .orElseThrow(() -> new IllegalArgumentException("알 수 없는 첨부 분류입니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("알 수 없는 첨부 분류입니다: " + category));
+    }
+
+    /**
+     * 분류별 업로드 권한. presign 발급은 곧 버킷에 쓸 권한을 넘기는 것이므로, 다른
+     * 도메인 네임스페이스(관리자 공지·자녀 캡처)에 아무나 올리지 못하게 막는다.
+     */
+    private void requireUploadPermission(Member member, UploadCategory category) {
+        boolean allowed = switch (category) {
+            case COMMUNITY, INQUIRY -> member.getRole() == Role.PARENT;
+            case SCREENSHOT -> member.getRole() == Role.CHILD;
+            case NOTICE -> member.getRole().name().endsWith("ADMIN");
+            case PROFILE -> true; // 로그인한 회원이면 자기 프로필 이미지
+        };
+        if (!allowed) {
+            throw new AdminAccessDeniedException(
+                    "이 분류에 업로드할 권한이 없습니다: " + category.segment());
+        }
     }
 
     /**

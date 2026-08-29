@@ -18,8 +18,9 @@ public class PresignResponse {
     @Schema(description = "브라우저가 PUT 할 S3 주소(서명 포함 — 노출·재사용 주의)")
     private String uploadUrl;
 
-    @Schema(description = "업로드 완료 후 이 파일을 가리킬 공개 경로")
-    private String path;
+    @Schema(description = "업로드 완료 후 이 파일을 가리킬 공개 경로(게시글/문의 attachments 에 넣을 값). "
+            + "multipart 업로드·완료 확인 API 의 `url` 과 같은 형태")
+    private String url;
 
     @Schema(description = "서버가 정한 저장 파일명(완료 API 에 그대로 전달)")
     private String filename;
