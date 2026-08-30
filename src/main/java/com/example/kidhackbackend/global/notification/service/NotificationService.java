@@ -105,13 +105,14 @@ public class NotificationService implements NotificationPort {
      * 자리에 "PAYMENT_APPROVED" 가 그대로 떴다).
      */
     private PushMessage toPushMessage(Notification notification) {
-        return new PushMessage(
-                notification.getTitle(),
-                notification.getMessage(),
-                Map.of(
-                        "type", notification.getType().name(),
-                        "notificationId", String.valueOf(notification.getId())
-                ));
+        Map<String, String> data = new java.util.LinkedHashMap<>();
+        data.put("type", notification.getType().name());
+        data.put("notificationId", String.valueOf(notification.getId()));
+        // 부모 알림은 "어느 자녀 일인지" 가 있어야 앱이 자녀별로 거른다. 자녀 수신 알림은 null 이라 뺀다.
+        if (notification.getChildId() != null) {
+            data.put("childId", String.valueOf(notification.getChildId()));
+        }
+        return new PushMessage(notification.getTitle(), notification.getMessage(), data);
     }
 
     /* ---------------------------------------------------------------- 조회 */

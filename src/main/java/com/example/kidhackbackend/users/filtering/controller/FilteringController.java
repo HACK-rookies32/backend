@@ -6,6 +6,7 @@ import com.example.kidhackbackend.users.filtering.dto.VisitRequest;
 import com.example.kidhackbackend.users.filtering.dto.VisitResponse;
 import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
 import com.example.kidhackbackend.users.filtering.service.FilteringService;
+import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
@@ -17,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,11 +72,20 @@ public class FilteringController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
-    @Operation(summary = "차단 규칙 목록 조회 (부모)",
-            description = "자녀의 차단 규칙 목록.")
+    @Operation(summary = "차단 규칙 목록 조회 (부모 · 자녀 앱)",
+            description = """
+                    자녀의 차단 규칙 목록.
+
+                    - PARENT: 자녀 규칙 조회(⚠️ 부모-자녀 소유권 미검증, IDOR — 기존 사양).
+                    - CHILD: **본인 childId 만** 허용. 자녀 앱의 접근성 서비스가 기기 안에서 유해 콘텐츠를
+                      매칭하기 위해 읽는다 — 자녀 사용자에게 보여 주는 화면은 없다.""")
     @GetMapping("/rules/{childId}")
     public ResponseEntity<ApiResponse<List<BlockRuleResponse>>> getRules(
+            @AuthenticationPrincipal Member member,
             @Parameter(description = "자녀 회원 ID") @PathVariable Long childId) {
+        if (member != null && member.getRole() == Role.CHILD && !member.getId().equals(childId)) {
+            throw new AdminAccessDeniedException("본인의 차단 규칙만 조회할 수 있습니다.");
+        }
         List<BlockRuleResponse> data = blockRuleService.getRules(childId).stream()
                 .map(BlockRuleResponse::from)
                 .toList();
