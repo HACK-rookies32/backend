@@ -17,7 +17,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * <p>인가 정책:
  * <ul>
  *   <li>POST /visit          → CHILD (자녀 앱이 접속 대상 보고)</li>
- *   <li>차단규칙 등록/조회    → PARENT</li>
+ *   <li>차단규칙 등록          → PARENT</li>
+ *   <li>차단규칙 조회(GET)     → PARENT + CHILD. 자녀 앱의 접근성 서비스가 <b>기기 안에서만</b>
+ *       규칙을 매칭하려고 읽는다(자녀 UI에는 노출되지 않는다). CHILD 는 컨트롤러에서
+ *       본인 childId 만 허용한다.</li>
  *   <li>차단규칙 삭제(DELETE) → 인증만 요구 ([VULN-FILT-1]: 권한/소유권 제한 없음)</li>
  * </ul>
  */
@@ -40,9 +43,10 @@ public class FilteringSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 자녀: 접속 대상 보고
                         .requestMatchers(HttpMethod.POST, "/api/filtering/visit").hasRole("CHILD")
-                        // 부모: 차단규칙 등록/조회
+                        // 부모: 차단규칙 등록
                         .requestMatchers(HttpMethod.POST, "/api/filtering/rules").hasRole("PARENT")
-                        .requestMatchers(HttpMethod.GET, "/api/filtering/rules/*").hasRole("PARENT")
+                        // 부모 + 자녀 앱: 차단규칙 조회. 자녀 기기가 로컬 매칭에 쓴다(본인 childId 만, 컨트롤러에서 검사).
+                        .requestMatchers(HttpMethod.GET, "/api/filtering/rules/*").hasAnyRole("PARENT", "CHILD")
                         // [VULN-FILT-1] 삭제는 권한/소유권 제한 없이 '인증만' 되면 허용
                         //   → 다른 부모는 물론, 감시당하는 자녀(CHILD)도 차단을 스스로 해제 가능
                         .requestMatchers(HttpMethod.DELETE, "/api/filtering/rules/*").authenticated()

@@ -6,7 +6,6 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.MessagingErrorCode;
 import com.google.firebase.messaging.MulticastMessage;
-import com.google.firebase.messaging.Notification;
 import com.google.firebase.messaging.SendResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +36,7 @@ public class FirebasePushSender implements PushPort {
         try {
             messaging.send(com.google.firebase.messaging.Message.builder()
                     .setToken(deviceToken)
-                    .setNotification(toNotification(message))
-                    .putAllData(message.data())
+                    .putAllData(toData(message))
                     .setAndroidConfig(highPriority())
                     .build());
             return PushResult.SUCCESS;
@@ -68,8 +66,7 @@ public class FirebasePushSender implements PushPort {
         try {
             BatchResponse batch = messaging.sendEachForMulticast(MulticastMessage.builder()
                     .addAllTokens(chunk)
-                    .setNotification(toNotification(message))
-                    .putAllData(message.data())
+                    .putAllData(toData(message))
                     .setAndroidConfig(highPriority())
                     .build());
 
@@ -106,11 +103,23 @@ public class FirebasePushSender implements PushPort {
         return PushResult.FAILED;
     }
 
-    private Notification toNotification(PushMessage message) {
-        return Notification.builder()
-                .setTitle(message.title())
-                .setBody(message.body())
-                .build();
+    /**
+     * <b>data 전용</b> 페이로드를 만든다(notification 필드 없음).
+     *
+     * <p>notification 필드를 함께 보내면 앱이 백그라운드일 때 시스템이 트레이에 알아서 띄우고
+     * {@code onMessageReceived} 는 호출되지 않는다. 그러면 화면 캡처 요청처럼 <b>앱이 직접 처리해야
+     * 하는 제어 신호</b>가 자녀 앱에 도달하지 못한다. 제목/본문도 data 에 실어 앱이 알림창을 그린다.
+     * 키 이름({@code title}, {@code body})은 모바일 {@code PushMessage} 와 합의된 값이다.
+     */
+    private Map<String, String> toData(PushMessage message) {
+        Map<String, String> data = new LinkedHashMap<>(message.data());
+        if (message.title() != null) {
+            data.putIfAbsent("title", message.title());
+        }
+        if (message.body() != null) {
+            data.putIfAbsent("body", message.body());
+        }
+        return data;
     }
 
     /**
