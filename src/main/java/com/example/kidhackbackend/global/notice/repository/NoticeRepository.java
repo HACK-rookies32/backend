@@ -19,10 +19,10 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
      * 갈려서 제외하고 제목만 검색한다.
      */
     @Query(value = "SELECT * FROM notice "
-            + "WHERE (:kw = '' OR LOWER(title) LIKE LOWER(CONCAT('%', :kw, '%'))) "
+            + "WHERE (:kw = '' OR LOWER(title) LIKE LOWER(('%' || :kw || '%'))) "
             + "ORDER BY id DESC",
             countQuery = "SELECT COUNT(*) FROM notice "
-                    + "WHERE (:kw = '' OR LOWER(title) LIKE LOWER(CONCAT('%', :kw, '%')))",
+                    + "WHERE (:kw = '' OR LOWER(title) LIKE LOWER(('%' || :kw || '%')))",
             nativeQuery = true)
     Page<Notice> searchByTitle(@Param("kw") String kw, Pageable pageable);
 }

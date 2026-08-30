@@ -50,15 +50,15 @@ public interface ChargeOrderRepository extends JpaRepository<ChargeOrder, Long> 
             + "LEFT JOIN member m ON m.id = co.owner_id "
             + "WHERE (:userId IS NULL OR co.owner_id = :userId) "
             + "AND (:status IS NULL OR co.status = :status) "
-            + "AND (:keyword IS NULL OR m.username LIKE CONCAT('%', :keyword, '%') "
-            + "     OR m.email LIKE CONCAT('%', :keyword, '%')) "
+            + "AND (:keyword IS NULL OR m.username LIKE ('%' || :keyword || '%') "
+            + "     OR m.email LIKE ('%' || :keyword || '%')) "
             + "ORDER BY co.id DESC",
             countQuery = "SELECT count(*) FROM charge_order co "
                     + "LEFT JOIN member m ON m.id = co.owner_id "
                     + "WHERE (:userId IS NULL OR co.owner_id = :userId) "
                     + "AND (:status IS NULL OR co.status = :status) "
-                    + "AND (:keyword IS NULL OR m.username LIKE CONCAT('%', :keyword, '%') "
-                    + "     OR m.email LIKE CONCAT('%', :keyword, '%'))",
+                    + "AND (:keyword IS NULL OR m.username LIKE ('%' || :keyword || '%') "
+                    + "     OR m.email LIKE ('%' || :keyword || '%'))",
             nativeQuery = true)
     Page<AdminChargeProjection> adminSearchCharges(@Param("userId") Long userId,
                                                    @Param("status") String status,
