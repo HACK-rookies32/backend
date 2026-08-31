@@ -20,4 +20,12 @@ public interface CommunityBoardLikeRepository extends JpaRepository<CommunityBoa
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from CommunityBoardLike l where l.board.id = :boardId")
     int deleteByBoardId(@Param("boardId") Long boardId);
+
+    /**
+     * 회원이 <b>남의 글에 누른</b> 좋아요를 통째로 지운다. 회원 삭제 전에 부른다.
+     * (본인 글의 좋아요는 게시글 삭제 때 {@code deleteByBoardId} 로 함께 사라진다)
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from CommunityBoardLike l where l.member.id = :memberId")
+    int deleteByMemberId(@Param("memberId") Long memberId);
 }
