@@ -121,8 +121,9 @@ public class AdminCommunityController {
             description = """
                     게시글을 삭제하고 감사 로그(`POST_DELETE`)를 남긴다.
 
+                    댓글·좋아요·첨부 실물·신고 기록을 함께 정리한다.
+
                     - 존재하지 않는 게시글: `404 NOT_FOUND`.
-                    - ⚠️ **알려진 결함**: 댓글이 달린 게시글은 FK 제약 위반으로 `500` 이 난다(자식 정리 미구현).
                     """)
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),

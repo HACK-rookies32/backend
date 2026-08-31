@@ -18,6 +18,7 @@ import com.example.kidhackbackend.users.communityboard.entity.CommunityBoard;
 import com.example.kidhackbackend.users.communityboard.entity.CommunityBoardComment;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
+import com.example.kidhackbackend.users.communityboard.service.CommunityPostRemover;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -45,6 +46,7 @@ public class AdminCommunityService {
     private final CommentReportRepository commentReportRepository;
     private final MemberBanRepository memberBanRepository;
     private final MemberRepository memberRepository;
+    private final CommunityPostRemover postRemover;
 
     // 사용자 신고 접수 (게시글)
     @Transactional
@@ -124,8 +126,9 @@ public class AdminCommunityService {
         postReportRepository.findByPostId(id)
                 .ifPresent(postReportRepository::delete);
 
-        // 3. 게시글 삭제
-        adminPostRepository.deleteById(id);
+        // 3. 게시글 삭제 — 댓글·좋아요·첨부 실물 정리는 회원 삭제와 같은 경로를 쓴다.
+        //    예전에는 여기서 곧바로 deleteById 를 불러, 댓글이 달린 글은 FK 위반으로 500 이 났다.
+        adminPostRepository.findById(id).ifPresent(postRemover::remove);
     }
 
     // 신고된(report >= 1) 게시글 목록 페이징 조회
