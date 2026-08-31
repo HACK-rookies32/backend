@@ -155,8 +155,19 @@ class AdminFinanceCommandServiceTest {
         assertThat(res.transaction().type()).isEqualTo("REFUND");
         // 프론트가 kid_ 접두사로 '충전 환불' 을 식별하므로 refUid 는 merchantUid 여야 한다(#131 확정).
         assertThat(res.transaction().refUid()).isEqualTo("kid_ok");
+        // 사유는 refUid 가 아니라 memo 로 간다(V15, 웹 요청 6번).
+        assertThat(res.transaction().memo()).isEqualTo("잘못 충전 민원 처리");
         assertThat(chargeOrderRepository.findByMerchantUid("kid_ok").orElseThrow().getStatus())
                 .isEqualTo(ChargeStatus.REFUNDED);
+    }
+
+    @Test
+    void 잔액조정_사유가_memo에_남는다() {
+        // refUid 는 웹 호환을 위해 당분간 유지한다 — 회신에서 추후 제거 예정으로 안내했다.
+        AdminActionResponse res = service.adjust(USER_ID, -2000L, "오적립 회수");
+
+        assertThat(res.transaction().memo()).isEqualTo("오적립 회수");
+        assertThat(res.transaction().refUid()).isEqualTo("오적립 회수");
     }
 
     @Test

@@ -54,7 +54,7 @@ class WalletChargeServiceTest {
         assertThat(res.balance()).isEqualTo(5000L);
         assertThat(res.transaction().amount()).isEqualTo(5000L);
         Long walletId = walletRepository.findByOwnerId(PARENT_ID).orElseThrow().getId();
-        assertThat(txRepository.findByWalletIdOrderByIdDesc(walletId)).hasSize(1);
+        assertThat(txRepository.findByWalletIdRecentFirst(walletId)).hasSize(1);
         assertThat(chargeOrderRepository.findByMerchantUid(prepared.merchantUid()).orElseThrow()
                 .getStatus()).isEqualTo(ChargeStatus.PAID);
     }

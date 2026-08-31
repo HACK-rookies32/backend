@@ -49,11 +49,26 @@ public class WalletTransaction extends BaseEntity {
     /** 근거 참조(충전 주문의 merchantUid 등). */
     private String refUid;
 
+    /**
+     * 사람이 읽는 사유(V15). 관리자 충전 취소·잔액 조정이 채운다 — 그 외 유형은 null.
+     *
+     * <p>{@code refUid} 는 기계가 읽는 참조 키({@code merchantUid}·{@code qrToken})라 사유를 넣을 수 없다.
+     * 프론트가 {@code kid_} 접두사로 '충전 환불' 을 식별하는 규약(#131)을 깨지 않으려고 컬럼을 나눴다.
+     */
+    @Column(length = 255)
+    private String memo;
+
     public WalletTransaction(Long walletId, TxType type, long amount, long balanceAfter, String refUid) {
+        this(walletId, type, amount, balanceAfter, refUid, null);
+    }
+
+    public WalletTransaction(Long walletId, TxType type, long amount, long balanceAfter,
+                             String refUid, String memo) {
         this.walletId = walletId;
         this.type = type;
         this.amount = amount;
         this.balanceAfter = balanceAfter;
         this.refUid = refUid;
+        this.memo = memo;
     }
 }

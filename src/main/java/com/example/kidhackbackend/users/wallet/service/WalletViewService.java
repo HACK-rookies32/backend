@@ -63,7 +63,7 @@ public class WalletViewService {
         return walletRepository.findByOwnerId(childId)
                 .map(w -> ChildWalletResponse.of(childId, w.getBalance(),
                         walletTransactionRepository
-                                .findByWalletIdOrderByIdDesc(w.getId(), PageRequest.of(0, capped))
+                                .findByWalletIdRecentFirst(w.getId(), PageRequest.of(0, capped))
                                 .getContent()))
                 .orElseGet(() -> ChildWalletResponse.of(childId, 0L, List.of()));
     }
@@ -90,7 +90,7 @@ public class WalletViewService {
         Pageable pageable = PageRequest.of(page, size);
         return walletRepository.findByOwnerId(parentId)
                 .map(w -> TxPageResponse.from(
-                        walletTransactionRepository.findByWalletIdAndTypeInAndRefUidOrderByIdDesc(
+                        walletTransactionRepository.findByWalletIdAndTypeInAndRefUidRecentFirst(
                                 w.getId(),
                                 List.of(TxType.TRANSFER_IN, TxType.TRANSFER_OUT),
                                 String.valueOf(childId),
