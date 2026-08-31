@@ -15,6 +15,7 @@ import com.example.kidhackbackend.users.communityboard.service.CommunityPostRemo
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +41,7 @@ class CommunityPostRemoverTest {
     @Autowired CommunityBoardCommentRepository commentRepository;
     @Autowired CommunityBoardLikeRepository likeRepository;
     @Autowired MemberRepository memberRepository;
+    @Autowired EntityManager entityManager;
 
     private CommunityPostRemover remover;
     private FileStorageService fileStorageService;
@@ -75,6 +77,19 @@ class CommunityPostRemoverTest {
         return boardRepository.save(board);
     }
 
+    /**
+     * 컨트롤러가 실제로 넘기는 것과 같은 상태로 다시 읽는다.
+     *
+     * <p>테스트 안에서 방금 만든 엔티티는 컬렉션이 이미 초기화돼 있어, 지연 로딩이
+     * 끊기는 문제를 드러내지 못한다. 요청마다 DB 에서 새로 읽는 실제 흐름과 맞추려면
+     * 영속성 컨텍스트를 비우고 다시 조회해야 한다.
+     */
+    private CommunityBoard reload(CommunityBoard board) {
+        entityManager.flush();
+        entityManager.clear();
+        return boardRepository.findById(board.getId()).orElseThrow();
+    }
+
     private void comment(CommunityBoard board) {
         CommunityBoardComment c = new CommunityBoardComment();
         c.setBoard(board);
@@ -96,7 +111,8 @@ class CommunityPostRemoverTest {
         comment(board);
         comment(board);
 
-        assertThatCode(() -> remover.remove(board)).doesNotThrowAnyException();
+        CommunityBoard loaded = reload(board);
+        assertThatCode(() -> remover.remove(loaded)).doesNotThrowAnyException();
 
         assertThat(boardRepository.findById(board.getId())).isEmpty();
         assertThat(commentRepository.findByBoardIdOrderByCreatedAtAsc(board.getId())).isEmpty();
@@ -107,7 +123,8 @@ class CommunityPostRemoverTest {
         CommunityBoard board = post("좋아요 있는 글");
         like(board);
 
-        assertThatCode(() -> remover.remove(board)).doesNotThrowAnyException();
+        CommunityBoard loaded = reload(board);
+        assertThatCode(() -> remover.remove(loaded)).doesNotThrowAnyException();
 
         assertThat(boardRepository.findById(board.getId())).isEmpty();
         assertThat(likeRepository.countByBoardId(board.getId())).isZero();
@@ -122,23 +139,32 @@ class CommunityPostRemoverTest {
         comment(other);
         like(other);
 
-        remover.remove(target);
+        remover.remove(reload(target));
 
         assertThat(boardRepository.findById(other.getId())).isPresent();
         assertThat(commentRepository.findByBoardIdOrderByCreatedAtAsc(other.getId())).hasSize(1);
         assertThat(likeRepository.countByBoardId(other.getId())).isEqualTo(1);
     }
 
-    /** 첨부는 DB 행뿐 아니라 저장소 실물까지 지워야 한다. */
+    /**
+     * 첨부는 DB 행뿐 아니라 저장소 실물까지 지워야 한다.
+     *
+     * <p>{@code attachments} 는 지연 로딩이라, 자식 벌크 삭제가 영속성 컨텍스트를 비운
+     * 뒤에 읽으면 LazyInitializationException 이 난다. 실제로 실서버에서 이 순서 때문에
+     * 500 이 났고, 컬렉션이 이미 초기화된 엔티티로 테스트해 놓쳤다 — 그래서 여기서도
+     * 반드시 다시 읽은 엔티티로 검증한다.
+     */
     @Test
-    void 첨부_실물도_지운다() {
+    void 다시_읽은_글도_첨부까지_지운다() {
         CommunityBoard board = post("첨부 있는 글");
         // 불변 리스트를 넣으면 Hibernate 가 컬렉션을 비울 때 UnsupportedOperationException 이 난다.
         board.setAttachments(new ArrayList<>(
                 List.of("/api/files/community/a.png", "/api/files/community/b.png")));
         boardRepository.save(board);
+        comment(board);
 
-        remover.remove(board);
+        CommunityBoard loaded = reload(board);
+        assertThatCode(() -> remover.remove(loaded)).doesNotThrowAnyException();
 
         Mockito.verify(fileStorageService).delete("/api/files/community/a.png");
         Mockito.verify(fileStorageService).delete("/api/files/community/b.png");

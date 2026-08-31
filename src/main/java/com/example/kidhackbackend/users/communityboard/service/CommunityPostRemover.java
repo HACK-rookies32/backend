@@ -6,6 +6,7 @@ import com.example.kidhackbackend.users.communityboard.repository.CommunityBoard
 import com.example.kidhackbackend.users.communityboard.repository.CommunityBoardRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -34,13 +35,27 @@ public class CommunityPostRemover {
      *
      * <p>첨부는 DB 행뿐 아니라 <b>저장소의 실물</b>까지 지운다. 관리자 삭제도 이 경로를
      * 타므로 회원 삭제와 동작이 같아진다(예전에는 관리자 삭제만 파일을 남겼다).
+     *
+     * <p>순서가 중요하다.
+     * <ol>
+     *   <li>첨부 경로를 <b>먼저</b> 읽어 복사한다. 아래 벌크 삭제가 영속성 컨텍스트를
+     *       비우면서 board 가 준영속이 되는데, {@code attachments} 는 지연 로딩이라
+     *       그 뒤에 읽으면 {@code LazyInitializationException} 이 난다.</li>
+     *   <li>자식(좋아요·댓글)을 지운다. 먼저 지우지 않으면 FK 에 걸린다.</li>
+     *   <li>게시글은 id 로 지운다. 준영속 엔티티를 그대로 넘기면 재부착이 필요하다.</li>
+     *   <li>DB 가 지워진 뒤에 파일 실물을 지운다. 트랜잭션이 뒤집혀도 파일만 사라지는
+     *       상황을 줄인다.</li>
+     * </ol>
      */
     @Transactional
     public void remove(CommunityBoard board) {
         Long postId = board.getId();
+        List<String> attachments = List.copyOf(board.getAttachments());
+
         likeRepository.deleteByBoardId(postId);
         commentRepository.deleteByBoardId(postId);
-        board.getAttachments().forEach(fileStorageService::delete);
-        boardRepository.delete(board);
+        boardRepository.deleteById(postId);
+
+        attachments.forEach(fileStorageService::delete);
     }
 }
