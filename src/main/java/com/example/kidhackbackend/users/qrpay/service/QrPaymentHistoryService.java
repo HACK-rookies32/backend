@@ -48,7 +48,7 @@ public class QrPaymentHistoryService {
 
         Pageable pageable = PageRequest.of(page, size);
         return QrPaymentHistoryPageResponse.from(
-                qrPaymentRepository.findByChildIdAndPaidAtIsNotNullOrderByIdDesc(targetChildId, pageable)
+                qrPaymentRepository.findByChildIdAndPaidAtIsNotNullRecentFirst(targetChildId, pageable)
                         .map(QrPaymentHistoryResponse::from));
     }
 }

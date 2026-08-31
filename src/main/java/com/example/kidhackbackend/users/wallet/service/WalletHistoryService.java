@@ -45,7 +45,7 @@ public class WalletHistoryService {
     @Transactional(readOnly = true)
     public ChargeOrderPageResponse getCharges(Long ownerId, Pageable pageable) {
         return ChargeOrderPageResponse.from(
-                chargeOrderRepository.findByOwnerIdOrderByIdDesc(ownerId, pageable));
+                chargeOrderRepository.findByOwnerIdRecentFirst(ownerId, pageable));
     }
 
     /**
@@ -55,7 +55,7 @@ public class WalletHistoryService {
      */
     @Transactional(readOnly = true)
     public ChargeHistoryPageResponse getChargeHistory(Long ownerId, Pageable pageable) {
-        Page<ChargeOrder> page = chargeOrderRepository.findByOwnerIdOrderByIdDesc(ownerId, pageable);
+        Page<ChargeOrder> page = chargeOrderRepository.findByOwnerIdRecentFirst(ownerId, pageable);
 
         var content = page.getContent().stream()
                 .map(order -> new ChargeHistoryResponse(
