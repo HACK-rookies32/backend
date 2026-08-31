@@ -31,9 +31,18 @@ public class InquiryAdminService {
     private final InquiryAnswerRepository inquiryAnswerRepository;
     private final NotificationPort notificationPort;
 
-    public InquiryPageResponse getAllInquiries(int page, int size) {
+    /**
+     * 문의 목록.
+     *
+     * <p>{@code memberId} 를 주면 그 회원이 쓴 것만 본다. 관리자 웹의 회원 상세에 있는
+     * "문의 기록" 이 이 필터를 쓴다 — 예전에는 파라미터가 없어 전체 회원의 문의가
+     * 내려갔다(모르는 쿼리 파라미터는 조용히 무시된다).
+     */
+    public InquiryPageResponse getAllInquiries(Long memberId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Inquiry> result = inquiryRepository.findAllByOrderByCreatedAtDesc(pageable);
+        Page<Inquiry> result = (memberId == null)
+                ? inquiryRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : inquiryRepository.findByMemberIdOrderByCreatedAtDesc(memberId, pageable);
 
         List<InquiryResponse> content = result.getContent().stream()
                 .map(this::toResponse)
