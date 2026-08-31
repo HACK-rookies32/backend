@@ -11,6 +11,7 @@ import com.example.kidhackbackend.users.inquiry.dto.InquiryPageResponse;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,14 +40,25 @@ public class InquiryAdminController {
         }
     }
 
-    @Operation(summary = "전체 문의 목록 조회 (페이징)")
+    @Operation(summary = "전체 문의 목록 조회 (페이징)",
+            description = """
+                    최신순 페이징.
+
+                    | 파라미터 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `memberId` | — | 그 회원이 쓴 문의만. 없으면 전체 (관리자 웹의 회원 상세 → 문의 기록) |
+                    | `page` / `size` | — | 페이징(기본 0 / 10) |
+                    """)
     @GetMapping
     public ResponseEntity<ApiResponse<InquiryPageResponse>> getAllInquiries(
             @AuthenticationPrincipal Member member,
+            @Parameter(description = "작성자 회원 ID. 주면 그 회원 문의만 조회한다.")
+            @RequestParam(required = false) Long memberId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         requireInquiryAdmin(member);
-        return ResponseEntity.ok(ApiResponse.success(inquiryAdminService.getAllInquiries(page, size)));
+        return ResponseEntity.ok(ApiResponse.success(
+                inquiryAdminService.getAllInquiries(memberId, page, size)));
     }
 
     @Operation(summary = "문의 상세 조회")

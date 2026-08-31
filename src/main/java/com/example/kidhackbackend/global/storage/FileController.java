@@ -25,7 +25,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.time.Duration;
@@ -149,6 +151,58 @@ public class FileController {
         }
 
         String url = new StoredObject(uploadCategory, filename).publicPath();
+        return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
+    }
+
+    /**
+     * multipart 업로드 — 파일 본문이 WAS 를 거쳐 저장소로 간다.
+     *
+     * <p>presign 은 S3 모드에서만 동작하고 로컬 디스크 모드에서는 409 를 주면서
+     * "multipart 를 쓰라"고 안내한다. 그런데 그 multipart 가 커뮤니티·문의에만 있어
+     * <b>공지 첨부는 로컬에서 올릴 방법이 아예 없었다.</b> 분류별로 하나씩 만들지 않고
+     * 여기 하나로 둔다 — 권한 규칙과 파일명 생성이 이미 분류별로 정리돼 있다.
+     *
+     * <p>응답은 presign 완료·기존 업로드들과 같은 {@code {"url": ...}} 이다. 프론트는
+     * 받은 값을 그대로 공지·게시글·문의의 {@code attachments} 에 넣으면 된다.
+     *
+     * <p>저장 파일명은 반드시 서버가 만든다. 클라이언트가 준 이름을 그대로 키에 넣으면
+     * {@code ../} 로 prefix 밖의 객체를 덮어쓸 수 있다.
+     */
+    @Operation(summary = "첨부파일 업로드 (multipart)",
+            description = """
+                    파일을 서버로 직접 올리고 공개 경로를 받는다. **S3·로컬 디스크 모두에서 동작한다** —
+                    presign 이 409 를 주는 로컬 환경에서는 이 API 를 쓴다.
+
+                    | 요청 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `category` (경로) | ✅ | `community` / `inquiry` / `notice` / `profile` / `screenshot` |
+                    | `file` (multipart) | ✅ | 올릴 파일 하나 |
+
+                    분류별 권한: community·inquiry=PARENT, notice=관리자, screenshot=CHILD, profile=로그인 회원.
+
+                    응답 `url` 을 공지·게시글·문의 작성의 `attachments` 배열에 넣는다.
+
+                    ⚠️ [VULN-10] 확장자 화이트리스트가 없고 Content-Type 을 클라이언트 값 그대로 쓴다
+                    (기존 multipart 업로드와 같은 수준).
+                    """)
+    @SecurityRequirement(name = "bearerAuth")
+    @PostMapping(value = "/{category}", consumes = "multipart/form-data")
+    public ResponseEntity<ApiResponse<Map<String, String>>> upload(
+            @AuthenticationPrincipal Member member,
+            @PathVariable String category,
+            @RequestPart("file") MultipartFile file) {
+
+        requireLogin(member);
+        UploadCategory uploadCategory = requireCategory(category);
+        requireUploadPermission(member, uploadCategory);
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 파일이 없습니다.");
+        }
+
+        String filename = UUID.randomUUID() + "_" + baseName(file.getOriginalFilename());
+        String url = storage.store(uploadCategory, filename, file);
+
         return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
     }
 
