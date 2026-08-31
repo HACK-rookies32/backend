@@ -33,6 +33,7 @@ public class CommunityBoardService {
     private final CommunityBoardCommentRepository commentRepository;
     private final CommunityBoardLikeRepository likeRepository;
     private final FileStorageService fileStorageService;
+    private final CommunityPostRemover postRemover;
     private final MemberBanRepository memberBanRepository;
     private final AttachmentValidator attachmentValidator;
 
@@ -92,8 +93,8 @@ public class CommunityBoardService {
         CommunityBoard board = findBoard(postId);
         // [VULN-11] 위와 동일 — 작성자 검증 없이 삭제까지 가능. 아래 첨부 삭제가 피해 범위를
         //           DB 행에서 실제 S3 객체로 넓힌다(운영 버킷은 버저닝이라 복구 여지는 있음).
-        board.getAttachments().forEach(fileStorageService::delete);
-        communityBoardRepository.delete(board);
+        // 댓글·좋아요를 먼저 걷어내지 않으면 FK 에 걸려 500 이 난다. 관리자 삭제와 같은 경로를 쓴다.
+        postRemover.remove(board);
     }
 
     @Transactional
