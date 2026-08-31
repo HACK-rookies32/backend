@@ -50,9 +50,9 @@ public interface QrPaymentRepository extends JpaRepository<QrPayment, Long> {
             + "WHERE q.paid_at IS NOT NULL "
             + "AND (:childId IS NULL OR q.child_id = :childId) "
             + "AND (:status IS NULL OR q.status = :status) "
-            + "AND (:merchant IS NULL OR q.store_name LIKE CONCAT('%', :merchant, '%')) "
-            + "AND (:keyword IS NULL OR c.username LIKE CONCAT('%', :keyword, '%') "
-            + "     OR p.username LIKE CONCAT('%', :keyword, '%')) "
+            + "AND (:merchant IS NULL OR q.store_name LIKE ('%' || :merchant || '%')) "
+            + "AND (:keyword IS NULL OR c.username LIKE ('%' || :keyword || '%') "
+            + "     OR p.username LIKE ('%' || :keyword || '%')) "
             + "ORDER BY q.id DESC",
             countQuery = "SELECT count(*) FROM qr_payment q "
                     + "LEFT JOIN member c ON c.id = q.child_id "
@@ -60,9 +60,9 @@ public interface QrPaymentRepository extends JpaRepository<QrPayment, Long> {
                     + "WHERE q.paid_at IS NOT NULL "
                     + "AND (:childId IS NULL OR q.child_id = :childId) "
                     + "AND (:status IS NULL OR q.status = :status) "
-                    + "AND (:merchant IS NULL OR q.store_name LIKE CONCAT('%', :merchant, '%')) "
-                    + "AND (:keyword IS NULL OR c.username LIKE CONCAT('%', :keyword, '%') "
-                    + "     OR p.username LIKE CONCAT('%', :keyword, '%'))",
+                    + "AND (:merchant IS NULL OR q.store_name LIKE ('%' || :merchant || '%')) "
+                    + "AND (:keyword IS NULL OR c.username LIKE ('%' || :keyword || '%') "
+                    + "     OR p.username LIKE ('%' || :keyword || '%'))",
             nativeQuery = true)
     Page<AdminPaymentProjection> adminSearchPayments(@Param("childId") Long childId,
                                                      @Param("status") String status,

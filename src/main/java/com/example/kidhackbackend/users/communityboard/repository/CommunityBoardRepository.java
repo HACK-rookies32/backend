@@ -18,13 +18,13 @@ public interface CommunityBoardRepository extends JpaRepository<CommunityBoard, 
      */
     @Query(value = "SELECT p.* FROM community_post p JOIN member m ON m.id = p.member_id "
             + "WHERE (:kw = '' "
-            + "   OR LOWER(p.title) LIKE LOWER(CONCAT('%', :kw, '%')) "
-            + "   OR LOWER(m.nickname) LIKE LOWER(CONCAT('%', :kw, '%'))) "
+            + "   OR LOWER(p.title) LIKE LOWER(('%' || :kw || '%')) "
+            + "   OR LOWER(m.nickname) LIKE LOWER(('%' || :kw || '%'))) "
             + "ORDER BY p.id DESC",
             countQuery = "SELECT COUNT(*) FROM community_post p JOIN member m ON m.id = p.member_id "
                     + "WHERE (:kw = '' "
-                    + "   OR LOWER(p.title) LIKE LOWER(CONCAT('%', :kw, '%')) "
-                    + "   OR LOWER(m.nickname) LIKE LOWER(CONCAT('%', :kw, '%')))",
+                    + "   OR LOWER(p.title) LIKE LOWER(('%' || :kw || '%')) "
+                    + "   OR LOWER(m.nickname) LIKE LOWER(('%' || :kw || '%')))",
             nativeQuery = true)
     Page<CommunityBoard> searchLatest(@Param("kw") String kw, Pageable pageable);
 

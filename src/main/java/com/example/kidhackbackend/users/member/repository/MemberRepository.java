@@ -39,15 +39,15 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query(value = "SELECT * FROM member m WHERE m.role IN ('PARENT', 'CHILD') " +
             "AND (:role IS NULL OR m.role = :role) " +
             "AND (:keyword IS NULL OR " +
-            "     m.login_id LIKE CONCAT('%', :keyword, '%') OR " +
-            "     m.username LIKE CONCAT('%', :keyword, '%') OR " +
-            "     m.nickname LIKE CONCAT('%', :keyword, '%'))",
+            "     m.login_id LIKE ('%' || :keyword || '%') OR " +
+            "     m.username LIKE ('%' || :keyword || '%') OR " +
+            "     m.nickname LIKE ('%' || :keyword || '%'))",
             countQuery = "SELECT count(*) FROM member m WHERE m.role IN ('PARENT', 'CHILD') " +
                     "AND (:role IS NULL OR m.role = :role) " +
                     "AND (:keyword IS NULL OR " +
-                    "     m.login_id LIKE CONCAT('%', :keyword, '%') OR " +
-                    "     m.username LIKE CONCAT('%', :keyword, '%') OR " +
-                    "     m.nickname LIKE CONCAT('%', :keyword, '%'))",
+                    "     m.login_id LIKE ('%' || :keyword || '%') OR " +
+                    "     m.username LIKE ('%' || :keyword || '%') OR " +
+                    "     m.nickname LIKE ('%' || :keyword || '%'))",
             nativeQuery = true)
     Page<Member> searchCustomers(@Param("role") String role, @Param("keyword") String keyword, Pageable pageable);
 
@@ -66,15 +66,15 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
             + "WHERE m.role IN ('PARENT', 'CHILD') "
             + "AND (:role IS NULL OR m.role = :role) "
             + "AND (:keyword IS NULL OR "
-            + "     m.username LIKE CONCAT('%', :keyword, '%') OR "
-            + "     m.login_id LIKE CONCAT('%', :keyword, '%')) "
+            + "     m.username LIKE ('%' || :keyword || '%') OR "
+            + "     m.login_id LIKE ('%' || :keyword || '%')) "
             + "ORDER BY m.id DESC",
             countQuery = "SELECT count(*) FROM member m "
                     + "WHERE m.role IN ('PARENT', 'CHILD') "
                     + "AND (:role IS NULL OR m.role = :role) "
                     + "AND (:keyword IS NULL OR "
-                    + "     m.username LIKE CONCAT('%', :keyword, '%') OR "
-                    + "     m.login_id LIKE CONCAT('%', :keyword, '%'))",
+                    + "     m.username LIKE ('%' || :keyword || '%') OR "
+                    + "     m.login_id LIKE ('%' || :keyword || '%'))",
             nativeQuery = true)
     Page<AdminWalletProjection> searchWalletsWithBalance(@Param("role") String role,
                                                          @Param("keyword") String keyword,
