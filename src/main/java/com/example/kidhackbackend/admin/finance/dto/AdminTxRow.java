@@ -33,6 +33,9 @@ public record AdminTxRow(
                 + "⚠️ 관리자 강제환불의 REFUND 는 예외적으로 qrToken",
                 example = "kid_ab12cd") String refUid,
 
+        @Schema(description = "사유(V15) — 관리자 충전 취소·잔액 조정만 채워진다. 그 외 유형과 배포 이전 거래는 null",
+                example = "잘못 충전 민원 처리") String memo,
+
         @Schema(description = "매장명 — PAYMENT 계열에서만 채워진다. 원장에는 매장명이 없어 v1 은 항상 null. 실제 매장명은 GET /finance/payments 의 storeName 을 쓸 것", example = "null")
         String storeName,
 
@@ -54,6 +57,7 @@ public record AdminTxRow(
                 p.getAmount(),
                 p.getBalanceAfter(),
                 p.getRefUid(),
+                p.getMemo(),
                 null,                                   // storeName — 원장에 매장명이 없다
                 chargeLike ? DEFAULT_METHOD : null,     // method — CHARGE 계열만
                 p.getCreatedAt());

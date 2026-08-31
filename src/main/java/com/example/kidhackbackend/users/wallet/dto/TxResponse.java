@@ -12,6 +12,8 @@ public record TxResponse(
         @Schema(description = "거래 금액(원)", example = "10000") long amount,
         @Schema(description = "거래 후 잔액(원)", example = "15000") long balanceAfter,
         @Schema(description = "참조 UID(merchantUid/qrToken 등)") String refUid,
+        @Schema(description = "사유(V15) — 관리자 충전 취소·잔액 조정만 채워진다. 그 외 유형과 배포 이전 거래는 null",
+                example = "잘못 충전 민원 처리") String memo,
         @Schema(description = "생성 시각") LocalDateTime createdAt) {
 
     public static TxResponse from(WalletTransaction tx) {
@@ -21,6 +23,7 @@ public record TxResponse(
                 tx.getAmount(),
                 tx.getBalanceAfter(),
                 tx.getRefUid(),
+                tx.getMemo(),
                 tx.getCreatedAt());
     }
 }

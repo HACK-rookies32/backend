@@ -21,6 +21,9 @@ public interface AdminTxProjection {
 
     String getRefUid();
 
+    /** 사유(V15) — 충전 취소·잔액 조정만 채워진다. */
+    String getMemo();
+
     LocalDateTime getCreatedAt();
 
     /** 거래 주체 회원 id — {@code Wallet.ownerId}. */

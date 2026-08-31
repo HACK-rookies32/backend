@@ -36,7 +36,7 @@ public class WalletHistoryService {
     public TxPageResponse getTransactions(Long ownerId, Pageable pageable) {
         return walletRepository.findByOwnerId(ownerId)
                 .map(Wallet::getId)
-                .map(walletId -> walletTransactionRepository.findByWalletIdOrderByIdDesc(walletId, pageable))
+                .map(walletId -> walletTransactionRepository.findByWalletIdRecentFirst(walletId, pageable))
                 .map(TxPageResponse::from)
                 .orElseGet(() -> TxPageResponse.empty(pageable.getPageNumber(), pageable.getPageSize()));
     }
@@ -76,7 +76,7 @@ public class WalletHistoryService {
             return null;
         }
         return walletTransactionRepository
-                .findFirstByRefUidAndTypeOrderByIdDesc(order.getMerchantUid(), TxType.REFUND)
+                .findLatestByRefUidAndType(order.getMerchantUid(), TxType.REFUND)
                 .map(tx -> tx.getCreatedAt())
                 .orElse(null);
     }

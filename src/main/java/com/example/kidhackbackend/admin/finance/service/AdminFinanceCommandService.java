@@ -78,8 +78,12 @@ public class AdminFinanceCommandService {
         wallet.credit(amount); // amount 음수면 감액
         walletRepository.save(wallet);
 
+        // reason 이 refUid 자리에 들어가 있던 것은 규약 위반이다 — refUid 는 기계가 읽는 참조 키다.
+        // V15 의 memo 로 옮기되, 웹이 refUid 를 읽고 있을 수 있어 당분간 양쪽에 모두 넣는다.
+        // (웹 회신에서 refUid 는 추후 제거 예정으로 안내했다)
         WalletTransaction tx = walletTransactionRepository.save(
-                new WalletTransaction(wallet.getId(), TxType.ADJUST, amount, wallet.getBalance(), reason));
+                new WalletTransaction(wallet.getId(), TxType.ADJUST, amount, wallet.getBalance(),
+                        reason, reason));
 
         // 감사로그: 누가 어느 지갑을 손으로 조정했는지 남긴다(대상은 지갑).
         adminAuditLogService.record(AdminActivityType.WALLET_BALANCE_ADJUST, wallet.getId());
@@ -136,10 +140,11 @@ public class AdminFinanceCommandService {
         walletRepository.save(wallet);
 
         // 원장의 refUid 는 merchantUid 여야 한다 — 프론트가 kid_ 접두사로 '충전 환불' 을 식별한다(#131 확정).
-        // 그래서 취소 사유는 이 자리에 넣을 수 없고, 감사로그 description 으로 간다(V8 에서 컬럼 추가).
+        // 그래서 취소 사유는 이 자리에 넣을 수 없고 memo 로 간다(V15). 감사로그 description 에도 같은
+        // 사유가 남지만 목적이 다르다 — 감사로그는 '누가 했는가'(부인방지), memo 는 '이 거래가 무엇인가'다.
         WalletTransaction tx = walletTransactionRepository.save(
                 new WalletTransaction(wallet.getId(), TxType.REFUND, refundAmount,
-                        wallet.getBalance(), order.getMerchantUid()));
+                        wallet.getBalance(), order.getMerchantUid(), reason));
 
         // 감사로그: 누가 · 어느 지갑에서 · 왜 충전을 되돌렸는지. 돈이 움직인 트랜잭션과 같은 범위에서
         // 커밋돼야 "잔액은 바뀌었는데 이력은 없다" 가 생기지 않는다.

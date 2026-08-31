@@ -112,7 +112,7 @@ public class AdminFinanceQueryService {
     public AdminUserWalletResponse getUserWallet(Long userId) {
         return walletRepository.findByOwnerId(userId)
                 .map(w -> AdminUserWalletResponse.of(userId, w.getBalance(),
-                        walletTransactionRepository.findTop5ByWalletIdOrderByIdDesc(w.getId())))
+                        walletTransactionRepository.findTop5ByWalletIdRecentFirst(w.getId())))
                 .orElseGet(() -> AdminUserWalletResponse.of(userId, 0L, List.of()));
     }
 
