@@ -5,6 +5,7 @@ import com.example.kidhackbackend.admin.finance.service.AdminFinanceQueryService
 import com.example.kidhackbackend.admin.member.dto.AdminCustomerResponse;
 import com.example.kidhackbackend.admin.member.dto.AdminCustomerUpdateRequest;
 import com.example.kidhackbackend.admin.member.dto.AdminDeviceResponse;
+import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
 import com.example.kidhackbackend.users.device.entity.DeviceEvent;
 import com.example.kidhackbackend.users.device.repository.DeviceEventRepository;
@@ -50,6 +51,17 @@ public class AdminCustomerService {
     @Transactional
     public AdminCustomerResponse updateCustomer(Long id, AdminCustomerUpdateRequest request) {
         Member member = findMember(id);
+
+        // 이메일은 unique 라, 남이 쓰는 주소를 그대로 넣으면 flush 시점에 제약 위반으로 500 이 났다.
+        // 회원용 PATCH /api/users/me 는 같은 상황에서 409 를 주고 있었다 — 그쪽과 응답을 맞춘다.
+        if (request.email() != null && !request.email().equals(member.getEmail())) {
+            memberRepository.findByEmail(request.email())
+                    .filter(existing -> !existing.getId().equals(member.getId()))
+                    .ifPresent(existing -> {
+                        throw new DuplicateResourceException("이미 사용 중인 이메일입니다.");
+                    });
+        }
+
         member.updateProfile(request.nickname(), request.email(), request.phoneNumber(), request.address());
         return AdminCustomerResponse.from(member);
     }
