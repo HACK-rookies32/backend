@@ -42,6 +42,15 @@ public class AuthService {
             throw new IllegalArgumentException("이메일은 필수입니다.");
         }
 
+        // 이메일도 unique 라, 남이 쓰는 주소를 그대로 저장하면 flush 시점에 제약 위반으로 500 이 났다.
+        // 사용자에게는 "서버 오류가 발생했습니다" 만 보여 원인을 알 수 없었다.
+        // 관리자 회원수정·회원용 PATCH /api/users/me 는 같은 상황에서 409 를 준다 — 문구까지 맞춘다.
+        // 자녀는 이메일 없이 가입할 수 있으므로 비어 있으면 검사하지 않는다.
+        if (request.getEmail() != null && !request.getEmail().isBlank()
+                && memberRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new DuplicateResourceException("이미 사용 중인 이메일입니다.");
+        }
+
         Member member = new Member();
         member.setLoginId(request.getLoginId());
         member.setUsername(request.getUsername());
