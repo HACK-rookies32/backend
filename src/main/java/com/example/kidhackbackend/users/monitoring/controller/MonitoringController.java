@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -74,5 +75,22 @@ public class MonitoringController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         UsageAggregateResponse data = appUsageService.aggregate(childId, groupBy, from, to);
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @Operation(summary = "사용량 즉시 보고 요청 (부모)",
+            description = """
+                    자녀 앱에 「사용량을 지금 올려라」 푸시를 보내고 202. 실제 값은 자녀 앱이
+                    곧이어 `POST /api/monitoring/usage` 로 올려 완성된다.
+
+                    자녀 앱은 평소 1시간 주기로만 올리므로, 부모가 사용 리포트를 새로고침할 때
+                    이 요청을 함께 보내야 방금까지의 사용시간이 반영된다. 자녀 기기가 꺼져 있거나
+                    네트워크가 없으면 요청은 닿지 않고 마지막 값이 그대로 남는다.
+
+                    ⚠️ [VULN-MON-1] 경로 childId 소유권 미검증 → 남의 자녀 기기에 보고 트리거 가능(IDOR), rate limit 없음.""")
+    @PostMapping("/usage/{childId}/request")
+    public ResponseEntity<ApiResponse<Void>> requestReport(
+            @Parameter(description = "자녀 회원 ID") @PathVariable Long childId) {
+        appUsageService.requestReport(childId);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ApiResponse.success(null));
     }
 }
