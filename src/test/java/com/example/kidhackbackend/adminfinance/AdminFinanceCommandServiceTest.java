@@ -163,11 +163,18 @@ class AdminFinanceCommandServiceTest {
 
     @Test
     void 잔액조정_사유가_memo에_남는다() {
+        // 감사로그는 SecurityContext 의 관리자 주체를 읽는다.
+        loginAsAdmin("admin02");
         // refUid 는 웹 호환을 위해 당분간 유지한다 — 회신에서 추후 제거 예정으로 안내했다.
         AdminActionResponse res = service.adjust(USER_ID, -2000L, "오적립 회수");
 
         assertThat(res.transaction().memo()).isEqualTo("오적립 회수");
         assertThat(res.transaction().refUid()).isEqualTo("오적립 회수");
+        // #173 — 감사로그에도 사유가 남아야 한다(QA #10). 충전 취소는 남기는데 여기만 빠져 있었다.
+        assertThat(adminAuditLogRepository.findAll())
+                .filteredOn(l -> l.getActivityType() == AdminActivityType.WALLET_BALANCE_ADJUST)
+                .singleElement()
+                .satisfies(l -> assertThat(l.getDescription()).isEqualTo("오적립 회수"));
     }
 
     @Test

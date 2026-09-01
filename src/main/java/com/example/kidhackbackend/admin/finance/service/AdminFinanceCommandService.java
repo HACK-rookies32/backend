@@ -85,8 +85,10 @@ public class AdminFinanceCommandService {
                 new WalletTransaction(wallet.getId(), TxType.ADJUST, amount, wallet.getBalance(),
                         reason, reason));
 
-        // 감사로그: 누가 어느 지갑을 손으로 조정했는지 남긴다(대상은 지갑).
-        adminAuditLogService.record(AdminActivityType.WALLET_BALANCE_ADJUST, wallet.getId());
+        // 감사로그: 누가 어느 지갑을 손으로 조정했는지 + 왜(#173, QA #10).
+        // 사유를 받아 놓고 넘기지 않아 description 이 null 이었다 — 충전 취소(아래)는 남기는데
+        // 잔액 조정만 빠져 있었다. 돈을 수동 조작하는 기능이라 사유 없는 감사기록은 쓸모가 없다.
+        adminAuditLogService.record(AdminActivityType.WALLET_BALANCE_ADJUST, wallet.getId(), reason);
 
         return new AdminActionResponse(userId, wallet.getBalance(), TxResponse.from(tx));
     }
