@@ -2,6 +2,7 @@ package com.example.kidhackbackend.users.member.service;
 
 import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.global.exception.DuplicateResourceException;
+import com.example.kidhackbackend.users.member.dto.AvailabilityResponse;
 import com.example.kidhackbackend.global.exception.InvalidCredentialException;
 import com.example.kidhackbackend.global.jwt.JwtUtil;
 import com.example.kidhackbackend.users.member.dto.LoginRequest;
@@ -29,6 +30,31 @@ public class AuthService {
     private static final Set<Role> ADMIN_ROLES = Set.of(
             Role.SUPER_ADMIN, Role.GENERAL_ADMIN, Role.COMMUNITY_ADMIN, Role.INQUIRY_ADMIN
     );
+
+    /**
+     * 가입 전 중복 확인.
+     *
+     * <p>가입 폼에서 「다음」을 누를 때 부른다. 예전에는 마지막 「가입 완료하기」의 409 로만
+     * 알 수 있어서, 약관·권한 화면을 다 지나갔다가 첫 화면으로 되돌아와야 했다.
+     *
+     * <p><b>이 확인이 가입의 중복 검사를 대체하지는 않는다.</b> 확인과 가입 사이에 다른
+     * 사람이 같은 값으로 가입할 수 있다. signup 의 409 는 그대로 남는다.
+     *
+     * <p>물어보지 않은 항목(빈 값)은 null 로 답한다 — 자녀는 이메일 없이 가입한다.
+     */
+    public AvailabilityResponse checkAvailability(String loginId, String email) {
+        Boolean loginIdAvailable = hasText(loginId)
+                ? !memberRepository.existsByLoginId(loginId.trim())
+                : null;
+        Boolean emailAvailable = hasText(email)
+                ? memberRepository.findByEmail(email.trim()).isEmpty()
+                : null;
+        return new AvailabilityResponse(loginIdAvailable, emailAvailable);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
 
     public SignupResponse signup(SignupRequest request) {
         // [VULN-6] 동시 요청 시 중복 체크와 저장 사이에 경쟁 조건 존재
