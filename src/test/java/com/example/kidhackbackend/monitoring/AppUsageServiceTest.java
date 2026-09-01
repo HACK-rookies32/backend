@@ -70,21 +70,57 @@ class AppUsageServiceTest {
     @Test
     void 배치_사용량을_저장한다() {
         int saved = service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("YouTube", 600, LocalDateTime.now()),
-                new UsageItem("Game", 300, LocalDateTime.now()))));
+                new UsageItem("YouTube", null, 600, LocalDateTime.now()),
+                new UsageItem("Game", null, 300, LocalDateTime.now()))));
 
         assertThat(saved).isEqualTo(2);
         assertThat(repository.findByChildIdAndRecordedAtBetween(
                 1L, LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1))).hasSize(2);
     }
 
+    /**
+     * 같은 앱이 기기 언어에 따라 다른 이름으로 들어온다. 패키지명이 같으면 한 줄이어야 한다.
+     */
+    @Test
+    void 이름이_달라도_패키지가_같으면_한_앱으로_묶는다() {
+        LocalDateTime early = LocalDateTime.now().minusHours(2);
+        LocalDateTime late = LocalDateTime.now();
+        service.report(new UsageReportRequest(1L, List.of(
+                new UsageItem("Camera", "com.android.camera", 18, early),
+                new UsageItem("카메라", "com.android.camera", 78, late))));
+
+        UsageAggregateResponse res = service.aggregate(
+                1L, GroupBy.APP, LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
+
+        assertThat(res.items()).hasSize(1);
+        // 화면에는 패키지명이 아니라 가장 최근에 기록된 이름을 내보낸다.
+        assertThat(res.items().get(0).key()).isEqualTo("카메라");
+        assertThat(res.items().get(0).durationSec()).isEqualTo(96);
+    }
+
+    /** 패키지명이 없는 옛 행은 예전처럼 앱 이름으로 묶여야 한다. */
+    @Test
+    void 패키지명이_없으면_앱_이름으로_묶는다() {
+        LocalDateTime t = LocalDateTime.now();
+        service.report(new UsageReportRequest(1L, List.of(
+                new UsageItem("Gmail", null, 10, t),
+                new UsageItem("Gmail", null, 5, t))));
+
+        UsageAggregateResponse res = service.aggregate(
+                1L, GroupBy.APP, t.minusDays(1), t.plusDays(1));
+
+        assertThat(res.items()).hasSize(1);
+        assertThat(res.items().get(0).key()).isEqualTo("Gmail");
+        assertThat(res.items().get(0).durationSec()).isEqualTo(15);
+    }
+
     @Test
     void 앱별로_집계한다() {
         LocalDateTime t = LocalDateTime.now();
         service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("YouTube", 600, t),
-                new UsageItem("YouTube", 400, t),
-                new UsageItem("Game", 300, t))));
+                new UsageItem("YouTube", null, 600, t),
+                new UsageItem("YouTube", null, 400, t),
+                new UsageItem("Game", null, 300, t))));
 
         UsageAggregateResponse res = service.aggregate(1L, GroupBy.APP, null, null);
 
@@ -97,8 +133,8 @@ class AppUsageServiceTest {
     void 일별로_집계한다() {
         LocalDateTime today = LocalDateTime.now();
         service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("A", 100, today),
-                new UsageItem("B", 200, today))));
+                new UsageItem("A", null, 100, today),
+                new UsageItem("B", null, 200, today))));
 
         UsageAggregateResponse res = service.aggregate(1L, GroupBy.DAY, null, null);
 
@@ -110,7 +146,7 @@ class AppUsageServiceTest {
     @Test
     void 보관기간_경과_사용량은_롤링_삭제된다() {
         LocalDateTime old = LocalDateTime.now().minusDays(10);
-        AppUsage e = new AppUsage(1L, "A", 100, old);
+        AppUsage e = new AppUsage(1L, "A", null, 100, old);
         repository.save(e);
         // createdAt(=적재시각)이 지금이라 8일 기준으론 안 지워지지만, 10일 전 기준으론 삭제 확인
         int deleted = repository.deleteByCreatedAtBefore(LocalDateTime.now().plusSeconds(1));

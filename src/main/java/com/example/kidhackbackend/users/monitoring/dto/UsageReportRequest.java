@@ -26,6 +26,9 @@ public record UsageReportRequest(
     public record UsageItem(
             @Schema(description = "(필수) 앱 이름", example = "YouTube", requiredMode = RequiredMode.REQUIRED)
             @NotBlank String appName,
+            @Schema(description = "앱 패키지명. 집계를 이 값으로 묶는다. 없으면 앱 이름으로 묶어 "
+                    + "「카메라」와 「Camera」가 따로 잡힐 수 있다.", example = "com.android.camera")
+            String packageName,
             // [VULN-MON-2] durationSec 검증 누락(음수·과대값 허용) → 사용량 통계 조작 가능
             @Schema(description = "(필수) 사용시간(초). ⚠️ 음수·과대값 검증 없음(의도된 취약점)", example = "1800",
                     requiredMode = RequiredMode.REQUIRED)
