@@ -23,6 +23,27 @@ public class AuthController {
     private final AuthService authService;
     private final AccountRecoveryService accountRecoveryService;
 
+    @Operation(summary = "아이디·이메일 중복 확인",
+            description = """
+                    가입 폼에서 「다음」을 누를 때 미리 확인하는 용도다. 로그인 없이 부를 수 있다.
+
+                    | 파라미터 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `loginId` | — | 확인할 아이디 |
+                    | `email` | — | 확인할 이메일 |
+
+                    준 것만 확인하고 **안 준 항목은 `null`** 로 답한다(자녀는 이메일 없이 가입한다).
+
+                    ⚠️ 이 확인이 가입의 중복 검사를 **대체하지 않는다.** 확인과 가입 사이에 다른 사람이
+                    같은 값으로 가입할 수 있으므로 `POST /api/auth/signup` 은 여전히 409 를 줄 수 있다.
+                    """)
+    @GetMapping("/availability")
+    public ResponseEntity<ApiResponse<AvailabilityResponse>> checkAvailability(
+            @RequestParam(required = false) String loginId,
+            @RequestParam(required = false) String email) {
+        return ResponseEntity.ok(ApiResponse.success(authService.checkAvailability(loginId, email)));
+    }
+
     @Operation(summary = "회원가입",
             description = """
                     회원 정보를 받아 가입 처리 후 가입된 회원 정보를 반환한다.
