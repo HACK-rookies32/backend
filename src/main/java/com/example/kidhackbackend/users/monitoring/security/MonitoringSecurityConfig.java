@@ -35,6 +35,9 @@ public class MonitoringSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/monitoring/usage").hasRole("CHILD")
                         .requestMatchers(HttpMethod.GET, "/api/monitoring/usage/*").hasRole("PARENT")
+                        // 자녀 기기를 깨우는 요청이라 부모만 보낼 수 있어야 한다.
+                        // anyRequest().authenticated() 로 두면 자녀도 자기 기기를 깨울 수 있다.
+                        .requestMatchers(HttpMethod.POST, "/api/monitoring/usage/*/request").hasRole("PARENT")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) ->

@@ -1,5 +1,7 @@
 package com.example.kidhackbackend.users.monitoring.service;
 
+import com.example.kidhackbackend.global.notification.entity.NotificationType;
+import com.example.kidhackbackend.global.notification.service.NotificationPort;
 import com.example.kidhackbackend.users.monitoring.dto.GroupBy;
 import com.example.kidhackbackend.users.monitoring.dto.UsageAggregateResponse;
 import com.example.kidhackbackend.users.monitoring.dto.UsageReportRequest;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 public class AppUsageService {
 
     private final AppUsageRepository repository;
+    private final NotificationPort notificationPort;
 
     /**
      * 사용량 배치 저장.
@@ -43,6 +46,23 @@ public class AppUsageService {
                 .toList();
         repository.saveAll(entities);
         return entities.size();
+    }
+
+    /**
+     * 자녀 앱에 「사용량을 지금 올려라」를 보낸다.
+     *
+     * <p>자녀 앱은 1시간 주기로만 올린다. 부모가 사용 리포트를 새로고침해도 서버에 있는
+     * 값(자녀가 마지막에 올린 값)만 다시 읽으므로, 방금까지의 사용시간을 보려면 자녀
+     * 기기를 깨워야 한다.
+     *
+     * <p>푸시만 보내고 끝난다 — 실제 값은 자녀 앱이 곧이어 {@code POST /api/monitoring/usage}
+     * 로 올려 완성된다. 그래서 컨트롤러가 202(Accepted)로 응답한다. 자녀 기기가 꺼져
+     * 있거나 네트워크가 없으면 요청은 닿지 않고 마지막 값이 그대로 남는다.
+     */
+    // [VULN-MON-1] 이 경로도 childId 소유권을 검증하지 않는다 → 남의 자녀 기기에 보고 트리거 가능(IDOR).
+    public void requestReport(Long childId) {
+        notificationPort.publish(childId, NotificationType.USAGE_REPORT_REQUESTED,
+                "부모가 사용량 확인을 요청했습니다.");
     }
 
     /**
