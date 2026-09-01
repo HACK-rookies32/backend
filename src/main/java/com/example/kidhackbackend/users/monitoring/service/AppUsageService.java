@@ -42,7 +42,8 @@ public class AppUsageService {
     @Transactional
     public int report(UsageReportRequest request) {
         List<AppUsage> entities = request.usages().stream()
-                .map(u -> new AppUsage(request.childId(), u.appName(), u.durationSec(), u.recordedAt()))
+                .map(u -> new AppUsage(request.childId(), u.appName(), u.packageName(),
+                        u.durationSec(), u.recordedAt()))
                 .toList();
         repository.saveAll(entities);
         return entities.size();
@@ -81,8 +82,13 @@ public class AppUsageService {
                 .collect(Collectors.groupingBy(keyOf(groupBy),
                         Collectors.summingLong(AppUsage::getDurationSec)));
 
+        // APP 집계는 패키지명으로 묶고 화면에는 앱 이름을 내보낸다. 부모 화면이 이 값을
+        // 그대로 쓰므로 "com.android.camera" 가 보이면 안 된다.
+        Map<String, String> labels = (groupBy == GroupBy.APP) ? appLabels(usages) : Map.of();
+
         List<UsageAggregateResponse.Bucket> items = summed.entrySet().stream()
-                .map(e -> new UsageAggregateResponse.Bucket(e.getKey(), e.getValue()))
+                .map(e -> new UsageAggregateResponse.Bucket(
+                        labels.getOrDefault(e.getKey(), e.getKey()), e.getValue()))
                 .sorted(Comparator.comparing(UsageAggregateResponse.Bucket::key))
                 .toList();
 
@@ -93,8 +99,25 @@ public class AppUsageService {
     private Function<AppUsage, String> keyOf(GroupBy groupBy) {
         return switch (groupBy) {
             case HOUR -> u -> String.format(Locale.ROOT, "%02d", u.getRecordedAt().getHour()); // 00~23
-            case APP -> AppUsage::getAppName;
+            case APP -> AppUsage::groupingKey;
             case DAY -> u -> u.getRecordedAt().toLocalDate().toString(); // yyyy-MM-dd
         };
+    }
+
+    /**
+     * 집계 키 → 화면에 보일 앱 이름.
+     *
+     * <p>한 패키지가 여러 이름으로 들어와 있을 수 있다(기기 언어가 다른 두 기기, 앱 이름
+     * 변경). 그중 **가장 최근에 기록된 이름**을 쓴다 — 지금 자녀 기기에 보이는 이름일
+     * 가능성이 가장 높다.
+     */
+    private Map<String, String> appLabels(List<AppUsage> usages) {
+        return usages.stream()
+                // 조회 순서는 보장되지 않는다. 시각순으로 세운 뒤 뒤엣것이 이기게 한다.
+                .sorted(Comparator.comparing(AppUsage::getRecordedAt))
+                .collect(Collectors.toMap(
+                        AppUsage::groupingKey,
+                        AppUsage::getAppName,
+                        (older, newer) -> newer));
     }
 }

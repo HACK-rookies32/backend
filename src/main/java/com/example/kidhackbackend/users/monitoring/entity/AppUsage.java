@@ -41,6 +41,18 @@ public class AppUsage extends BaseEntity {
     @Column(nullable = false)
     private String appName;
 
+    /**
+     * 앱을 식별하는 패키지명(예: com.google.android.youtube).
+     *
+     * <p>집계는 이 값으로 묶는다. 앱 이름은 기기 언어에 따라 달라져서(「카메라」/「Camera」)
+     * 같은 앱이 따로 잡힌다.
+     *
+     * <p>nullable 인 이유: 이 컬럼이 생기기 전에 쌓인 행에는 값이 없고, 구버전 자녀 앱도
+     * 한동안 보내지 않는다. 값이 없으면 앱 이름으로 묶는다.
+     */
+    @Column
+    private String packageName;
+
     /** 사용 시간(초). */
     @Column(nullable = false)
     private long durationSec;
@@ -49,10 +61,17 @@ public class AppUsage extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime recordedAt;
 
-    public AppUsage(Long childId, String appName, long durationSec, LocalDateTime recordedAt) {
+    public AppUsage(Long childId, String appName, String packageName, long durationSec,
+                    LocalDateTime recordedAt) {
         this.childId = childId;
         this.appName = appName;
+        this.packageName = packageName;
         this.durationSec = durationSec;
         this.recordedAt = recordedAt;
+    }
+
+    /** 집계 키. 패키지명이 있으면 그것으로, 없으면(옛 행) 앱 이름으로 묶는다. */
+    public String groupingKey() {
+        return (packageName != null && !packageName.isBlank()) ? packageName : appName;
     }
 }
