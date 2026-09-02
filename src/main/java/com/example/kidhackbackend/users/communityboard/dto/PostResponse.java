@@ -20,6 +20,12 @@ public class PostResponse {
     @Schema(description = "제목")
     private String title;
 
+    @Schema(description = "본문 앞부분. 목록에서 한 줄로 보여 준다", example = "초등 4학년 딸아이 쓰는데요, 평일 2시간으로…")
+    private String contentPreview;
+
+    @Schema(description = "첫 번째 첨부 사진 경로. 없으면 null", example = "/api/files/community/a1b2.jpg")
+    private String thumbnail;
+
     @Schema(description = "작성자 닉네임", example = "보라")
     private String authorNickname;
 

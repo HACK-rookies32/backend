@@ -29,6 +29,9 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class CommunityBoardService {
 
+    /** 목록 미리보기 길이. 320dp 폭에서 한 줄이 대략 이만큼이다. */
+    private static final int PREVIEW_LENGTH = 60;
+
     private final CommunityBoardRepository communityBoardRepository;
     private final CommunityBoardCommentRepository commentRepository;
     private final CommunityBoardLikeRepository likeRepository;
@@ -165,10 +168,21 @@ public class CommunityBoardService {
                 board.getId(),
                 board.getMember().getId(),
                 board.getTitle(),
+                preview(board.getContent()),
+                board.getAttachments().isEmpty() ? null : board.getAttachments().get(0),
                 board.getMember().getNickname(),
                 likeRepository.countByBoardId(board.getId()),
                 board.getCreatedAt()
         );
+    }
+
+    /** 목록 한 줄에 들어갈 만큼만 자른다. 줄바꿈은 공백으로 눕혀야 한 줄로 읽힌다. */
+    private static String preview(String content) {
+        if (content == null) {
+            return null;
+        }
+        String flat = content.replaceAll("\\s+", " ").trim();
+        return flat.length() <= PREVIEW_LENGTH ? flat : flat.substring(0, PREVIEW_LENGTH) + "…";
     }
 
     private PostDetailResponse toDetailResponse(CommunityBoard board) {
