@@ -70,8 +70,8 @@ class AppUsageServiceTest {
     @Test
     void 배치_사용량을_저장한다() {
         int saved = service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("YouTube", null, 600, LocalDateTime.now()),
-                new UsageItem("Game", null, 300, LocalDateTime.now()))));
+                new UsageItem("YouTube", null, 600, LocalDateTime.now().toString()),
+                new UsageItem("Game", null, 300, LocalDateTime.now().toString()))));
 
         assertThat(saved).isEqualTo(2);
         assertThat(repository.findByChildIdAndRecordedAtBetween(
@@ -86,8 +86,8 @@ class AppUsageServiceTest {
         LocalDateTime early = LocalDateTime.now().minusHours(2);
         LocalDateTime late = LocalDateTime.now();
         service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("Camera", "com.android.camera", 18, early),
-                new UsageItem("카메라", "com.android.camera", 78, late))));
+                new UsageItem("Camera", "com.android.camera", 18, early.toString()),
+                new UsageItem("카메라", "com.android.camera", 78, late.toString()))));
 
         UsageAggregateResponse res = service.aggregate(
                 1L, GroupBy.APP, LocalDateTime.now().minusDays(1), LocalDateTime.now().plusDays(1));
@@ -103,8 +103,8 @@ class AppUsageServiceTest {
     void 패키지명이_없으면_앱_이름으로_묶는다() {
         LocalDateTime t = LocalDateTime.now();
         service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("Gmail", null, 10, t),
-                new UsageItem("Gmail", null, 5, t))));
+                new UsageItem("Gmail", null, 10, t.toString()),
+                new UsageItem("Gmail", null, 5, t.toString()))));
 
         UsageAggregateResponse res = service.aggregate(
                 1L, GroupBy.APP, t.minusDays(1), t.plusDays(1));
@@ -118,9 +118,9 @@ class AppUsageServiceTest {
     void 앱별로_집계한다() {
         LocalDateTime t = LocalDateTime.now();
         service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("YouTube", null, 600, t),
-                new UsageItem("YouTube", null, 400, t),
-                new UsageItem("Game", null, 300, t))));
+                new UsageItem("YouTube", null, 600, t.toString()),
+                new UsageItem("YouTube", null, 400, t.toString()),
+                new UsageItem("Game", null, 300, t.toString()))));
 
         UsageAggregateResponse res = service.aggregate(1L, GroupBy.APP, null, null);
 
@@ -133,8 +133,8 @@ class AppUsageServiceTest {
     void 일별로_집계한다() {
         LocalDateTime today = LocalDateTime.now();
         service.report(new UsageReportRequest(1L, List.of(
-                new UsageItem("A", null, 100, today),
-                new UsageItem("B", null, 200, today))));
+                new UsageItem("A", null, 100, today.toString()),
+                new UsageItem("B", null, 200, today.toString()))));
 
         UsageAggregateResponse res = service.aggregate(1L, GroupBy.DAY, null, null);
 

@@ -8,7 +8,6 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -33,9 +32,11 @@ public record UsageReportRequest(
             @Schema(description = "(필수) 사용시간(초). ⚠️ 음수·과대값 검증 없음(의도된 취약점)", example = "1800",
                     requiredMode = RequiredMode.REQUIRED)
             long durationSec,
-            @Schema(description = "(필수) 기록 시각(ISO-8601)", example = "2026-08-28T14:00:00",
-                    requiredMode = RequiredMode.REQUIRED)
-            @NotNull LocalDateTime recordedAt
+            // 원문 문자열로 받는다 — LocalDateTime 으로 받으면 앱이 붙인 'Z'(UTC 표시)가 버려져
+            // 9시간 밀린다(#QA-13). 서비스에서 ClientTime.toKst 로 KST 변환 후 저장한다.
+            @Schema(description = "(필수) 기록 시각(ISO-8601). UTC(...Z)로 보내면 KST 로 변환해 저장한다",
+                    example = "2026-08-28T14:00:00Z", requiredMode = RequiredMode.REQUIRED)
+            @NotBlank String recordedAt
     ) {
     }
 }
