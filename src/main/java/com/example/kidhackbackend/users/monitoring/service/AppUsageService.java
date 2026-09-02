@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.monitoring.service;
 
+import com.example.kidhackbackend.global.util.ClientTime;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.service.NotificationPort;
 import com.example.kidhackbackend.users.monitoring.dto.GroupBy;
@@ -43,7 +44,7 @@ public class AppUsageService {
     public int report(UsageReportRequest request) {
         List<AppUsage> entities = request.usages().stream()
                 .map(u -> new AppUsage(request.childId(), u.appName(), u.packageName(),
-                        u.durationSec(), u.recordedAt()))
+                        u.durationSec(), ClientTime.toKst(u.recordedAt())))
                 .toList();
         repository.saveAll(entities);
         return entities.size();

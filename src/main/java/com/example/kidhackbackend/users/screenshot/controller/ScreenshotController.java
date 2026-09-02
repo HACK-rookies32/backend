@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.screenshot.controller;
 
+import com.example.kidhackbackend.global.util.ClientTime;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.screenshot.dto.ScreenshotPageResponse;
 import com.example.kidhackbackend.users.screenshot.dto.ScreenshotUploadResponse;
@@ -61,10 +62,13 @@ public class ScreenshotController {
     public ResponseEntity<ApiResponse<ScreenshotUploadResponse>> upload(
             @PathVariable Long childId,
             @RequestParam("file") MultipartFile file,
-            @RequestParam("capturedAt") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime capturedAt,
+            // 원문 문자열로 받는다 — LocalDateTime 으로 받으면 앱이 붙인 'Z'(UTC 표시)가 버려져
+            // 9시간 밀린다(#QA-13). ClientTime.toKst 로 KST 변환 후 넘긴다.
+            @RequestParam("capturedAt") String capturedAt,
             @RequestParam("trigger") CaptureTrigger trigger) {
 
-        ScreenshotUploadResponse data = screenshotService.upload(childId, file, capturedAt, trigger);
+        ScreenshotUploadResponse data =
+                screenshotService.upload(childId, file, ClientTime.toKst(capturedAt), trigger);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(data));
     }
 
