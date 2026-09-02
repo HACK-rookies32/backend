@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.filtering.service;
 
+import com.example.kidhackbackend.users.filtering.dto.BlockRuleResponse;
 import com.example.kidhackbackend.users.filtering.entity.BlockRule;
 import com.example.kidhackbackend.users.filtering.entity.HarmfulKeyword;
 import com.example.kidhackbackend.users.filtering.repository.BlockRuleRepository;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -27,6 +29,23 @@ public class BlockRuleService {
     @Transactional(readOnly = true)
     public List<BlockRule> getRules(Long childId) {
         return repository.findByChildId(childId);
+    }
+
+    /**
+     * 자녀 앱의 기기 차단 목록용 조회(QA #17) — 부모 규칙 + 관리자 전역 키워드를 한 목록으로.
+     *
+     * <p>자녀 앱은 이 목록으로 기기 안에서 유해 콘텐츠를 차단한다. 예전엔 부모 규칙만 줘서 관리자
+     * 키워드가 반영되지 않았다. 관리자 키워드는 음수 id 로 실어 앱에서 삭제되지 않게 한다
+     * ({@link BlockRuleResponse} 참고). 관리자 테이블은 소규모(수기 등록)라 매 호출 전수 조회로 충분하다.
+     *
+     * <p>대시보드용 {@link #getRules}(부모 규칙만)는 그대로 둔다 — 이 병합은 앱 차단 경로에만 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public List<BlockRuleResponse> getRulesForBlocking(Long childId) {
+        List<BlockRuleResponse> merged = new ArrayList<>();
+        repository.findByChildId(childId).forEach(r -> merged.add(BlockRuleResponse.from(r)));
+        harmfulKeywordRepository.findAll().forEach(k -> merged.add(BlockRuleResponse.fromAdmin(k)));
+        return merged;
     }
 
     /**
