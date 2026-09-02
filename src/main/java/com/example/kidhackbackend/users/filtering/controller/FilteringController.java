@@ -86,9 +86,8 @@ public class FilteringController {
         if (member != null && member.getRole() == Role.CHILD && !member.getId().equals(childId)) {
             throw new AdminAccessDeniedException("본인의 차단 규칙만 조회할 수 있습니다.");
         }
-        List<BlockRuleResponse> data = blockRuleService.getRules(childId).stream()
-                .map(BlockRuleResponse::from)
-                .toList();
+        // 부모 규칙 + 관리자 전역 키워드 병합(QA #17). 관리자 키워드는 음수 id·source=ADMIN 으로 온다.
+        List<BlockRuleResponse> data = blockRuleService.getRulesForBlocking(childId);
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
