@@ -67,9 +67,12 @@ public class MyPageService {
             case "COMMENT" -> communityBoardCommentRepository.findByMemberId(memberId, pageable)
                     .map(comment -> new ActivityResponse(
                             comment.getId(), "COMMENT", comment.getBoard().getId(), comment.getContent(), comment.getCreatedAt()));
+            // 좋아요는 「내가 이 글을 좋아요 했다」이므로 미리보기 자리에 글 제목이 들어간다.
+            // null 을 보내면 앱 목록에 좋아요 배지와 날짜만 남아 어떤 글인지 알 수 없다.
             case "LIKE" -> communityBoardLikeRepository.findByMemberId(memberId, pageable)
                     .map(like -> new ActivityResponse(
-                            like.getId(), "LIKE", like.getBoard().getId(), null, like.getCreatedAt()));
+                            like.getId(), "LIKE", like.getBoard().getId(),
+                            like.getBoard().getTitle(), like.getCreatedAt()));
             default -> throw new IllegalArgumentException("지원하지 않는 활동 유형입니다: " + type);
         };
 
