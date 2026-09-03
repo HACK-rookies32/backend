@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -93,11 +94,17 @@ public class ChildService {
         memberRepository.save(child);
     }
 
-    // [VULN-CHILD-7] childId 소유권 검증 없이 강제 로그아웃 — 임의 childId로 다른 부모가 자녀 세션을 끊을 수 있음(IDOR)
+    // [VULN-CHILD-7] childId 소유권 검증 없이 강제 로그아웃 — 임의 childId로 다른 부모가 자녀 세션을 끊을 수 있음(IDOR).
+    //   (이 IDOR 은 의도된 취약점으로 그대로 유지한다. #202 는 "정상 강제 로그아웃의 기기 반영"만 고친다.)
     @Transactional
     public void logoutChild(Long childId) {
         Member child = findChild(childId);
         refreshTokenService.revokeAll(child.getId());
+        // [#202] access 토큰(JWT)도 무효화 — 이 시각 이전 발급분을 공유 필터가 거부한다.
+        //   JWT iat 는 초 단위라, 같은 초에 발급된 토큰까지 확실히 끊기 위해 '다음 초'로 올린다.
+        //   자녀가 재로그인하면 새 토큰 iat 가 더 커서 정상 통과하므로 부작용이 없다.
+        child.setTokensValidAfter(LocalDateTime.now().withNano(0).plusSeconds(1));
+        memberRepository.save(child);
     }
 
     private Member findChild(Long childId) {
