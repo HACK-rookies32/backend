@@ -39,6 +39,28 @@ class EncryptedStringConverterTest {
     }
 
     @Test
+    void 복호_불가_값은_예외대신_null_을_돌려준다() {
+        // 카드 조회 500 방어(QA #27 카드 건): DB에 복호 불가한 값이 있어도 조회가 죽으면 안 된다.
+        new FieldEncryptionKey("").bindToConverter();
+        EncryptedStringConverter converter = new EncryptedStringConverter();
+
+        // 유효 Base64 지만 우리 키로 만든 암호문이 아님 → 복호 실패
+        assertThat(converter.convertToEntityAttribute("bm90LWEtdmFsaWQtY2lwaGVydGV4dA==")).isNull();
+        // Base64 조차 아님 → decode 실패
+        assertThat(converter.convertToEntityAttribute("$$not-base64$$")).isNull();
+    }
+
+    @Test
+    void 저장_키가_바뀌면_옛_암호문은_null_로_대체된다() {
+        // 옛 키(K1)로 암호화 → 새 키(K2)로 복호 시도 → 태그 불일치 → null(예외 아님)
+        new FieldEncryptionKey("").bindToConverter();               // K1
+        String stored = new EncryptedStringConverter().convertToDatabaseColumn("4111-1111-1111-1111");
+
+        new FieldEncryptionKey("").bindToConverter();               // K2 (다른 랜덤 키)
+        assertThat(new EncryptedStringConverter().convertToEntityAttribute(stored)).isNull();
+    }
+
+    @Test
     void null_은_그대로_통과한다() {
         EncryptedStringConverter converter = new EncryptedStringConverter();
 
