@@ -73,7 +73,13 @@ public class ChildController {
 
                     | 필드 | 필수 | 설명 |
                     |---|:---:|---|
+                    | `username` | — | 변경할 실명 |
                     | `nickname` | — | 변경할 닉네임 |
+                    | `email` | — | 변경할 이메일(다른 회원과 중복이면 409) |
+                    | `phoneNumber` | — | 변경할 전화번호 |
+                    | `birthDate` | — | 변경할 생년월일 |
+                    | `address` | — | 변경할 주소 |
+                    | `password` | — | 변경할 비밀번호 |
                     | `profileImageUrl` | — | 변경할 프로필 이미지 URL |
 
                     ⚠️ 소유권 미검증(IDOR). `nickname` 을 새니타이징 없이 저장 → Stored XSS 가능.
