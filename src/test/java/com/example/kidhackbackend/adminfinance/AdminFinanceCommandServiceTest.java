@@ -63,6 +63,19 @@ class AdminFinanceCommandServiceTest {
         walletRepository.save(w);
     }
 
+    /** adjust 는 회원 존재를 검증한다(#29) — 실재 회원을 만들어 그 id 를 쓴다. */
+    private long createMember() {
+        Member m = new Member();
+        m.setLoginId("u" + System.nanoTime());
+        m.setUsername("회원");
+        m.setNickname("회원");
+        m.setPassword("pw");
+        m.setPhoneNumber("01000000000");
+        m.setBirthDate(LocalDate.of(1990, 1, 1));
+        m.setRole(Role.PARENT);
+        return memberRepository.save(m).getId();
+    }
+
     private QrPayment paidQr(long childId, String token, long amount) {
         QrPayment q = new QrPayment(token, childId, LocalDateTime.now().plusSeconds(60));
         q.markPaid(amount, "GS25", 1L, LocalDateTime.now());
@@ -83,17 +96,26 @@ class AdminFinanceCommandServiceTest {
 
     @Test
     void 잔액조정_증액과_감액() {
-        AdminActionResponse plus = service.adjust(USER_ID, 5000L, "이벤트 보상");
+        long uid = createMember();
+        AdminActionResponse plus = service.adjust(uid, 5000L, "이벤트 보상");
         assertThat(plus.balance()).isEqualTo(5000L);
         assertThat(plus.transaction().type()).isEqualTo("ADJUST");
 
-        AdminActionResponse minus = service.adjust(USER_ID, -2000L, "오적립 회수");
+        AdminActionResponse minus = service.adjust(uid, -2000L, "오적립 회수");
         assertThat(minus.balance()).isEqualTo(3000L);
     }
 
     @Test
+    void 없는_회원_조정은_404_ResourceNotFound() {
+        // #29: 예전엔 없는 userId 에 지갑을 만들어 200 이 나갔다.
+        assertThatThrownBy(() -> service.adjust(999_999L, 5000L, "사유"))
+                .isInstanceOf(com.example.kidhackbackend.global.exception.ResourceNotFoundException.class);
+    }
+
+    @Test
     void VULN_ADMIN_2_사유없이_거대금액_조정이_통과된다() {
-        AdminActionResponse res = service.adjust(USER_ID, 999_999_999L, "");
+        long uid = createMember();
+        AdminActionResponse res = service.adjust(uid, 999_999_999L, "");
 
         // 취약: reason 공백·한도 검증이 없어 임의 금액 조정(자금 창출).
         assertThat(res.balance()).isEqualTo(999_999_999L);
@@ -165,8 +187,9 @@ class AdminFinanceCommandServiceTest {
     void 잔액조정_사유가_memo에_남는다() {
         // 감사로그는 SecurityContext 의 관리자 주체를 읽는다.
         loginAsAdmin("admin02");
+        long uid = createMember();
         // refUid 는 웹 호환을 위해 당분간 유지한다 — 회신에서 추후 제거 예정으로 안내했다.
-        AdminActionResponse res = service.adjust(USER_ID, -2000L, "오적립 회수");
+        AdminActionResponse res = service.adjust(uid, -2000L, "오적립 회수");
 
         assertThat(res.transaction().memo()).isEqualTo("오적립 회수");
         assertThat(res.transaction().refUid()).isEqualTo("오적립 회수");

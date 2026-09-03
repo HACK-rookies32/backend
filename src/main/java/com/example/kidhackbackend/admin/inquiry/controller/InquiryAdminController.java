@@ -75,7 +75,7 @@ public class InquiryAdminController {
     public ResponseEntity<ApiResponse<InquiryAnswerResponse>> createAnswer(
             @AuthenticationPrincipal Member member,
             @PathVariable Long id,
-            @RequestBody InquiryAnswerRequest request) {
+            @RequestBody @jakarta.validation.Valid InquiryAnswerRequest request) {
         requireInquiryAdmin(member);
         InquiryAnswerResponse response = inquiryAdminService.createAnswer(id, request);
         adminAuditLogService.record(member, AdminActivityType.INQUIRY_ANSWER_CREATE, id);
@@ -87,7 +87,7 @@ public class InquiryAdminController {
     public ResponseEntity<ApiResponse<InquiryAnswerResponse>> updateAnswer(
             @AuthenticationPrincipal Member member,
             @PathVariable Long id,
-            @RequestBody InquiryAnswerRequest request) {
+            @RequestBody @jakarta.validation.Valid InquiryAnswerRequest request) {
         requireInquiryAdmin(member);
         InquiryAnswerResponse response = inquiryAdminService.updateAnswer(id, request);
         adminAuditLogService.record(member, AdminActivityType.INQUIRY_ANSWER_UPDATE, id);

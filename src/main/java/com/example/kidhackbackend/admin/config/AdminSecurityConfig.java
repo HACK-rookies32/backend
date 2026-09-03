@@ -111,6 +111,11 @@ public class AdminSecurityConfig {
                         .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN", "COMMUNITY_ADMIN", "INQUIRY_ADMIN")
                 )
                 .csrf(csrf -> csrf.disable())
+                // 다른 관리자 체인과 동일하게 인증 실패=401, 권한 부족=403 으로 맞춘다(#28).
+                // 이 한 줄이 빠져 있어 토큰 없을 때 401 대신 기본 403 이 나갔다.
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler))
                 .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -54,6 +54,14 @@ public class NoticeService {
     /** 공지를 저장한다. 알림은 나가지 않는다. */
     @Transactional
     public AdminNoticeDetailResponse createNotice(Member author, NoticeRequest request) {
+        // 생성은 title·content 필수 — DTO 에 @NotBlank 를 못 다는 이유는 수정(PATCH)이 같은 DTO 로
+        // null=미변경을 쓰기 때문이다(NoticeRequest 주석). 그래서 생성 경로에서만 여기서 막는다(→400, #31·#32).
+        if (request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new IllegalArgumentException("제목은 필수입니다.");
+        }
+        if (request.getContent() == null || request.getContent().isBlank()) {
+            throw new IllegalArgumentException("본문은 필수입니다.");
+        }
         attachmentValidator.requireAllUploaded(request.getAttachments(), UploadCategory.NOTICE);
         Notice notice = new Notice(
                 request.getTitle(),

@@ -40,11 +40,13 @@ public class Wallet extends BaseEntity {
 
     /** 잔액을 amount만큼 증가시킨다. (충전/이체 입금 공통) */
     public void credit(long amount) {
-        this.balance += amount;
+        // Math.addExact: 오버플로우 시 조용히 음수로 돌지 않고 ArithmeticException(→400)으로 끊는다(#35).
+        // 정상 금액은 영향 없다. 관리자 조정의 '거대 금액 자금 창출'(VULN-ADMIN-2)은 표적이라 그대로 통과된다.
+        this.balance = Math.addExact(this.balance, amount);
     }
 
     /** 잔액을 amount만큼 차감한다. (환불/이체 출금 공통) */
     public void debit(long amount) {
-        this.balance -= amount;
+        this.balance = Math.subtractExact(this.balance, amount);
     }
 }
