@@ -2,6 +2,7 @@ package com.example.kidhackbackend.users.filtering.controller;
 
 import com.example.kidhackbackend.users.filtering.dto.BlockRuleRequest;
 import com.example.kidhackbackend.users.filtering.dto.BlockRuleResponse;
+import com.example.kidhackbackend.users.filtering.dto.HarmfulKeywordResponse;
 import com.example.kidhackbackend.users.filtering.dto.VisitRequest;
 import com.example.kidhackbackend.users.filtering.dto.VisitResponse;
 import com.example.kidhackbackend.users.filtering.service.BlockRuleService;
@@ -89,6 +90,18 @@ public class FilteringController {
         // 부모 규칙 + 관리자 전역 키워드 병합(QA #17). 관리자 키워드는 음수 id·source=ADMIN 으로 온다.
         List<BlockRuleResponse> data = blockRuleService.getRulesForBlocking(childId);
         return ResponseEntity.ok(ApiResponse.success(data));
+    }
+
+    @Operation(summary = "관리자 지정 유해 키워드 조회 (부모, 읽기 전용)",
+            description = """
+                    관리자가 등록한 **전역 유해 키워드**를 부모 앱이 읽기 전용으로 조회한다(모바일 요청 #2).
+
+                    - 응답: `{ id, keyword }` 목록, **최근 등록순**.
+                    - `id` 는 키워드의 양수 raw id (삭제 경로와 무관한 읽기 전용이라 음수 sentinel 불필요).
+                    - 부모 앱은 이를 **삭제 불가 섹션**으로 표시한다. 전역 정책이라 childId 가 없고 IDOR 여지도 없다.""")
+    @GetMapping("/harmful-keywords")
+    public ResponseEntity<ApiResponse<List<HarmfulKeywordResponse>>> getHarmfulKeywords() {
+        return ResponseEntity.ok(ApiResponse.success(blockRuleService.getHarmfulKeywords()));
     }
 
     @Operation(summary = "차단 규칙 삭제",

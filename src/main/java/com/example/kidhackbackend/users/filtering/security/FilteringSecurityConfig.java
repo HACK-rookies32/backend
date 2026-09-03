@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * <ul>
  *   <li>POST /visit          → CHILD (자녀 앱이 접속 대상 보고)</li>
  *   <li>차단규칙 등록          → PARENT</li>
+ *   <li>관리자 유해키워드 조회  → PARENT (전역 정책 읽기 전용, #2)</li>
  *   <li>차단규칙 조회(GET)     → PARENT + CHILD. 자녀 앱의 접근성 서비스가 <b>기기 안에서만</b>
  *       규칙을 매칭하려고 읽는다(자녀 UI에는 노출되지 않는다). CHILD 는 컨트롤러에서
  *       본인 childId 만 허용한다.</li>
@@ -45,6 +46,8 @@ public class FilteringSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/filtering/visit").hasRole("CHILD")
                         // 부모: 차단규칙 등록
                         .requestMatchers(HttpMethod.POST, "/api/filtering/rules").hasRole("PARENT")
+                        // 부모: 관리자 지정 전역 유해 키워드 읽기 전용 조회(#2). 전역 정책 데이터라 childId 없음.
+                        .requestMatchers(HttpMethod.GET, "/api/filtering/harmful-keywords").hasRole("PARENT")
                         // 부모 + 자녀 앱: 차단규칙 조회. 자녀 기기가 로컬 매칭에 쓴다(본인 childId 만, 컨트롤러에서 검사).
                         .requestMatchers(HttpMethod.GET, "/api/filtering/rules/*").hasAnyRole("PARENT", "CHILD")
                         // [VULN-FILT-1] 삭제는 권한/소유권 제한 없이 '인증만' 되면 허용
