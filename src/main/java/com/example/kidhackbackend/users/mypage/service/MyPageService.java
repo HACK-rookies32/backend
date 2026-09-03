@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MyPageService {
 
     private final MemberRepository memberRepository;
+    private final com.example.kidhackbackend.users.member.service.ChildAccountCascade childAccountCascade;
     private final CommunityBoardRepository communityBoardRepository;
     private final CommunityBoardCommentRepository communityBoardCommentRepository;
     private final CommunityBoardLikeRepository communityBoardLikeRepository;
@@ -55,6 +56,8 @@ public class MyPageService {
     public void withdraw(Member member) {
         member.setDeleted(true);
         memberRepository.save(member);
+        // 부모가 탈퇴하면 자녀 계정도 함께 정리한다(QA #26). 자녀가 없으면 no-op.
+        childAccountCascade.deactivateChildrenOf(member.getId());
     }
 
     public ActivityPageResponse getActivities(Long memberId, String type, int page, int size) {
