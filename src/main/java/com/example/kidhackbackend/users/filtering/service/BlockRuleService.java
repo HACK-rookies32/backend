@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.filtering.service;
 
+import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.users.filtering.dto.BlockRuleResponse;
 import com.example.kidhackbackend.users.filtering.dto.HarmfulKeywordResponse;
 import com.example.kidhackbackend.users.filtering.entity.BlockRule;
@@ -24,7 +25,12 @@ public class BlockRuleService {
 
     @Transactional
     public BlockRule addRule(Long childId, String pattern) {
-        return repository.save(new BlockRule(childId, pattern.trim()));
+        String normalized = pattern.trim();
+        // [QA #40] 같은 자녀에 같은 패턴 중복 등록을 409 로 차단(AppControl 관례와 동일). 중복 허용은 의도가 아님.
+        if (repository.existsByChildIdAndPattern(childId, normalized)) {
+            throw new DuplicateResourceException("이미 등록된 차단 규칙입니다.");
+        }
+        return repository.save(new BlockRule(childId, normalized));
     }
 
     @Transactional(readOnly = true)

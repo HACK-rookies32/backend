@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -75,7 +76,7 @@ public class ChatRoomController {
     @PostMapping("/rooms")
     public ResponseEntity<ApiResponse<ChatRoomResponse>> createOrGetRoom(
             @AuthenticationPrincipal Member member,
-            @RequestBody ChatRoomRequest request) {
+            @Valid @RequestBody ChatRoomRequest request) {
         requireLogin(member);
         ChatRoom room = chatRoomService.getOrCreateRoom(member, request.getChildId());
         return ResponseEntity.ok(ApiResponse.success(ChatRoomResponse.from(room)));
