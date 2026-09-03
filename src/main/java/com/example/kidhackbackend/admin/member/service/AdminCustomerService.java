@@ -29,6 +29,7 @@ public class AdminCustomerService {
     private final MemberRepository memberRepository;
     private final DeviceEventRepository deviceEventRepository;
     private final AdminFinanceQueryService adminFinanceQueryService;
+    private final com.example.kidhackbackend.users.member.service.ChildAccountCascade childAccountCascade;
 
     public Page<AdminCustomerResponse> getCustomers(Role role, String keyword, Pageable pageable) {
         String roleParam = (role != null) ? role.name() : null;
@@ -70,6 +71,8 @@ public class AdminCustomerService {
     public void deleteCustomer(Long id) {
         Member member = findMember(id);
         member.setDeleted(true);
+        // 부모가 관리자에 의해 삭제돼도 자녀 계정을 함께 정리한다(QA #26, 본인 탈퇴 경로와 동일 규칙).
+        childAccountCascade.deactivateChildrenOf(member.getId());
     }
 
     public List<AdminDeviceResponse> getDevices(Long id) {

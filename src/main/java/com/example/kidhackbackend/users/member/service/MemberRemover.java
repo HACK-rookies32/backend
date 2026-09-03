@@ -72,8 +72,10 @@ public class MemberRemover {
         }
         Long memberId = member.getId();
 
-        // ① 자녀의 부모 연결을 끊는다(확정 ①). 자녀 계정 자체는 남긴다 —
-        //    부모 탈퇴로 자녀 데이터(위치·지갑·결제이력)가 통째로 사라지면 안 된다.
+        // ① 자녀의 부모 연결을 끊는다. (확정 ① 폐기, QA #26): 예전엔 자녀를 보존했으나
+        //    이제 부모 탈퇴/삭제 시 자녀도 ChildAccountCascade 가 isDeleted 로 찍어 함께 정리한다.
+        //    자녀는 자신의 isDeleted 로 이 배치가 별도로 물리삭제하므로, 여기서는 부모 삭제를 위한
+        //    FK 해제(연결 끊기)만 한다 — 아직 안 지워진 자녀가 부모를 FK 로 물고 있으면 부모 삭제가 막힌다.
         List<Member> children = memberRepository.findByParentId(memberId);
         for (Member child : children) {
             child.setParent(null);

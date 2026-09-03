@@ -40,7 +40,8 @@ class AdminCustomerEmailDuplicateTest {
         service = new AdminCustomerService(
                 memberRepository,
                 Mockito.mock(com.example.kidhackbackend.users.device.repository.DeviceEventRepository.class),
-                Mockito.mock(com.example.kidhackbackend.admin.finance.service.AdminFinanceQueryService.class));
+                Mockito.mock(com.example.kidhackbackend.admin.finance.service.AdminFinanceQueryService.class),
+                new com.example.kidhackbackend.users.member.service.ChildAccountCascade(memberRepository));
     }
 
     private Member member(String loginId) {
