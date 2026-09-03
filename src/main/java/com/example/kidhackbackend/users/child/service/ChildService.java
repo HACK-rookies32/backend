@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.child.service;
 
+import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.users.child.dto.ChildDetailResponse;
 import com.example.kidhackbackend.users.child.dto.ChildSummaryResponse;
 import com.example.kidhackbackend.users.child.dto.ChildUpdateRequest;
@@ -43,10 +44,38 @@ public class ChildService {
     public ChildDetailResponse updateChild(Long childId, ChildUpdateRequest request) {
         Member child = findChild(childId);
 
+        // 포함된(non-null) 필드만 반영한다(PATCH 부분수정). 회원 본인 수정(MyPageService.updateProfile)과
+        // 같은 관례·취약점 유지(QA #27): password 평문[VULN-1]·형식검증 없음[VULN-6]·미새니타이즈[VULN-CHILD-5].
+        if (request.getUsername() != null) {
+            child.setUsername(request.getUsername());
+        }
         // [VULN-CHILD-5] nickname을 이스케이프/새니타이징 없이 그대로 저장.
         //   프론트(관리자 페이지 등)에서 이스케이프 없이 렌더링하면 Stored XSS로 이어질 수 있음.
         if (request.getNickname() != null) {
             child.setNickname(request.getNickname());
+        }
+        // email 은 형식검증은 없지만([VULN-6]) 중복만은 막는다 — 같은 email 이 둘이면 로그인·복구가 꼬인다.
+        // 마이페이지 자기수정과 동일하게 처리해 경로 간 email 규칙을 일관시킨다.
+        if (request.getEmail() != null && !request.getEmail().equals(child.getEmail())) {
+            memberRepository.findByEmail(request.getEmail())
+                    .filter(existing -> !existing.getId().equals(child.getId()))
+                    .ifPresent(existing -> {
+                        throw new DuplicateResourceException("이미 사용 중인 이메일입니다.");
+                    });
+            child.setEmail(request.getEmail());
+        }
+        if (request.getPhoneNumber() != null) {
+            child.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getBirthDate() != null) {
+            child.setBirthDate(request.getBirthDate());
+        }
+        if (request.getAddress() != null) {
+            child.setAddress(request.getAddress());
+        }
+        // [VULN-1] 비밀번호 평문 저장 — 회원가입·마이페이지와 동일. 현재 비번 확인 절차는 이 앱에 없다.
+        if (request.getPassword() != null) {
+            child.setPassword(request.getPassword());
         }
         if (request.getProfileImageUrl() != null) {
             child.setProfileImageUrl(request.getProfileImageUrl());
