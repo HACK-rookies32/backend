@@ -3,6 +3,7 @@ package com.example.kidhackbackend.global.crypto;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 import java.util.Base64;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 엔티티 문자열 필드를 <b>저장 시 AES-256-GCM으로 암호화</b>하고 조회 시 복호하는 JPA 컨버터.
@@ -20,6 +21,7 @@ import java.util.Base64;
  *
  * <p>DB에는 {@code Base64(iv || ciphertext)} 문자열로 저장된다.
  */
+@Slf4j
 @Converter
 public class EncryptedStringConverter implements AttributeConverter<String, String> {
 
@@ -44,8 +46,24 @@ public class EncryptedStringConverter implements AttributeConverter<String, Stri
         if (dbData == null) {
             return null;
         }
-        byte[] decoded = Base64.getDecoder().decode(dbData);
-        return AesGcmCipher.utf8(AesGcmCipher.decryptWithPrefixedIv(requireKey(), decoded));
+        // 복호 실패 시 예외를 던지지 않고 null 을 돌려준다(카드 조회 500 방어).
+        //
+        // 복호 예외는 Hibernate 엔티티 로딩(ResultSet 매핑) 도중 여기서 터진다. 그대로 던지면
+        // 리포지토리 조회 자체가 PersistenceException 으로 감싸져 나가고(전역 CryptoException 핸들러도
+        // 못 잡는다), 복호 불가 카드가 하나라도 있으면 GET /api/wallet/cards 목록 전체가 500 이 됐다.
+        // (운영에서 필드암호화 키가 재시작마다 바뀌어(kidhack.card.storage-key 미설정) 옛 카드가
+        //  복호 불가가 된 사례.) null 을 돌려주면 그 필드만 비고(예: 카드번호 → 전체 마스킹),
+        // 목록·삭제는 살아남는다. 근본 원인(운영 키 고정)은 별도 조치다.
+        //
+        // 쓰기(convertToDatabaseColumn)는 방어하지 않는다 — 저장은 암호화가 실패하면 반드시 막아야 한다.
+        try {
+            byte[] decoded = Base64.getDecoder().decode(dbData);
+            return AesGcmCipher.utf8(AesGcmCipher.decryptWithPrefixedIv(requireKey(), decoded));
+        } catch (IllegalArgumentException | CryptoException e) {
+            // 어느 값이 실패했는지는 로그로 남기되(원본 평문·암호문은 남기지 않는다), 조회는 계속되게 한다.
+            log.warn("암호화 필드 복호 실패 — null 로 대체한다. 저장 키가 바뀌었을 수 있다. cause={}", e.getMessage());
+            return null;
+        }
     }
 
     private static byte[] requireKey() {
