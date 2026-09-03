@@ -161,6 +161,24 @@ public class GlobalExceptionHandler {
      * 여기까지 온 예외는 진짜 예상 밖(서버 버그·의존성 장애)이다. 500 을 주되,
      * <b>반드시 스택트레이스를 로그에 남긴다</b> — 안 남기면 원인 추적이 불가능하다.
      */
+    /**
+     * DB 제약 위반(길이 초과·NOT NULL 등)이 검증을 빠져나가 여기까지 온 경우 — 400 안전망(#191).
+     * 원칙은 요청 DTO 에서 @NotBlank/@Size 로 막는 것이고, 이건 놓친 것을 500 대신 400 으로 돌리는 그물이다.
+     */
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(
+            org.springframework.dao.DataIntegrityViolationException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("INVALID_PARAMETER", "요청 값이 허용 범위를 벗어났습니다."));
+    }
+
+    /** 금액 계산 오버플로우(#35) — Math.addExact/subtractExact 가 던진다. 400 으로 끊는다. */
+    @ExceptionHandler(ArithmeticException.class)
+    public ResponseEntity<ApiResponse<Void>> handleArithmetic(ArithmeticException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("INVALID_PARAMETER", "금액이 처리할 수 있는 범위를 벗어났습니다."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception e) {
         log.error("처리되지 않은 예외", e);

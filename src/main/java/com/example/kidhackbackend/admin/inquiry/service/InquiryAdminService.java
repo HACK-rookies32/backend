@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.admin.inquiry.service;
 
+import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
 import com.example.kidhackbackend.global.notification.entity.NotificationType;
 import com.example.kidhackbackend.global.notification.service.NotificationPort;
 import com.example.kidhackbackend.users.inquiry.dto.InquiryDetailResponse;
@@ -99,12 +100,12 @@ public class InquiryAdminService {
 
     private Inquiry findInquiry(Long inquiryId) {
         return inquiryRepository.findById(inquiryId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문의입니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("존재하지 않는 문의입니다."));
     }
 
     private InquiryAnswer findAnswer(Long inquiryId) {
         return inquiryAnswerRepository.findByInquiryId(inquiryId)
-                .orElseThrow(() -> new IllegalArgumentException("등록된 답변이 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("등록된 답변이 없습니다."));
     }
 
     private InquiryResponse toResponse(Inquiry inquiry) {

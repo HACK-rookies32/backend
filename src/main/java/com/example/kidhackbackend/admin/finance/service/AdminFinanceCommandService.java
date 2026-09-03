@@ -36,6 +36,7 @@ public class AdminFinanceCommandService {
     private final ChargeOrderRepository chargeOrderRepository;
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final com.example.kidhackbackend.users.member.repository.MemberRepository memberRepository;
     private final AdminAuditLogService adminAuditLogService;
 
     /** No.48 강제환불: 자녀 QR 결제를 강제 환불(자녀 지갑 원복 + REFUND). */
@@ -69,6 +70,12 @@ public class AdminFinanceCommandService {
     /** No.50 잔액 수동조정: 특정 회원 잔액을 가감(+/-)하고 ADJUST 원장을 남긴다. */
     @Transactional
     public AdminActionResponse adjust(Long userId, long amount, String reason) {
+        // 없는 회원에 조정하면 지갑을 새로 만들어 200 이 나가던 문제(#29) → 존재검증으로 404.
+        // (VULN-ADMIN-2 의 '거대 금액 자금 창출' 표적은 실재 회원 대상으로 그대로 유지된다.)
+        if (!memberRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("존재하지 않는 회원입니다: " + userId);
+        }
+
         // [VULN-ADMIN-2] 조정 사유·한도 미검증.
         //   reason이 비어도, amount가 음수/거대 금액이어도 그대로 조정한다(무제한 자금 창출·삭감).
         //   방어: reason 필수(blank 거부) + 조정 한도·부호 정책 검증.

@@ -16,8 +16,11 @@ import java.util.List;
 @Getter
 public class NoticeRequest {
 
-    @Schema(description = "제목", example = "8월 정기 점검 안내",
+    // 생성 시 필수는 서비스에서 검증한다 — 수정(PATCH)은 null=미변경이라 여기에 @NotBlank 를 달면
+    // 부분 수정이 깨진다. @Size 는 null 을 통과시키므로 양쪽에 안전하다(길이초과 500 방지, #38).
+    @Schema(description = "제목(최대 255자)", example = "8월 정기 점검 안내",
             requiredMode = Schema.RequiredMode.REQUIRED)
+    @Size(max = 255, message = "제목은 255자를 넘을 수 없습니다.")
     private String title;
 
     @Schema(description = "본문", requiredMode = Schema.RequiredMode.REQUIRED)
