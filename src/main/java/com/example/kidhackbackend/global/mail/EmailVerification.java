@@ -52,5 +52,10 @@ public class EmailVerification extends BaseEntity {
         this.used = true;
     }
 
-    public enum Purpose { FIND_ID, RESET_PASSWORD }
+    /**
+     * 인증 목적. FIND_ID·RESET_PASSWORD 는 이메일 채널(아이디찾기·비번재설정).
+     * TX_OTP 는 전자금융 거래 2차 인증(SMS/ARS mock)이 재사용한다 — 별도 테이블을 두지 않고
+     * 이 엔티티/테이블을 그대로 쓴다({@code email} 컬럼에 전화번호를 담는다).
+     */
+    public enum Purpose { FIND_ID, RESET_PASSWORD, TX_OTP }
 }
