@@ -15,6 +15,7 @@ import com.example.kidhackbackend.users.wallet.dto.TxPageResponse;
 import com.example.kidhackbackend.users.wallet.service.WalletChargeService;
 import com.example.kidhackbackend.users.wallet.service.WalletHistoryService;
 import com.example.kidhackbackend.users.wallet.service.WalletRefundService;
+import com.example.kidhackbackend.users.efin.service.EfinTxGuard;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -53,6 +54,7 @@ public class WalletController {
     private final WalletChargeService walletChargeService;
     private final WalletHistoryService walletHistoryService;
     private final WalletRefundService walletRefundService;
+    private final EfinTxGuard efinTxGuard;
 
     private void requireParent(Member member) {
         if (member == null) {
@@ -77,6 +79,9 @@ public class WalletController {
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody ChargePrepareRequest request) {
         requireParent(member);
+        // 전자금융 관문(계좌비밀번호 + OTP) 사전차단 — 실패 시 400, 주문 미생성(ChargeStatus 무변경 → 웹 무영향).
+        efinTxGuard.verifyCharge(member, request.amount(),
+                request.otp(), request.signature(), request.nonce(), request.accountPassword());
         return ResponseEntity.ok(
                 ApiResponse.success(walletChargeService.prepare(member.getId(), request)));
     }

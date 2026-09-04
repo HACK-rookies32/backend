@@ -1,6 +1,7 @@
 package com.example.kidhackbackend.users.qrpay.controller;
 
 import com.example.kidhackbackend.global.response.ApiResponse;
+import com.example.kidhackbackend.users.efin.service.EfinTxGuard;
 import com.example.kidhackbackend.users.qrpay.dto.QrApproveRequest;
 import com.example.kidhackbackend.users.qrpay.dto.QrApproveResponse;
 import com.example.kidhackbackend.users.qrpay.dto.TerminalAuthResponse;
@@ -36,6 +37,7 @@ public class QrTerminalController {
 
     private final StoreTerminalService storeTerminalService;
     private final QrApprovalService qrApprovalService;
+    private final EfinTxGuard efinTxGuard;
 
     /** 단말 토큰 인증 확인: 헤더의 토큰으로 단말을 검증해 매장 정보를 돌려준다. */
     @Operation(summary = "매장 단말 인증 확인",
@@ -74,6 +76,8 @@ public class QrTerminalController {
                     description = "매장 단말 인증 토큰. 없으면 검증을 건너뜀 — VULN-WALLET-15")
             @RequestHeader(value = "X-Store-Terminal-Token", required = false) String terminalToken,
             @Valid @RequestBody QrApproveRequest request) {
+        // 결제정보 무결성(서명)·재사용 방지(nonce) 검증 — 결함은 EfinTxGuard 참고.
+        efinTxGuard.verifyQrPay(request.qrToken(), request.amount(), request.signature(), request.nonce());
         return ResponseEntity.ok(ApiResponse.success(
                 qrApprovalService.approve(terminalToken, request.qrToken(), request.amount())));
     }
