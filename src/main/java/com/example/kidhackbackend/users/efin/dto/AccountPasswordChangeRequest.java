@@ -18,5 +18,7 @@ public record AccountPasswordChangeRequest(
         @Pattern(regexp = "\\d{6}", message = "계좌비밀번호는 6자리 숫자여야 합니다.") String currentPassword,
         @Schema(description = "(필수) 새 계좌비밀번호", example = "246802", requiredMode = RequiredMode.REQUIRED)
         @NotBlank(message = "새 계좌비밀번호는 필수입니다.")
-        @Pattern(regexp = "\\d{6}", message = "계좌비밀번호는 6자리 숫자여야 합니다.") String newPassword) {
+        @Pattern(regexp = "\\d{6}", message = "계좌비밀번호는 6자리 숫자여야 합니다.") String newPassword,
+        @Schema(description = "(필수) 본인확인용 앱 로그인 비밀번호", example = "1234", requiredMode = RequiredMode.REQUIRED)
+        @NotBlank(message = "로그인 비밀번호는 필수입니다.") String loginPassword) {
 }

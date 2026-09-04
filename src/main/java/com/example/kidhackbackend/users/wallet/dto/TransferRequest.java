@@ -25,5 +25,7 @@ public record TransferRequest(
         @Schema(description = "(전자금융) 재사용 방지 nonce(일회성 임의 문자열)")
         String nonce,
         @Schema(description = "(전자금융) 대상 계좌 소유주명(소유주 검증). 없으면 이름 대조 skip")
-        String accountHolder) {
+        String accountHolder,
+        @Schema(description = "(전자금융) 거래 비밀번호(계좌비밀번호 6자리). 없거나 틀리면 400", example = "135790")
+        String accountPassword) {
 }

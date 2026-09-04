@@ -63,7 +63,8 @@ public class WalletTransferController {
         requireParent(member);
         // 거래 전 과정 검증(2차 인증·전자서명·nonce·소유주) — 결함은 EfinTxGuard 참고.
         efinTxGuard.verifyTransfer(member, request.childId(), request.amount(),
-                request.otp(), request.signature(), request.nonce(), request.accountHolder());
+                request.otp(), request.signature(), request.nonce(), request.accountHolder(),
+                request.accountPassword());
         return ResponseEntity.ok(ApiResponse.success(
                 walletTransferService.transfer(member.getId(), request.childId(), request.amount())));
     }
@@ -87,7 +88,8 @@ public class WalletTransferController {
             @Valid @RequestBody TransferRequest request) {
         requireParent(member);
         efinTxGuard.verifyTransfer(member, request.childId(), request.amount(),
-                request.otp(), request.signature(), request.nonce(), request.accountHolder());
+                request.otp(), request.signature(), request.nonce(), request.accountHolder(),
+                request.accountPassword());
         return ResponseEntity.ok(ApiResponse.success(
                 walletTransferService.recover(member.getId(), request.childId(), request.amount())));
     }

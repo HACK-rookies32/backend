@@ -3,6 +3,8 @@ package com.example.kidhackbackend.users.efin.controller;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.efin.dto.AccountPasswordChangeRequest;
 import com.example.kidhackbackend.users.efin.dto.AccountPasswordRequest;
+import com.example.kidhackbackend.users.efin.dto.AccountPasswordVerifyRequest;
+import com.example.kidhackbackend.users.efin.dto.AccountPasswordVerifyResponse;
 import com.example.kidhackbackend.users.efin.service.AccountPasswordService;
 import com.example.kidhackbackend.users.member.entity.Member;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,7 +42,7 @@ public class EfinAccountPasswordController {
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody AccountPasswordRequest request) {
         requireLogin(member);
-        accountPasswordService.set(member.getId(), request.password());
+        accountPasswordService.set(member.getId(), request.password(), request.loginPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -54,8 +56,20 @@ public class EfinAccountPasswordController {
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody AccountPasswordChangeRequest request) {
         requireLogin(member);
-        accountPasswordService.change(member.getId(), request.currentPassword(), request.newPassword());
+        accountPasswordService.change(member.getId(), request.currentPassword(), request.newPassword(),
+                request.loginPassword());
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @Operation(summary = "계좌비밀번호 확인",
+            description = "입력한 계좌비밀번호가 맞는지 확인한다(거래 전 UI 점검용, 소비 없음). 최종 검증은 거래 관문이 한다.")
+    @PostMapping("/verify")
+    public ResponseEntity<ApiResponse<AccountPasswordVerifyResponse>> verify(
+            @AuthenticationPrincipal Member member,
+            @Valid @RequestBody AccountPasswordVerifyRequest request) {
+        requireLogin(member);
+        boolean valid = accountPasswordService.matches(member.getId(), request.password());
+        return ResponseEntity.ok(ApiResponse.success(new AccountPasswordVerifyResponse(valid)));
     }
 
     private void requireLogin(Member member) {
