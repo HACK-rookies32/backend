@@ -11,6 +11,8 @@ import com.example.kidhackbackend.users.wallet.dto.CardResponse;
 import com.example.kidhackbackend.users.wallet.dto.EncryptedCardRequest;
 import com.example.kidhackbackend.users.wallet.entity.Card;
 import com.example.kidhackbackend.users.wallet.repository.CardRepository;
+import com.example.kidhackbackend.users.efin.service.IdentityVerificationService;
+import com.example.kidhackbackend.users.efin.service.PaymentPasswordService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,9 @@ public class CardService {
     private final RsaKeyProvider rsaKeyProvider;
     private final HybridDecryptor hybridDecryptor;
     private final NonceStore nonceStore;
+    // 접근매체 발급 관문 — 실명확인 + 결제 비밀번호 본인확인(efin 서비스 호출; 카드 도메인 자체는 안전 유지).
+    private final IdentityVerificationService identityVerificationService;
+    private final PaymentPasswordService paymentPasswordService;
     // ObjectMapper는 이 앱에서 빈으로 노출돼 있지 않아 직접 생성(PgWebhookController 관행과 동일).
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -52,6 +57,15 @@ public class CardService {
 
         CardPlain plain = parse(json);
         verifyReplay(plain);
+
+        // 접근매체 발급 관문(전자금융): 실명확인 완료 + 결제 비밀번호 본인확인. 실패하면 카드를 만들지 않는다.
+        //   실명확인·결제비번 설정은 카드 등록 위저드가 이 호출 전에 끝내 둔다(첫 카드) / 2번째+는 결제비번 확인만.
+        if (!identityVerificationService.isVerified(ownerId)) {
+            throw new CryptoException("실명확인이 필요합니다.");
+        }
+        if (!paymentPasswordService.matches(ownerId, plain.paymentPassword())) {
+            throw new CryptoException("결제 비밀번호가 올바르지 않습니다.");
+        }
 
         // CVC(plain.cvc())는 복호만 하고 저장하지 않는다 — 엔티티에 필드 자체가 없다(PCI-DSS).
         Card card = cardRepository.save(new Card(

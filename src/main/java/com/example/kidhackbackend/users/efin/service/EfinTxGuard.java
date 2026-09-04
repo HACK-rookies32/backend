@@ -3,7 +3,7 @@ package com.example.kidhackbackend.users.efin.service;
 import com.example.kidhackbackend.global.crypto.NonceStore;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
-import com.example.kidhackbackend.users.efin.repository.AccountPasswordRepository;
+import com.example.kidhackbackend.users.efin.repository.PaymentPasswordRepository;
 import com.example.kidhackbackend.global.util.WeakHashUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -32,14 +32,14 @@ public class EfinTxGuard {
     private final TxSignatureVerifier signatureVerifier;
     private final NonceStore nonceStore;
     private final MemberRepository memberRepository;
-    private final AccountPasswordRepository accountPasswordRepository;
+    private final PaymentPasswordRepository paymentPasswordRepository;
 
     /**
      * 송금/회수 거래 검증. amount·childId 를 서명·소유주 검증 대상으로 삼는다.
      */
     public void verifyTransfer(Member caller, Long childId, long amount,
                                String otp, String signature, String nonce, String accountHolder,
-                               String accountPassword) {
+                               String paymentPassword) {
         // 1) 전자서명 무결성 — [VULN-EFIN-2] 서명 필드가 없으면 검증을 건너뛴다.
         if (signature != null && !signature.isBlank()) {
             if (!signatureVerifier.verify(amount, childId, nonce, signature)) {
@@ -64,8 +64,8 @@ public class EfinTxGuard {
             }
         }
 
-        // 4) 계좌비밀번호(거래 비밀번호) 본인확인 — 필수. 저장은 salt 없는 MD5 그대로([VULN-EFIN-5]).
-        requireAccountPassword(caller.getId(), accountPassword);
+        // 4) 결제 비밀번호 본인확인 — 필수. 저장은 salt 없는 MD5 그대로([VULN-EFIN-5]).
+        requirePaymentPassword(caller.getId(), paymentPassword);
 
         // 5) 2차 인증(OTP) — [VULN-EFIN-1b] 실패 시도 무제한. 마지막에 소비.
         otpService.consume(caller.getId(), caller.getPhoneNumber(), otp);
@@ -76,7 +76,7 @@ public class EfinTxGuard {
      * 자녀 대상이 아니라 refId=0, 소유주 검증은 없다. 서명은 있으면 amount:0:nonce 로 검증(없으면 skip, EFIN-2).
      */
     public void verifyCharge(Member caller, long amount,
-                             String otp, String signature, String nonce, String accountPassword) {
+                             String otp, String signature, String nonce, String paymentPassword) {
         if (signature != null && !signature.isBlank()
                 && !signatureVerifier.verify(amount, 0L, nonce, signature)) {
             throw new IllegalArgumentException("충전정보 서명이 유효하지 않습니다(변조 의심).");
@@ -87,19 +87,19 @@ public class EfinTxGuard {
         if (!nonceStore.tryConsume(nonce, System.currentTimeMillis())) {
             throw new IllegalArgumentException("이미 처리된 충전입니다(재전송).");
         }
-        requireAccountPassword(caller.getId(), accountPassword);
+        requirePaymentPassword(caller.getId(), paymentPassword);
         otpService.consume(caller.getId(), caller.getPhoneNumber(), otp);
     }
 
-    /** 계좌비밀번호 본인확인. 미설정이면 먼저 설정하도록 안내. [VULN-EFIN-5] salt 없는 MD5 대조. */
-    private void requireAccountPassword(Long memberId, String accountPassword) {
-        if (accountPassword == null || accountPassword.isBlank()) {
-            throw new IllegalArgumentException("계좌비밀번호가 필요합니다.");
+    /** 결제 비밀번호 본인확인. 미설정이면 먼저 설정하도록 안내. [VULN-EFIN-5] salt 없는 MD5 대조. */
+    private void requirePaymentPassword(Long memberId, String paymentPassword) {
+        if (paymentPassword == null || paymentPassword.isBlank()) {
+            throw new IllegalArgumentException("결제 비밀번호가 필요합니다.");
         }
-        var stored = accountPasswordRepository.findByMemberId(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("계좌비밀번호를 먼저 설정하세요."));
-        if (!stored.matches(WeakHashUtil.md5(accountPassword))) {
-            throw new IllegalArgumentException("계좌비밀번호가 올바르지 않습니다.");
+        var stored = paymentPasswordRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("결제 비밀번호를 먼저 설정하세요."));
+        if (!stored.matches(WeakHashUtil.md5(paymentPassword))) {
+            throw new IllegalArgumentException("결제 비밀번호가 올바르지 않습니다.");
         }
     }
 

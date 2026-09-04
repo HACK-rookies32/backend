@@ -81,7 +81,7 @@ public class WalletController {
         requireParent(member);
         // 전자금융 관문(계좌비밀번호 + OTP) 사전차단 — 실패 시 400, 주문 미생성(ChargeStatus 무변경 → 웹 무영향).
         efinTxGuard.verifyCharge(member, request.amount(),
-                request.otp(), request.signature(), request.nonce(), request.accountPassword());
+                request.otp(), request.signature(), request.nonce(), request.paymentPassword());
         return ResponseEntity.ok(
                 ApiResponse.success(walletChargeService.prepare(member.getId(), request)));
     }

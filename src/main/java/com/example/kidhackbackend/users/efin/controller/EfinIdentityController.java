@@ -1,6 +1,7 @@
 package com.example.kidhackbackend.users.efin.controller;
 
 import com.example.kidhackbackend.global.response.ApiResponse;
+import com.example.kidhackbackend.users.efin.dto.IdentityStatusResponse;
 import com.example.kidhackbackend.users.efin.dto.IdentityVerifyRequest;
 import com.example.kidhackbackend.users.efin.dto.IdentityVerifyResponse;
 import com.example.kidhackbackend.users.efin.service.IdentityVerificationService;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,5 +45,17 @@ public class EfinIdentityController {
         }
         return ResponseEntity.ok(ApiResponse.success(
                 identityVerificationService.verify(member.getId(), request)));
+    }
+
+    @Operation(summary = "실명확인 상태",
+            description = "회원이 실명확인을 완료했는지 조회한다. 카드 등록 위저드가 실명확인 단계를 건너뛸지 판단한다.")
+    @GetMapping("/status")
+    public ResponseEntity<ApiResponse<IdentityStatusResponse>> status(
+            @AuthenticationPrincipal Member member) {
+        if (member == null) {
+            throw new IllegalArgumentException("로그인이 필요합니다.");
+        }
+        return ResponseEntity.ok(ApiResponse.success(
+                new IdentityStatusResponse(identityVerificationService.isVerified(member.getId()))));
     }
 }
