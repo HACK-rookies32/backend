@@ -1,6 +1,8 @@
 package com.example.kidhackbackend.users.filtering.service;
 
+import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.users.filtering.dto.BlockRuleResponse;
+import com.example.kidhackbackend.users.filtering.dto.HarmfulKeywordResponse;
 import com.example.kidhackbackend.users.filtering.entity.BlockRule;
 import com.example.kidhackbackend.users.filtering.entity.HarmfulKeyword;
 import com.example.kidhackbackend.users.filtering.repository.BlockRuleRepository;
@@ -23,7 +25,12 @@ public class BlockRuleService {
 
     @Transactional
     public BlockRule addRule(Long childId, String pattern) {
-        return repository.save(new BlockRule(childId, pattern.trim()));
+        String normalized = pattern.trim();
+        // [QA #40] 같은 자녀에 같은 패턴 중복 등록을 409 로 차단(AppControl 관례와 동일). 중복 허용은 의도가 아님.
+        if (repository.existsByChildIdAndPattern(childId, normalized)) {
+            throw new DuplicateResourceException("이미 등록된 차단 규칙입니다.");
+        }
+        return repository.save(new BlockRule(childId, normalized));
     }
 
     @Transactional(readOnly = true)
@@ -46,6 +53,21 @@ public class BlockRuleService {
         repository.findByChildId(childId).forEach(r -> merged.add(BlockRuleResponse.from(r)));
         harmfulKeywordRepository.findAll().forEach(k -> merged.add(BlockRuleResponse.fromAdmin(k)));
         return merged;
+    }
+
+    /**
+     * 관리자 지정 전역 유해 키워드 목록 — 회원(부모) 읽기 전용 조회(모바일 요청 #2).
+     *
+     * <p>기존엔 관리자 키워드를 부모에게 목록으로 내려주는 경로가 없어(관리자 API는 admin 인증 전용,
+     * {@link #getRulesForBlocking}은 자녀별 규칙과 병합된 앱 차단용) 부모 앱이 전역 키워드를 따로
+     * 표시할 수 없었다. 이 조회는 관리자 키워드만 최근 등록순으로 내려준다. 소유권 개념이 없는
+     * 전역 정책 데이터라 childId 파라미터가 없고 IDOR 여지도 없다.
+     */
+    @Transactional(readOnly = true)
+    public List<HarmfulKeywordResponse> getHarmfulKeywords() {
+        return harmfulKeywordRepository.findAllByOrderByIdDesc().stream()
+                .map(HarmfulKeywordResponse::from)
+                .toList();
     }
 
     /**

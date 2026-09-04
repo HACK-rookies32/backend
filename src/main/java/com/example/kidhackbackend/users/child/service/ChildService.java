@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.child.service;
 
+import com.example.kidhackbackend.global.exception.DuplicateResourceException;
 import com.example.kidhackbackend.users.child.dto.ChildDetailResponse;
 import com.example.kidhackbackend.users.child.dto.ChildSummaryResponse;
 import com.example.kidhackbackend.users.child.dto.ChildUpdateRequest;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -43,10 +45,38 @@ public class ChildService {
     public ChildDetailResponse updateChild(Long childId, ChildUpdateRequest request) {
         Member child = findChild(childId);
 
+        // 포함된(non-null) 필드만 반영한다(PATCH 부분수정). 회원 본인 수정(MyPageService.updateProfile)과
+        // 같은 관례·취약점 유지(QA #27): password 평문[VULN-1]·형식검증 없음[VULN-6]·미새니타이즈[VULN-CHILD-5].
+        if (request.getUsername() != null) {
+            child.setUsername(request.getUsername());
+        }
         // [VULN-CHILD-5] nickname을 이스케이프/새니타이징 없이 그대로 저장.
         //   프론트(관리자 페이지 등)에서 이스케이프 없이 렌더링하면 Stored XSS로 이어질 수 있음.
         if (request.getNickname() != null) {
             child.setNickname(request.getNickname());
+        }
+        // email 은 형식검증은 없지만([VULN-6]) 중복만은 막는다 — 같은 email 이 둘이면 로그인·복구가 꼬인다.
+        // 마이페이지 자기수정과 동일하게 처리해 경로 간 email 규칙을 일관시킨다.
+        if (request.getEmail() != null && !request.getEmail().equals(child.getEmail())) {
+            memberRepository.findByEmail(request.getEmail())
+                    .filter(existing -> !existing.getId().equals(child.getId()))
+                    .ifPresent(existing -> {
+                        throw new DuplicateResourceException("이미 사용 중인 이메일입니다.");
+                    });
+            child.setEmail(request.getEmail());
+        }
+        if (request.getPhoneNumber() != null) {
+            child.setPhoneNumber(request.getPhoneNumber());
+        }
+        if (request.getBirthDate() != null) {
+            child.setBirthDate(request.getBirthDate());
+        }
+        if (request.getAddress() != null) {
+            child.setAddress(request.getAddress());
+        }
+        // [VULN-1] 비밀번호 평문 저장 — 회원가입·마이페이지와 동일. 현재 비번 확인 절차는 이 앱에 없다.
+        if (request.getPassword() != null) {
+            child.setPassword(request.getPassword());
         }
         if (request.getProfileImageUrl() != null) {
             child.setProfileImageUrl(request.getProfileImageUrl());
@@ -64,11 +94,17 @@ public class ChildService {
         memberRepository.save(child);
     }
 
-    // [VULN-CHILD-7] childId 소유권 검증 없이 강제 로그아웃 — 임의 childId로 다른 부모가 자녀 세션을 끊을 수 있음(IDOR)
+    // [VULN-CHILD-7] childId 소유권 검증 없이 강제 로그아웃 — 임의 childId로 다른 부모가 자녀 세션을 끊을 수 있음(IDOR).
+    //   (이 IDOR 은 의도된 취약점으로 그대로 유지한다. #202 는 "정상 강제 로그아웃의 기기 반영"만 고친다.)
     @Transactional
     public void logoutChild(Long childId) {
         Member child = findChild(childId);
         refreshTokenService.revokeAll(child.getId());
+        // [#202] access 토큰(JWT)도 무효화 — 이 시각 이전 발급분을 공유 필터가 거부한다.
+        //   JWT iat 는 초 단위라, 같은 초에 발급된 토큰까지 확실히 끊기 위해 '다음 초'로 올린다.
+        //   자녀가 재로그인하면 새 토큰 iat 가 더 커서 정상 통과하므로 부작용이 없다.
+        child.setTokensValidAfter(LocalDateTime.now().withNano(0).plusSeconds(1));
+        memberRepository.save(child);
     }
 
     private Member findChild(Long childId) {

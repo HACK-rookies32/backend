@@ -3,6 +3,7 @@ package com.example.kidhackbackend.users.member.entity;
 import com.example.kidhackbackend.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import lombok.Getter;
@@ -63,6 +64,18 @@ public class Member extends BaseEntity {
      */
     @JdbcTypeCode(SqlTypes.INTEGER)
     private boolean isDeleted = false;
+
+    /**
+     * 이 시각 이전에 발급된 access 토큰(JWT)을 무효로 본다 — 강제 로그아웃 반영(#202).
+     *
+     * <p>부모의 자녀 강제 로그아웃({@code ChildService.logoutChild})에서만 세팅한다. JWT 는 무상태라
+     * 발급된 토큰을 되돌릴 수 없어, 이 "무효화 기준시각"을 두고 공유 필터가 {@code iat < tokensValidAfter}
+     * 인 토큰을 거부한다. 그 외 계정은 항상 {@code null} 이라 필터가 그냥 통과 —
+     * 즉 일반 로그아웃·부모/관리자 세션·role 위조·IDOR 등 의도된 취약점은 그대로다.
+     *
+     * <p>nullable. 세팅된 적 없는 계정과 이 컬럼 도입 이전 계정은 null(=제한 없음)이다.
+     */
+    private LocalDateTime tokensValidAfter;
 
     public void updateProfile(String nickname, String email, String phoneNumber, String address) {
         if (nickname != null) this.nickname = nickname;
