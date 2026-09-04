@@ -12,19 +12,20 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 전자금융 별도 비밀번호(계좌비밀번호). 회원당 1개(member_id unique).
+ * 결제 비밀번호. 회원당 1개(member_id unique).
  *
- * <p>로그인 비밀번호와 분리된 거래용 비밀번호 체계다. 송금·회수 등 거래 승인 시 본인확인에 쓴다.
+ * <p>로그인 비밀번호와 분리된 거래용 4자리 PIN 이다. 접근매체(카드) 발급 시 최초 설정하고, 송금·회수·충전
+ * 등 결제 승인 시 본인확인에 쓴다.
  *
- * <p>⚠️ [VULN-EFIN-5] 해시가 <b>salt 없는 MD5</b>({@code WeakHashUtil.md5})다. 6자리 숫자 비번이라
+ * <p>⚠️ [VULN-EFIN-5] 해시가 <b>salt 없는 MD5</b>({@code WeakHashUtil.md5})다. 4자리 숫자 PIN 이라
  * 레인보우테이블/브루트포스로 즉시 역산된다. 로그인 비번 평문 저장(VULN-1)·refresh token MD5(VULN-AUTH-RT)와
  * 동일 계열의 약한 저장.
  */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "account_password")
-public class AccountPassword extends BaseEntity {
+@Table(name = "payment_password")
+public class PaymentPassword extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,7 +39,7 @@ public class AccountPassword extends BaseEntity {
     @Column(nullable = false)
     private String passwordHash;
 
-    public AccountPassword(Long memberId, String passwordHash) {
+    public PaymentPassword(Long memberId, String passwordHash) {
         this.memberId = memberId;
         this.passwordHash = passwordHash;
     }

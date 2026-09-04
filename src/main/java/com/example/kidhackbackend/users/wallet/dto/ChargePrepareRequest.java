@@ -16,7 +16,7 @@ public record ChargePrepareRequest(
         @Schema(description = "(필수) 충전 금액(원, 1 이상)", example = "10000", requiredMode = RequiredMode.REQUIRED)
         @Positive(message = "충전 금액은 1원 이상이어야 합니다.") long amount,
         @Schema(description = "(전자금융) 거래 OTP", example = "428193") String otp,
-        @Schema(description = "(전자금융) 거래 비밀번호(계좌비밀번호 6자리)", example = "135790") String accountPassword,
+        @Schema(description = "(전자금융) 결제 비밀번호 4자리", example = "1357") String paymentPassword,
         @Schema(description = "(전자금융) 충전정보 전자서명(amount:0:nonce HMAC). 없으면 검증 skip — [VULN-EFIN-2]") String signature,
         @Schema(description = "(전자금융) 재사용 방지 nonce") String nonce) {
 

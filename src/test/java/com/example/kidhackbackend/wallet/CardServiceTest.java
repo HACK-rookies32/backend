@@ -15,6 +15,14 @@ import com.example.kidhackbackend.users.wallet.dto.EncryptedCardRequest;
 import com.example.kidhackbackend.users.wallet.entity.Card;
 import com.example.kidhackbackend.users.wallet.repository.CardRepository;
 import com.example.kidhackbackend.users.wallet.service.CardService;
+import com.example.kidhackbackend.global.util.WeakHashUtil;
+import com.example.kidhackbackend.users.efin.entity.IdentityVerification;
+import com.example.kidhackbackend.users.efin.entity.PaymentPassword;
+import com.example.kidhackbackend.users.efin.repository.IdentityVerificationRepository;
+import com.example.kidhackbackend.users.efin.repository.PaymentPasswordRepository;
+import com.example.kidhackbackend.users.efin.service.IdentityVerificationService;
+import com.example.kidhackbackend.users.efin.service.MockIdentityVerifier;
+import com.example.kidhackbackend.users.efin.service.PaymentPasswordService;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.MGF1ParameterSpec;
@@ -43,32 +51,31 @@ import org.springframework.context.annotation.Import;
  */
 @DataJpaTest
 @Import({RsaKeyProvider.class, HybridDecryptor.class,
-        NonceStore.class, FieldEncryptionKey.class})
+        NonceStore.class, FieldEncryptionKey.class,
+        CardService.class, PaymentPasswordService.class,
+        IdentityVerificationService.class, MockIdentityVerifier.class})
 class CardServiceTest {
-
-    @TestConfiguration
-    static class TestBeans {
-        @Bean
-        CardService cardService(CardRepository repo, RsaKeyProvider rsa, HybridDecryptor dec,
-                                NonceStore nonce) {
-            return new CardService(repo, rsa, dec, nonce);
-        }
-    }
 
     @Autowired CardService cardService;
     @Autowired CardRepository cardRepository;
     @Autowired RsaKeyProvider rsaKeyProvider;
+    @Autowired IdentityVerificationRepository identityRepository;
+    @Autowired PaymentPasswordRepository paymentPasswordRepository;
 
     private static final long PARENT_A = 10L;
     private static final long PARENT_B = 20L;
+    private static final String PAY_PW = "1357";
 
-    @BeforeEach
-    void freshKey() {
-        // 각 테스트가 현재 keyId로 암호화하도록 보장.
+    /** 접근매체 발급 관문 통과 조건: 실명확인 완료 + 결제 비밀번호 설정. 카드 성공 케이스 전에 심어 둔다. */
+    private void enroll(long ownerId) {
+        identityRepository.save(new IdentityVerification(
+                ownerId, "김지영", java.time.LocalDate.of(1990, 1, 1), "RESIDENT", true));
+        paymentPasswordRepository.save(new PaymentPassword(ownerId, WeakHashUtil.md5(PAY_PW)));
     }
 
     @Test
     void 등록_라운드트립_마스킹_CVC미저장() {
+        enroll(PARENT_A);
         EncryptedCardRequest req = encrypt(cardJson("1234567812345678", "123", freshNonce(), now()));
 
         CardResponse res = cardService.create(PARENT_A, req);
@@ -88,6 +95,8 @@ class CardServiceTest {
 
     @Test
     void 목록은_본인것만_최신순() {
+        enroll(PARENT_A);
+        enroll(PARENT_B);
         cardService.create(PARENT_A, encrypt(cardJson("1111222233334444", "111", freshNonce(), now())));
         cardService.create(PARENT_A, encrypt(cardJson("5555666677778888", "222", freshNonce(), now())));
         cardService.create(PARENT_B, encrypt(cardJson("9999000011112222", "333", freshNonce(), now())));
@@ -101,6 +110,7 @@ class CardServiceTest {
 
     @Test
     void 삭제는_소유권_검증_남의카드는_404() {
+        enroll(PARENT_A);
         CardResponse a = cardService.create(PARENT_A, encrypt(cardJson("1234567812345678", "123", freshNonce(), now())));
 
         // 남(PARENT_B)이 A의 카드 삭제 시도 → 404(존재 노출 안 함)
@@ -115,6 +125,7 @@ class CardServiceTest {
 
     @Test
     void 같은_nonce_재전송은_거부() {
+        enroll(PARENT_A);
         String nonce = freshNonce();
         long ts = now();
         cardService.create(PARENT_A, encrypt(cardJson("1234567812345678", "123", nonce, ts)));
@@ -142,6 +153,24 @@ class CardServiceTest {
                 .isInstanceOf(KeyRotatedException.class);
     }
 
+    @Test
+    void 실명확인_안_하면_카드등록_거부() {
+        // enroll 없이 등록 시도 → 실명확인 관문에서 거부.
+        assertThatThrownBy(() -> cardService.create(PARENT_A,
+                encrypt(cardJson("1234567812345678", "123", freshNonce(), now()))))
+                .isInstanceOf(CryptoException.class);
+    }
+
+    @Test
+    void 결제비밀번호_틀리면_카드등록_거부() {
+        enroll(PARENT_A);
+        // 페이로드의 결제비번을 틀린 값으로 → 관문 거부.
+        String badPwJson = cardJson("1234567812345678", "123", freshNonce(), now())
+                .replace("\"paymentPassword\":\"" + PAY_PW + "\"", "\"paymentPassword\":\"9999\"");
+        assertThatThrownBy(() -> cardService.create(PARENT_A, encrypt(badPwJson)))
+                .isInstanceOf(CryptoException.class);
+    }
+
     /* ------------------------------------------------------- 프론트 흉내 ---- */
 
     private long now() {
@@ -162,6 +191,7 @@ class CardServiceTest {
                 + "\"passwordFront\":\"12\","
                 + "\"birthDate\":\"900101\","
                 + "\"ownerName\":\"김지영\","
+                + "\"paymentPassword\":\"" + PAY_PW + "\","
                 + "\"nonce\":\"" + nonce + "\","
                 + "\"timestamp\":" + timestamp
                 + "}";
