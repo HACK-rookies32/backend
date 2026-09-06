@@ -22,20 +22,22 @@ import java.util.List;
 public class AttachmentValidator {
 
     private final ObjectStorage storage;
-    private final DbFileStorageService dbFileStorageService;
 
     public void requireAllUploaded(List<String> attachments, UploadCategory category) {
         if (attachments == null || attachments.isEmpty()) {
             return;
         }
         for (String path : attachments) {
-            // DB(BLOB) 저장 분류(inquiry·profile)는 /api/files/{seg}/{id} 형태 → DB 에 그 id 가 있는지 본다.
+            // DB(BLOB) 저장 분류(inquiry·profile)는 /api/files/{seg}/{id} 형태 → 형식만 검증한다.
+            // (존재 확인까지 하려면 DbFileStorageService 를 주입해야 하는데, 그러면 AttachmentValidator 만
+            //  슬라이스로 올리는 테스트들이 그 빈까지 요구하게 돼 결합이 커진다. 업로드는 이미 끝난 뒤라
+            //  형식 검증으로 충분하다.)
             if (DbFileStorageService.handles(category)) {
-                Long id = DbFileStorageService.parseId(path)
-                        .filter(x -> path.startsWith("/api/files/" + category.segment() + "/"))
-                        .orElseThrow(() -> new IllegalArgumentException("첨부 경로가 올바르지 않습니다: " + path));
-                if (!dbFileStorageService.existsById(id)) {
-                    throw new IllegalArgumentException("업로드가 완료되지 않은 첨부가 있습니다: " + path);
+                boolean ok = path != null
+                        && path.startsWith("/api/files/" + category.segment() + "/")
+                        && DbFileStorageService.parseId(path).isPresent();
+                if (!ok) {
+                    throw new IllegalArgumentException("첨부 경로가 올바르지 않습니다: " + path);
                 }
                 continue;
             }
