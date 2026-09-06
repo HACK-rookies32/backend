@@ -4,6 +4,7 @@ import com.example.kidhackbackend.users.chat.dto.ChatMessagePageResponse;
 import com.example.kidhackbackend.users.chat.dto.ChatMessageRequest;
 import com.example.kidhackbackend.users.chat.dto.ChatMessageResponse;
 import com.example.kidhackbackend.users.chat.entity.ChatMessage;
+import com.example.kidhackbackend.users.chat.entity.MessageType;
 import com.example.kidhackbackend.users.chat.repository.ChatMessageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -37,7 +38,8 @@ public class ChatMessageService {
 
     public ChatMessageResponse saveMessage(String roomId, ChatMessageRequest request) {
         // [VULN-CHAT-1] senderId를 클라이언트가 보낸 값 그대로 사용
-        ChatMessage message = new ChatMessage(roomId, request.getSenderId(), request.getContent());
+        ChatMessage message = new ChatMessage(roomId, request.getSenderId(), request.getContent(),
+                request.getType(), request.getMediaUrl(), null);
         chatMessageRepository.save(message);
         notifyCounterpart(roomId, message);
         return ChatMessageResponse.from(message);
@@ -66,13 +68,21 @@ public class ChatMessageService {
                 return;
             }
             notificationPort.publish(recipient, room.getChildId(),
-                    NotificationType.CHAT_MESSAGE, preview(message.getContent()));
+                    NotificationType.CHAT_MESSAGE, preview(message));
         } catch (RuntimeException e) {
             log.warn("채팅 알림 발행 실패 roomId={}", roomId, e);
         }
     }
 
-    private String preview(String content) {
+    private String preview(ChatMessage message) {
+        // 미디어 메시지는 본문이 비어 있을 수 있으므로 종류별 자리표시로 대체한다.
+        if (message.getType() == MessageType.IMAGE) {
+            return "(사진)";
+        }
+        if (message.getType() == MessageType.AUDIO) {
+            return "(음성)";
+        }
+        String content = message.getContent();
         if (content == null) {
             return "";
         }

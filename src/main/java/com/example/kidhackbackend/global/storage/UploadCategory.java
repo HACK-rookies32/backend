@@ -19,7 +19,9 @@ public enum UploadCategory {
     /** 프로필 이미지. 회원가입·프로필 수정에서 profileImageUrl 로 저장된다. */
     PROFILE("profile"),
     /** 자녀 화면 캡처. 1시간 주기 자동 또는 부모 요청분. */
-    SCREENSHOT("screenshot");
+    SCREENSHOT("screenshot"),
+    /** 채팅 첨부(음성·사진). 메시지 본문은 Mongo, 실물 바이트는 DB(BLOB). */
+    CHAT("chat");
 
     private final String segment;
 

@@ -35,7 +35,8 @@ public class DbFileStorageService {
 
     /** 이 서비스가 다루는(= DB BLOB) 분류. 나머지 분류는 기존 ObjectStorage(S3/로컬) 그대로. */
     public static boolean handles(UploadCategory category) {
-        return category == UploadCategory.INQUIRY || category == UploadCategory.PROFILE;
+        return category == UploadCategory.INQUIRY || category == UploadCategory.PROFILE
+                || category == UploadCategory.CHAT;
     }
 
     /**
