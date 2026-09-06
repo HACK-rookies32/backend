@@ -1,8 +1,6 @@
 package com.example.kidhackbackend.users.qrpay.controller;
 
-import com.example.kidhackbackend.global.crypto.AttestationNonceStore;
 import com.example.kidhackbackend.global.response.ApiResponse;
-import com.example.kidhackbackend.users.efin.service.AttestationVerifier;
 import com.example.kidhackbackend.users.efin.service.EfinTxGuard;
 import com.example.kidhackbackend.users.qrpay.dto.QrApproveRequest;
 import com.example.kidhackbackend.users.qrpay.dto.QrApproveResponse;
@@ -40,8 +38,6 @@ public class QrTerminalController {
     private final StoreTerminalService storeTerminalService;
     private final QrApprovalService qrApprovalService;
     private final EfinTxGuard efinTxGuard;
-    private final AttestationNonceStore attestationNonceStore;
-    private final AttestationVerifier attestationVerifier;
 
     /** 단말 토큰 인증 확인: 헤더의 토큰으로 단말을 검증해 매장 정보를 돌려준다. */
     @Operation(summary = "매장 단말 인증 확인",
@@ -79,44 +75,10 @@ public class QrTerminalController {
             @Parameter(in = ParameterIn.HEADER, name = "X-Store-Terminal-Token",
                     description = "매장 단말 인증 토큰. 없으면 검증을 건너뜀 — VULN-WALLET-15")
             @RequestHeader(value = "X-Store-Terminal-Token", required = false) String terminalToken,
-            @Parameter(in = ParameterIn.HEADER, name = "X-Attestation",
-                    description = "모바일 네이티브 무결성 증명(nonce:state:mac). 로컬 방어 우회만으론 못 넘는 서버 앵커.")
-            @RequestHeader(value = "X-Attestation", required = false) String attestation,
             @Valid @RequestBody QrApproveRequest request) {
-        // [보안 방어 Lv2-D] 모바일 네이티브 무결성 증명 검증 — 결제 관문 앵커.
-        // 로컬(Lv2)에서 보안상태를 위조해도, 서버 발급 nonce 에 대한 유효한 HMAC 이 없으면 거부된다.
-        verifyAttestation(attestation);
         // 결제정보 무결성(서명)·재사용 방지(nonce) 검증 — 결함은 EfinTxGuard 참고.
         efinTxGuard.verifyQrPay(request.qrToken(), request.amount(), request.signature(), request.nonce());
         return ResponseEntity.ok(ApiResponse.success(
                 qrApprovalService.approve(terminalToken, request.qrToken(), request.amount())));
-    }
-
-    /**
-     * X-Attestation 헤더({@code nonce:state:mac})를 검증한다. 하나라도 어긋나면 결제를 거부한다.
-     *  - nonce: 서버가 발급했고 만료 전이며 처음 소비되는지(재전송 방지)
-     *  - state: "0"(clean)이어야 함 — 루팅/Frida/디버거/변조/후킹 비트가 서 있으면 거부
-     *  - mac:   공유 비밀키로 {@code nonce|state} 를 재서명한 값과 일치하는지
-     */
-    private void verifyAttestation(String header) {
-        if (header == null || header.isBlank()) {
-            throw new IllegalArgumentException("무결성 증명(X-Attestation)이 없습니다.");
-        }
-        String[] parts = header.trim().split(":");
-        if (parts.length != 3) {
-            throw new IllegalArgumentException("무결성 증명 형식 오류(nonce:state:mac).");
-        }
-        String nonce = parts[0];
-        String state = parts[1];
-        String mac = parts[2];
-        if (!attestationNonceStore.consume(nonce)) {
-            throw new IllegalArgumentException("무결성 증명 nonce 가 무효하거나 재사용되었습니다.");
-        }
-        if (!"0".equals(state)) {
-            throw new IllegalArgumentException("안전하지 않은 기기 환경이 감지되었습니다(state=" + state + ").");
-        }
-        if (!attestationVerifier.verify(nonce, state, mac)) {
-            throw new IllegalArgumentException("무결성 증명 서명이 일치하지 않습니다.");
-        }
     }
 }
