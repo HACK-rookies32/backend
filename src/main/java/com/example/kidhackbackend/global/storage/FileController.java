@@ -246,26 +246,31 @@ public class FileController {
                         : ResponseEntity.notFound().build();
             }
 
-            // 이 자리의 filename 은 이미 id 세그먼트("1")다. 경로 파싱(parseId)이 아니라 바로 숫자로 읽는다.
-            Long id;
+            // dual-read: filename 이 숫자 id 면 DB(BLOB)에서, 아니면 아래 기존 저장소(S3/로컬)에서 읽는다.
+            //   DB 전환 전에 저장된 기존 첨부는 경로가 /api/files/{seg}/{uuid}_이름 꼴(숫자 아님)이므로,
+            //   이렇게 해야 예전 문의 첨부·프로필 이미지가 배포 후에도 계속 열린다.
+            Long id = null;
             try {
                 id = Long.parseLong(filename);
-            } catch (NumberFormatException e) {
-                return ResponseEntity.notFound().build();
+            } catch (NumberFormatException ignored) {
+                // 숫자가 아니다 → 기존 경로. DB 블록을 빠져나가 아래 저장소 폴백으로 넘어간다.
             }
-            DbFile f = dbFileStorageService.loadById(id).orElse(null);
-            if (f == null) {
-                return ResponseEntity.notFound().build();
+            if (id != null) {
+                DbFile f = dbFileStorageService.loadById(id).orElse(null);
+                if (f == null) {
+                    return ResponseEntity.notFound().build();
+                }
+                // [VULN-10] 저장된 content_type 그대로 + inline + 원본 파일명 그대로 헤더에 →
+                //   text/html 을 올려 두면 브라우저가 렌더 → stored XSS. 파일명은 헤더 인젝션 표면.
+                String contentType = StringUtils.hasText(f.getContentType())
+                        ? f.getContentType() : "application/octet-stream";
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_TYPE, contentType)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + f.getOriginalFilename() + "\"")
+                        .cacheControl(dbCache)
+                        .body(new ByteArrayResource(f.getData()));
             }
-            // [VULN-10] 저장된 content_type 그대로 + inline + 원본 파일명 그대로 헤더에 →
-            //   text/html 을 올려 두면 브라우저가 렌더 → stored XSS. 파일명은 헤더 인젝션 표면.
-            String contentType = StringUtils.hasText(f.getContentType())
-                    ? f.getContentType() : "application/octet-stream";
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_TYPE, contentType)
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + f.getOriginalFilename() + "\"")
-                    .cacheControl(dbCache)
-                    .body(new ByteArrayResource(f.getData()));
+            // id 가 null(숫자 아님) → 아래 공통 저장소 서빙으로 폴백한다.
         }
 
         if (StoredObject.isUnsafe(filename)) {
