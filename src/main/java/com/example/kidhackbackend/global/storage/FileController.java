@@ -14,8 +14,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,11 +28,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
@@ -58,6 +63,7 @@ public class FileController {
 
     private final ObjectStorage storage;
     private final StorageProperties props;
+    private final DbFileStorageService dbFileStorageService;
 
     /**
      * presigned 업로드 URL 발급.
@@ -200,6 +206,13 @@ public class FileController {
             throw new IllegalArgumentException("업로드할 파일이 없습니다.");
         }
 
+        // 문의 첨부·프로필 이미지는 S3 가 아니라 DB(BLOB)에 담는다(WAS 2 대 공유 목적).
+        // 약한 필터·클라 Content-Type·원본 파일명·로컬 미러 쓰기 취약점은 DbFileStorageService 안에 있다.
+        if (DbFileStorageService.handles(uploadCategory)) {
+            String url = dbFileStorageService.store(uploadCategory, file);
+            return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
+        }
+
         String filename = UUID.randomUUID() + "_" + baseName(file.getOriginalFilename());
         String url = storage.store(uploadCategory, filename, file);
 
@@ -207,13 +220,55 @@ public class FileController {
     }
 
     @Operation(summary = "첨부파일 다운로드",
-            description = "S3 모드에서는 presigned URL 로 302 리다이렉트한다.")
+            description = "S3 모드에서는 presigned URL 로 302 리다이렉트한다. inquiry·profile 은 DB(BLOB)에서 스트리밍한다.")
     @GetMapping("/{category}/{filename:.+}")
     public ResponseEntity<Resource> download(@PathVariable String category,
-                                             @PathVariable String filename) {
+                                             @PathVariable String filename,
+                                             @RequestParam(value = "legacyPath", required = false) String legacyPath) {
 
         UploadCategory uploadCategory = UploadCategory.from(category).orElse(null);
-        if (uploadCategory == null || StoredObject.isUnsafe(filename)) {
+        if (uploadCategory == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // 문의 첨부·프로필 이미지는 DB(BLOB) 스트리밍. 무인증 공개(IDOR) — 소유권 검증 없음.
+        if (DbFileStorageService.handles(uploadCategory)) {
+            CacheControl dbCache = CacheControl.maxAge(redirectCacheAge()).cachePrivate();
+
+            // [VULN] dual-read: 옛 저장 경로를 직접 지정하면 로컬 uploads 에서 무새니타이즈로 읽는다.
+            //   경로가 쿼리 파라미터라 Spring 방화벽(URL 경로의 ..)을 타지 않아 ../ 트래버설이 통한다 → LFI.
+            //   예) GET /api/files/inquiry/0?legacyPath=../../../../etc/passwd
+            if (StringUtils.hasText(legacyPath)) {
+                Resource legacy = new FileSystemResource(
+                        Paths.get(props.getPrefix(), uploadCategory.segment()).resolve(legacyPath));
+                return legacy.exists()
+                        ? ResponseEntity.ok().cacheControl(dbCache).body(legacy)
+                        : ResponseEntity.notFound().build();
+            }
+
+            // 이 자리의 filename 은 이미 id 세그먼트("1")다. 경로 파싱(parseId)이 아니라 바로 숫자로 읽는다.
+            Long id;
+            try {
+                id = Long.parseLong(filename);
+            } catch (NumberFormatException e) {
+                return ResponseEntity.notFound().build();
+            }
+            DbFile f = dbFileStorageService.loadById(id).orElse(null);
+            if (f == null) {
+                return ResponseEntity.notFound().build();
+            }
+            // [VULN-10] 저장된 content_type 그대로 + inline + 원본 파일명 그대로 헤더에 →
+            //   text/html 을 올려 두면 브라우저가 렌더 → stored XSS. 파일명은 헤더 인젝션 표면.
+            String contentType = StringUtils.hasText(f.getContentType())
+                    ? f.getContentType() : "application/octet-stream";
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, contentType)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + f.getOriginalFilename() + "\"")
+                    .cacheControl(dbCache)
+                    .body(new ByteArrayResource(f.getData()));
+        }
+
+        if (StoredObject.isUnsafe(filename)) {
             return ResponseEntity.notFound().build();
         }
 

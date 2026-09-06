@@ -22,12 +22,24 @@ import java.util.List;
 public class AttachmentValidator {
 
     private final ObjectStorage storage;
+    private final DbFileStorageService dbFileStorageService;
 
     public void requireAllUploaded(List<String> attachments, UploadCategory category) {
         if (attachments == null || attachments.isEmpty()) {
             return;
         }
         for (String path : attachments) {
+            // DB(BLOB) 저장 분류(inquiry·profile)는 /api/files/{seg}/{id} 형태 → DB 에 그 id 가 있는지 본다.
+            if (DbFileStorageService.handles(category)) {
+                Long id = DbFileStorageService.parseId(path)
+                        .filter(x -> path.startsWith("/api/files/" + category.segment() + "/"))
+                        .orElseThrow(() -> new IllegalArgumentException("첨부 경로가 올바르지 않습니다: " + path));
+                if (!dbFileStorageService.existsById(id)) {
+                    throw new IllegalArgumentException("업로드가 완료되지 않은 첨부가 있습니다: " + path);
+                }
+                continue;
+            }
+
             StoredObject object = StoredObject.parse(path)
                     .filter(parsed -> parsed.category() == category)
                     .orElseThrow(() -> new IllegalArgumentException(
