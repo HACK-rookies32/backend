@@ -326,6 +326,7 @@ public class FileController {
             case SCREENSHOT -> member.getRole() == Role.CHILD;
             case NOTICE -> member.getRole().name().endsWith("ADMIN");
             case PROFILE -> true; // 로그인한 회원이면 자기 프로필 이미지
+            case CHAT -> true; // 부모·자녀 모두 채팅 참여자 (로그인은 requireLogin 이 강제)
         };
         if (!allowed) {
             throw new AdminAccessDeniedException(

@@ -39,6 +39,7 @@ class ChatBroadcastTest {
 
     private final ChatMessageResponse response = new ChatMessageResponse(
             "6a8d554adac994ff3737d5e8", "6a8d4054ce8ce918a188ad9a", 1L, "안녕",
+            com.example.kidhackbackend.users.chat.entity.MessageType.TEXT, null, null,
             LocalDateTime.of(2026, 8, 25, 17, 41, 46, 483_000_000));
 
     @Test
