@@ -93,13 +93,8 @@ kidhack:
     storage-key: ""
     # RSA 키 회전 주기(일). keyId는 프론트가 실시간 조회하므로 회전해도 앱 무영향.
     key-rotation-days: 90
-    # 재전송 방지 nonce 유효창(초). attestation challenge nonce 도 이 값을 공유.
+    # 재전송 방지 nonce 유효창(초).
     nonce-ttl-seconds: 60
-
-  # 모바일 네이티브 무결성 증명(attestation) 공유 비밀키.
-  # 모바일 .so 내장키(OBF)와 반드시 동일해야 한다.
-  # ⚠️ 클라이언트 내장 비밀키라 리버싱으로 추출 가능(의도된 약점) — 실제는 Play Integrity 사용.
-  attestation-secret: "kidhack-attest-secret"
 
 # ------------------------------------------------------------------
 # 첨부파일 저장소
