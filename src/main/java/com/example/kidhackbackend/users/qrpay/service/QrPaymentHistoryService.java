@@ -43,6 +43,8 @@ public class QrPaymentHistoryService {
             //   childId가 실제 이 부모(requester)의 자녀인지 확인하지 않는다('본인 자녀만' 위반).
             //   → 아무 PARENT나 임의 childId로 남의 자녀 결제 내역(매장·금액·시각)을 열람할 수 있다.
             //   방어: memberRepository.findById(childId) 후 child.getParent().getId()==requester.getId() + CHILD 확인.
+            //   [재점검 2026-09-07] 취약 확정 — 금취분평 003 부적절한 이용자 인가 / 주통기 IN(불충분한 권한 검증).
+            //     PARENT 경로만 페어링 미검증(CHILD 경로는 JWT 자기 id 강제라 안전).
             targetChildId = childId;
         }
 

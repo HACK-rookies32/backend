@@ -38,6 +38,8 @@ public class EfinOtpService {
                 member.getId(), phone, code, Purpose.TX_OTP,
                 LocalDateTime.now().plusSeconds(CODE_TTL_SECONDS)));
         smsPort.sendOtp(phone, code);
+        // [재점검 2026-09-07] 취약 확정 — 금취분평 001 [전자금융] 거래 인증수단 검증 / 주통기 IL(정보 누출).
+        //   OTP 를 발신 채널과 같은 응답 body 로 돌려줘 2차 인증(소지 기반)이 무력화됨.
         return new OtpIssueResponse(mask(phone), code, CODE_TTL_SECONDS); // [VULN-EFIN-1] code 노출
     }
 
@@ -54,6 +56,8 @@ public class EfinOtpService {
      * 거래 승인 시 OTP 소비(일회성). 유효하지 않으면 예외.
      *
      * <p>[VULN-EFIN-1b] 실패해도 잠기지 않으므로, 실패한 시도를 계속 반복해 브루트포스할 수 있다.
+     * <p>[재점검 2026-09-07] 취약 확정 — 금취분평 032 인증 오류 횟수 제한기능 제공 / 주통기 AU(자동화 공격).
+     *    실패 시 markUsed 를 하지 않아 같은 OTP 를 TTL(180초) 내 무제한 재시도 가능.
      */
     @Transactional
     public void consume(Long memberId, String phone, String code) {

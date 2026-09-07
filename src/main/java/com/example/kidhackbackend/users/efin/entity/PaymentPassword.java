@@ -35,6 +35,8 @@ public class PaymentPassword extends BaseEntity {
     @Column(nullable = false, unique = true)
     private Long memberId;
 
+    // [재점검 2026-09-07] 취약 확정 — 금취분평 해당 항목 없음(저장 비밀번호 해시 전용 항목 부재)·주통기 해당 항목 없음(웹앱 21개에 저장해시 항목 없음) → "해당 없지만 취약점".
+    //   4자리 PIN 을 salt 없는 MD5 로 저장 → DB 유출 시 레인보우/브루트포스로 즉시 역산(약한 저장 암호).
     /** [VULN-EFIN-5] salt 없는 MD5 해시. */
     @Column(nullable = false)
     private String passwordHash;
