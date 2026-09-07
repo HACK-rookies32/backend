@@ -94,8 +94,17 @@ public class CommunityBoardService {
     @Transactional
     public void deletePost(Long postId, Member member) {
         CommunityBoard board = findBoard(postId);
-        // [VULN-11] 위와 동일 — 작성자 검증 없이 삭제까지 가능. 아래 첨부 삭제가 피해 범위를
-        //           DB 행에서 실제 S3 객체로 넓힌다(운영 버킷은 버저닝이라 복구 여지는 있음).
+        // [VULN-11] 위와 동일 — 작성자 검증이 없어 postId 만 알면 남의 글을 지울 수 있다.
+        //
+        //   삭제는 DB 행에서 끝나지 않는다. postRemover 가 좋아요·댓글·글을 지운 뒤
+        //   첨부 파일의 S3 실물까지 지우므로, 피해가 저장소로 번진다.
+        //
+        //   복구 가능성(2026-09-07 인프라 설정 확인 결과, 낙관하면 안 된다):
+        //     · S3 버킷은 버저닝이 켜져 있고 코드는 DeleteObject 만 호출하므로 이전 버전은 남지만,
+        //       자동 복구는 없고 운영자가 손으로 되살려야 한다.
+        //     · 노후 버전 만료 정책이 30일이라 그 안에 알아채지 못하면 영구히 사라진다.
+        //     · DB 백업 보존은 7일이라 기간이 달라, 글과 첨부를 같은 시점으로 함께 되돌릴 수 없다.
+        //   방어: if (!board.getMember().getId().equals(member.getId())) throw new AccessDenied...;
         // 댓글·좋아요를 먼저 걷어내지 않으면 FK 에 걸려 500 이 난다. 관리자 삭제와 같은 경로를 쓴다.
         postRemover.remove(board);
     }

@@ -98,28 +98,70 @@ public class WalletChargeService {
         ChargeOrder order = chargeOrderRepository.findByMerchantUid(request.merchantUid())
                 .orElseThrow(() -> new ResourceNotFoundException("충전 주문을 찾을 수 없습니다."));
 
-        // [VULN-WALLET-2] 소유권 미검증(IDOR / Broken Object Level Authorization).
-        //   주문의 소유자(order.getOwnerId())와 요청자(requesterId)가 같은지 확인하지 않는다.
-        //   → merchantUid만 알면 아무 PARENT나 남의 준비 주문을 승인·확정할 수 있고,
-        //     아래에서 잔액이 order.getOwnerId()의 지갑으로 들어가므로 타인 지갑을 조작하게 된다.
+        // [VULN-WALLET-2] 주문 소유권 미검증(IDOR / BOLA).
+        //   위에서 merchantUid 로 주문을 찾아왔을 뿐, 그 주문의 주인(order.getOwnerId())이
+        //   지금 요청한 사람(requesterId)과 같은지 확인하지 않는다. 넘겨받은 requesterId 가
+        //   이 메서드 어디에서도 쓰이지 않는다는 점을 보면 결함이 분명히 드러난다.
+        //   → 주문번호만 알면 아무 PARENT 나 남의 준비 주문을 대신 승인·확정할 수 있다.
+        //
+        //   ※ 헷갈리기 쉬운 부분 — "그래서 공격자가 돈을 버나?" 아니다.
+        //     아래 :115 가 요청자가 아니라 order.getOwnerId() 의 지갑을 꺼내므로, 적립된 돈은
+        //     주문 주인(피해자)에게 간다. 공격자 지갑은 늘지 않는다. 그런데도 취약점인 이유:
+        //       ① 사업자 손실 — 승인은 "이 사람이 PG 에서 실제로 결제를 마쳤다"를 확정하는 행위다.
+        //          피해자가 결제를 포기한 주문까지 남이 확정시킬 수 있으니, 실제로 받지 않은 돈이
+        //          쓸 수 있는 잔액으로 발행된다. 그 잔액을 매장에서 쓰면 가맹점 정산은 진짜
+        //          현금으로 나간다. 손해 보는 쪽은 공격자가 아니라 서비스다.
+        //       ② 피해자의 취소권 박탈 — 위 cancel() 은 READY 주문만 취소를 허용한다. 공격자가
+        //          먼저 승인해 PAID 로 만들면 정작 주인은 자기 주문을 취소할 수 없게 된다.
+        //       ③ 추적 불가·책임 전가 — 아래에서 남기는 WalletTransaction 에는 "누가 승인했는지"
+        //          필드가 없다. 피해자 원장에는 피해자가 충전한 것처럼만 찍히고 공격자 흔적은
+        //          남지 않는다. 나중에 부정 충전을 조사하면 피해자가 범인으로 보인다.
+        //       ④ [VULN-WALLET-1](금액 변조)과 합치면 남의 잔액을 원하는 만큼 올릴 수 있고,
+        //          [VULN-WALLET-5](남의 충전 환불)와 합치면 내릴 수도 있다. 두 개를 합치면
+        //          사실상 임의 계정 잔액에 대한 쓰기 권한이 된다.
+        //
+        //   전제: merchantUid 는 prepare 에서 UUID 로 만들어져 추측할 수 없다. 그래서 실제
+        //     공격은 주문번호가 로그·화면·다른 정보노출 취약점으로 새는 것이 전제다. 하지만
+        //     추측 불가능한 값에 기대는 것은 인가가 아니라 '모호함에 기댄 보안'일 뿐이다.
+        //     실제로 같은 클래스의 cancel(:77) 은 같은 merchantUid 를 받으면서도 소유권을 검증한다.
         //   방어: if (!order.getOwnerId().equals(requesterId)) throw new AccessDenied...;
 
         PgApproval approval = pgClient.approve(order.getMerchantUid(), request.amount());
 
-        // [VULN-WALLET-3] 멱등성/재생(replay) 방어 부재 (approve 경로에만 남음 — 웹훅 경로는 confirmByWebhook 에서 멱등 처리).
-        //   status가 이미 PAID인지 확인하지 않고 무조건 다시 적립한다. 동일 merchantUid로
-        //   approve를 N번 호출하면 잔액이 N배로 불어난다(중복 충전). 낙관적 락/멱등키도 없다.
+        // [VULN-WALLET-3] 같은 요청을 다시 보내면 다시 처리된다(재전송·replay 방어 부재).
+        //   "멱등하다"는 같은 요청을 몇 번 보내도 결과가 한 번 보낸 것과 같다는 뜻이다. 결제 승인은
+        //   반드시 멱등해야 하는데(네트워크가 끊겨 앱이 재시도하는 일이 흔하다) 여기엔 그 장치가 없다.
+        //   바로 아래 markPaid 앞에 "이 주문이 아직 READY 인가?"를 보는 검사가 없어서, 이미 결제
+        //   완료된 주문이어도 그냥 한 번 더 적립한다.
+        //   → 같은 merchantUid 로 approve 를 N번 부르면 잔액이 N배가 된다. 2026-09-07 모의해킹에서
+        //     두 번 호출해 1,000,000 → 2,000,000 이 되는 것을 확인했다. 남의 주문일 필요도 없이
+        //     자기 주문만으로 성립한다. 동시에 들어온 요청 하나만 통과시키는 락(@Version)도 없다.
+        //   참고: 같은 클래스의 웹훅 경로(confirmByWebhook)에는 [W-2] 가드가 있어 막혀 있다.
+        //         즉 이 결함은 두 경로 중 approve 쪽에만 남아 있다.
         //   방어: if (order.getStatus() != ChargeStatus.READY) return 기존결과; + @Version 락.
         order.markPaid(approval.pgTransactionId());
 
         Wallet wallet = walletRepository.findByOwnerId(order.getOwnerId())
                 .orElseGet(() -> walletRepository.save(new Wallet(order.getOwnerId())));
 
-        // [VULN-WALLET-1] 결제 금액 변조(핵심).
-        //   준비 시 확정된 order.getAmount()나 PG가 보고한 실제 결제액을 서버측에서 대조하지 않고,
-        //   클라이언트가 보낸 request.amount()를 그대로 적립한다(Mock PG도 이 값을 그대로 에코).
-        //   → 100원짜리 주문을 amount=1000000으로 승인 요청하면 100만원이 충전된다.
-        //   방어: 적립액은 order.getAmount() 사용 + approval.paidAmount()==order.getAmount() 검증.
+        // [VULN-WALLET-1] 결제 금액 변조 — 이 도메인의 핵심 결함.
+        //   적립할 금액을 서버가 가진 값이 아니라 클라이언트가 보낸 request.amount() 로 정한다.
+        //   서버는 이미 믿을 수 있는 금액을 갖고 있는데(prepare 에서 저장한 order.getAmount())
+        //   그것과 대조조차 하지 않는다.
+        //   → 100원짜리 주문을 amount=1000000 으로 승인 요청하면 그대로 100만원이 충전된다.
+        //     2026-09-07 모의해킹에서 실제로 성립했다.
+        //
+        //   ※ "PG 응답과 대조하면 되지 않나?" — 이 환경에서는 그것만으로 못 막는다.
+        //     위 :107 이 부르는 pgClient 는 실습용 MockPgClient 이고, 그 approve() 는 넘겨받은
+        //     amount 를 그대로 paidAmount 에 담아 돌려준다(메아리처럼 되돌아온다).
+        //     게다가 :107 이 넘기는 값이 request.amount(), 즉 공격자가 보낸 그 숫자다. 그러니
+        //     approval.paidAmount() 와 request.amount() 를 비교해 봐야 항상 같아서 아무것도 못 잡는다.
+        //     신뢰할 수 있는 값은 서버 DB 에 있는 order.getAmount() 하나뿐인데, 이 경로는 그걸 안 본다.
+        //
+        //   방어(순서대로):
+        //     ① 적립액을 request.amount() 대신 order.getAmount() 로 바꾼다. Mock 이든 실제 PG 든 효과가 있다.
+        //     ② 실제 PG 연동 시 approval.paidAmount() == order.getAmount() 교차 검증을 추가한다.
+        //        (지금 넣어도 Mock 이라 의미가 없으므로 ①이 먼저다.)
         long creditAmount = request.amount();
         wallet.credit(creditAmount);
         walletRepository.save(wallet);
@@ -145,8 +187,17 @@ public class WalletChargeService {
         boolean sigProvided = signature != null && !signature.isBlank();
 
         // [VULN-WALLET-4] 웹훅 서명검증 우회 — 서명 헤더가 '있을 때만' 검증하고, 없으면 통째로 건너뛴다.
-        //   → 공격자가 X-PG-Signature 헤더 없이 위조 바디만 보내면 그대로 통과되어 결제 위조 가능.
-        //   방어: 서명 헤더를 필수로 강제 + 항상 verify().
+        //   아래 if 조건이 (sigProvided && !verify(...)) 이라 앞부분이 거짓이면 verify() 를 아예
+        //   호출하지 않는다. 서명을 '틀리게' 보내면 400 으로 막히는데, '아예 빼면' 무사통과다.
+        //   방어 장치를 조건부로 만들어 둔 탓에 헤더를 생략하는 쪽이 더 쉬운 공격이 되어 버렸다.
+        //
+        //   이 결함이 특히 위험한 이유는 이 엔드포인트가 PG 서버가 부르는 콜백이라
+        //   PgWebhookSecurityConfig 에서 /api/pg/** 를 permitAll 로 열어 두었기 때문이다.
+        //   즉 로그인도 토큰도 필요 없다 — 인터넷에서 누구나 부를 수 있고, 진짜 PG 가 보낸
+        //   것인지 가려낼 수단이 오직 이 서명 하나뿐인데 그 하나를 건너뛸 수 있다.
+        //   → 2026-09-07 모의해킹에서 X-PG-Signature 헤더 없이 status:paid, paidAmount:777777 을
+        //     보내 잔액을 777,777원 늘리는 데 성공했다.
+        //   방어: 서명 헤더를 필수로 강제(없으면 즉시 400) + 조건 없이 항상 verify().
         if (sigProvided && !pgClient.verify(rawBody, signature)) {
             // 잘못된 서명은 거부(400). 이 케이스는 트랜잭션이 롤백되므로 이벤트는 남기지 않는다.
             throw new IllegalArgumentException("유효하지 않은 웹훅 서명입니다.");

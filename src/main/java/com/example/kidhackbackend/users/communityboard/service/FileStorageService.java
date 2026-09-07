@@ -27,15 +27,19 @@ public class FileStorageService {
 
     public String store(MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
-        // [VULN-10] 확장자 화이트리스트 검증이 없어서 어떤 파일이든 그대로 저장됨
+        // [VULN-10] 확장자 화이트리스트 검증이 없어 어떤 파일이든 그대로 저장된다.
+        // Content-Type 도 클라이언트가 보낸 값을 그대로 쓰므로, 임의 파일에 text/html 을
+        // 붙여 브라우저가 렌더링하게 만들 수 있다.
         //
-        // 참고: 이전에는 올린 파일을 다시 받을 경로가 없어 이 취약점이 사실상
-        // 잠들어 있었다. FileController(/api/files/**) 가 생기면서 실제로 재현
-        // 가능해졌다. Content-Type 도 클라이언트가 보낸 값을 그대로 쓰므로
-        // 임의 파일에 text/html 을 붙여 브라우저에 렌더링시킬 수 있다.
+        // 참고: 이전에는 올린 파일을 다시 받을 경로가 없어 이 취약점이 사실상 잠들어 있었다.
+        // FileController(/api/files/**) 가 생기면서 실제로 재현 가능해졌다.
         //
-        // 다만 presigned URL 이 S3 오리진을 가리키므로 서비스 도메인의 쿠키나
-        // localStorage(JWT)에는 접근할 수 없다. 피해 범위가 오리진 격리로 제한된다.
+        // 2026-09-07 모의해킹에서 .html 업로드와 브라우저 렌더링까지 실제로 확인했다.
+        // 다만 파일이 서비스 도메인이 아니라 S3 주소로 제공되어(302 리다이렉트) 출처가
+        // 분리되므로, 그 스크립트는 서비스 도메인의 쿠키·localStorage(JWT)를 읽지 못한다.
+        // 그래서 판정이 '취약'이 아니라 '조건부'다 — 방어가 있어서가 아니라 저장 위치 덕이라,
+        // 파일을 서비스 도메인에서 직접 서빙하는 순간 저장형 XSS 가 된다.
+        // 실증 절차와 근거는 FileController 의 [VULN-10] 주석에 자세히 적어 두었다.
         String savedFilename = UUID.randomUUID() + "_" + originalFilename;
 
         return storage.store(UploadCategory.COMMUNITY, savedFilename, file);

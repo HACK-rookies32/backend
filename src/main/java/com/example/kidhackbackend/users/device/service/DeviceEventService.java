@@ -25,8 +25,15 @@ public class DeviceEventService {
     private final NotificationPort notificationPort;
     private final MemberRepository memberRepository;
 
-    // [VULN-DEV-1] childId를 요청값 그대로 신뢰(본인 검증 없음)한다.
-    //   → 타인 childId로 위조 이벤트를 보내 거짓 '트래킹 불가' 알림을 유발할 수 있다(알림 스팸/오도).
+    // [VULN-DEV-1] childId 를 요청 본문에 적힌 값 그대로 믿는다(본인 검증 없음 — IDOR).
+    //   기기 전원/GPS 꺼짐 보고는 "내 기기가 이렇게 됐다"는 신고인데, 누구 기기인지를 신고하는
+    //   쪽이 정하게 되어 있다. 로그인한 자녀가 본문에 남의 childId 를 적으면 그대로 기록된다.
+    //   → 아래에서 그 자녀의 부모를 찾아 알림을 보내므로, 엉뚱한 집 부모에게 거짓 '트래킹 불가'
+    //     알림이 간다. 부모 입장에서는 자녀가 기기를 끈 것처럼 보인다.
+    //   호출 횟수 제한(rate limit)도 없어 같은 요청을 반복해 알림을 계속 퍼부을 수 있다.
+    //   자녀를 감시하는 앱에서 이런 거짓 신호가 반복되면 부모가 알림 자체를 신뢰하지 않게 되는데,
+    //   그러면 정작 진짜 이벤트도 묻힌다는 점이 이 결함의 실질적인 피해다.
+    //   방어: 인증 주체(@AuthenticationPrincipal)의 id 를 쓰고 본문 childId 는 무시 + 호출 빈도 제한.
     @Transactional
     public DeviceEvent report(Long childId, String deviceId, DeviceEventType type) {
         DeviceEvent event = repository.save(new DeviceEvent(childId, deviceId, type));

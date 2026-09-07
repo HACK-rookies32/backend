@@ -26,11 +26,12 @@ public class InquiryFileStorageService {
 
     public String store(MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
-        // [VULN-10] 확장자 화이트리스트 검증이 없어서 어떤 파일이든 그대로 저장됨
+        // [VULN-10] 확장자 화이트리스트 검증이 없어 어떤 파일이든 그대로 저장된다.
+        // 커뮤니티 첨부와 완전히 같은 결함이며, 문의 첨부 카테고리에도 그대로 적용된다.
         //
-        // 참고: 이전에는 올린 파일을 다시 받을 경로가 없어 이 취약점이 사실상
-        // 잠들어 있었다. FileController(/api/files/**) 가 생기면서 실제로 재현
-        // 가능해졌다. 자세한 내용은 커뮤니티 쪽 FileStorageService 주석 참고.
+        // 참고: 이전에는 올린 파일을 다시 받을 경로가 없어 이 취약점이 사실상 잠들어 있었다.
+        // FileController(/api/files/**) 가 생기면서 실제로 재현 가능해졌다.
+        // 실증 결과와 '조건부' 판정 근거(S3 출처 분리)는 FileController 의 [VULN-10] 주석 참고.
         String savedFilename = UUID.randomUUID() + "_" + originalFilename;
 
         return storage.store(UploadCategory.INQUIRY, savedFilename, file);

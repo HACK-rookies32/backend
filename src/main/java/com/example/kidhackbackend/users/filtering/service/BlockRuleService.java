@@ -94,6 +94,13 @@ public class BlockRuleService {
      * 대상(앱/URL)이 차단 목록에 걸리는지 판정. 패턴이 포함되면 차단.
      *
      * <p>부모가 등록한 자녀별 규칙과, 관리자가 등록한 전역 차단 키워드를 함께 검사한다.
+     *
+     * <p>⚠️ <b>[VULN-FILT-2] 우회 지점이 바로 이 메서드다.</b> 여기서 하는 정규화는
+     * {@code toLowerCase(Locale.ROOT)} 하나뿐이라 <b>대소문자 변형만 막힌다</b>.
+     * 전각 문자·키릴 호모글리프·제로폭 문자·공백 삽입·URL 인코딩은 소문자 변환으로
+     * 원본과 같아지지 않으므로, 아래 {@code contains} 비교가 그대로 실패하며 통과한다.
+     * (전각 Ｙ 는 소문자 ｙ 가 될 뿐 반각 y 가 되지 않고, 키릴 О 는 소문자 о 가 될 뿐이다.)
+     * 자세한 실증 결과는 {@code FilteringService} 의 [VULN-FILT-2] 주석 참고.
      */
     @Transactional(readOnly = true)
     public boolean isBlocked(Long childId, String target) {

@@ -39,16 +39,27 @@ public class WalletRefundService {
         ChargeOrder order = chargeOrderRepository.findByMerchantUid(merchantUid)
                 .orElseThrow(() -> new ResourceNotFoundException("충전 주문을 찾을 수 없습니다."));
 
-        // [VULN-WALLET-5] 환불 소유권 미검증(IDOR / BOLA).
-        //   주문 소유자(order.getOwnerId())와 요청자(requesterId)가 같은지 확인하지 않는다.
-        //   → merchantUid만 알면 아무 PARENT나 남의 충전을 환불시켜, 아래에서 order.getOwnerId()의
-        //     지갑 잔액을 마음대로 차감(타인 지갑 조작)할 수 있다.
+        // [VULN-WALLET-5] 환불 소유권 미검증(IDOR / BOLA). — 판정: 취약
+        //   위에서 merchantUid 로 주문을 찾았을 뿐, 그 주문의 주인(order.getOwnerId())이 환불을
+        //   요청한 사람(requesterId)과 같은지 확인하지 않는다. 넘겨받은 requesterId 가 이 메서드
+        //   어디에서도 쓰이지 않는다.
+        //   → 주문번호만 알면 아무 PARENT 나 남의 충전을 환불시킬 수 있다. 환불은 잔액을 '깎는'
+        //     동작이므로(아래 wallet.debit), 결과적으로 남의 지갑에서 돈을 빼는 것이 된다.
+        //     공격자가 그 돈을 가져가지는 못하지만 피해자는 잃는다 — 잔액을 0으로 만들어 결제를
+        //     못 하게 하는 것 자체가 공격이다. 2026-09-07 모의해킹에서 실제로 성립했다.
+        //   ※ [VULN-WALLET-2](남의 충전 승인)와 짝이다. 그쪽이 남의 잔액을 올리고 이쪽이 내리므로,
+        //     둘을 합치면 임의 계정 잔액에 대한 사실상의 쓰기 권한이 된다.
         //   방어: if (!order.getOwnerId().equals(requesterId)) throw new AccessDenied...;
 
-        // [VULN-WALLET-6] 환불 상태 검증 부재(부분).
-        //   PAID 상태인지, 이미 REFUNDED 인지 확인하지 않아 결제 안 된 주문도 환불을 시도할 수 있다.
-        //   단, 아래 잔액 가드 때문에 실제로 돈이 빠지려면 잔액이 충분해야 하므로, 이중 환불·미결제 환불은
-        //   대부분 잔액 부족으로 막힌다. 소유권 미검증([VULN-WALLET-5])은 그대로 열려 있다.
+        // [VULN-WALLET-6] 환불 상태 검증 부재. — 판정: 조건부 (아래 R-2 가드에 가려 대부분 막힌다)
+        //   주문이 결제완료(PAID)인지, 이미 환불(REFUNDED)된 건은 아닌지 확인하는 코드가 없다.
+        //   그래서 결제도 안 된 주문이나 이미 환불한 주문에 환불을 또 시도할 수 있다.
+        //   다만 아래 [R-2] 잔액 가드가 "환불액보다 잔액이 적으면 거부"하므로, 이중 환불과 미결제
+        //   환불은 대개 여기서 잔액 부족으로 먼저 걸린다. 상태 검사가 없다는 결함 자체는 남아 있고,
+        //   잔액이 우연히 넉넉하면(다른 충전으로 채워져 있으면) 그대로 통과한다. 상태 검사가 아니라
+        //   금액 가드에 의존해 막고 있는 셈이라, 방어가 있다고 보기는 어렵다.
+        //   (참고: 관리자 경로 AdminFinanceCommandService 는 이 결함을 물려받지 않고 상태를 검증한다.)
+        //   방어: if (order.getStatus() != ChargeStatus.PAID) throw ...; 로 상태를 직접 검사한다.
 
         long refundAmount = order.getAmount();
 
