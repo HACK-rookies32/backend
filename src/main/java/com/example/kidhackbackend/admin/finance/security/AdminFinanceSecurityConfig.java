@@ -14,9 +14,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * 관리자 자금관리 전용 시큐리티 체인 (/api/admin/finance/**) — 역할표 No.47·49·51(조회)·48·50(변경).
  *
- * <p>자금 조회/변경은 관리자(SUPER_ADMIN·GENERAL_ADMIN)만 접근한다. 기존 admin 체인들과 겹치지 않게 {@code @Order(11)}.
- * (강제환불·잔액조정 No.48·50은 SUPER_ADMIN 전용이어야 하지만, 본 체인은 GENERAL_ADMIN도 허용 —
- *  그 권한 경계는 컨트롤러에서 걸러야 하며, 걸지 않은 것이 의도적 취약점이 된다. see {@code [VULN-ADMIN-1]})
+ * <p>자금 조회/변경은 SUPER_ADMIN 전용이다. 기존 admin 체인들과 겹치지 않게 {@code @Order(11)}.
+ * (이전에는 GENERAL_ADMIN 도 허용해 강제환불·잔액조정 No.48·50 이 컨트롤러에서 걸러지지 않는
+ *  권한 취약점 {@code [VULN-ADMIN-1]} 이 있었으나, 권한표(자금관리=SUPER_ADMIN 전용)에 맞춰 체인에서 닫았다.)
  */
 @Configuration
 @RequiredArgsConstructor
@@ -33,7 +33,8 @@ public class AdminFinanceSecurityConfig {
                 .securityMatcher("/api/admin/finance/**")
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN"))
+                        // 자금 조회/변경은 SUPER_ADMIN 전용. GENERAL_ADMIN 접근을 닫아 권한표와 일치시킨다.
+                        .anyRequest().hasRole("SUPER_ADMIN"))
                 .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
