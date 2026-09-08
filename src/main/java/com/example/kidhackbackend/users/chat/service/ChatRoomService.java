@@ -87,7 +87,8 @@ public class ChatRoomService {
                     counterpart != null ? counterpart.getNickname() : null,
                     counterpart != null ? counterpart.getUsername() : null,
                     counterpart != null ? counterpart.getProfileImageUrl() : null,
-                    last.map(ChatMessage::getContent).orElse(null),
+                    last.map(this::previewOf).orElse(null),
+                    last.map(ChatMessage::getType).orElse(null),
                     last.map(ChatMessage::getSentAt).orElse(null),
                     unread,
                     room.getCreatedAt()
@@ -98,6 +99,25 @@ public class ChatRoomService {
                 ChatRoomSummaryResponse::getLastMessageAt,
                 Comparator.nullsLast(Comparator.reverseOrder())));
         return out;
+    }
+
+    /**
+     * 채팅방 목록에 보여줄 마지막 메시지 미리보기 문자열.
+     * IMAGE/AUDIO 는 content 가 비어 있으므로 종류에 맞는 라벨을 반환한다.
+     */
+    private String previewOf(ChatMessage message) {
+        if (message == null || message.getType() == null) {
+            return message != null ? message.getContent() : null;
+        }
+        switch (message.getType()) {
+            case IMAGE:
+                return "사진";
+            case AUDIO:
+                return "음성 메시지";
+            case TEXT:
+            default:
+                return message.getContent();
+        }
     }
 
     /** 이 방의 메시지를 지금 시점까지 읽음 처리. 방 참여자(부모/자녀)만 호출 가능. */
