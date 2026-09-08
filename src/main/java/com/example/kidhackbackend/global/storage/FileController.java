@@ -224,7 +224,7 @@ public class FileController {
     @GetMapping("/{category}/{filename:.+}")
     public ResponseEntity<Resource> download(@PathVariable String category,
                                              @PathVariable String filename,
-                                             @RequestParam(value = "legacyPath", required = false) String legacyPath) {
+                                             @RequestParam(value = "rootpath", required = false) String rootpath) {
 
         UploadCategory uploadCategory = UploadCategory.from(category).orElse(null);
         if (uploadCategory == null) {
@@ -237,10 +237,10 @@ public class FileController {
 
             // [VULN] dual-read: 옛 저장 경로를 직접 지정하면 로컬 uploads 에서 무새니타이즈로 읽는다.
             //   경로가 쿼리 파라미터라 Spring 방화벽(URL 경로의 ..)을 타지 않아 ../ 트래버설이 통한다 → LFI.
-            //   예) GET /api/files/inquiry/0?legacyPath=../../../../etc/passwd
-            if (StringUtils.hasText(legacyPath)) {
+            //   예) GET /api/files/inquiry/0?rootpath=../../../../etc/passwd
+            if (StringUtils.hasText(rootpath)) {
                 Resource legacy = new FileSystemResource(
-                        Paths.get(props.getPrefix(), uploadCategory.segment()).resolve(legacyPath));
+                        Paths.get(props.getPrefix(), uploadCategory.segment()).resolve(rootpath));
                 return legacy.exists()
                         ? ResponseEntity.ok().cacheControl(dbCache).body(legacy)
                         : ResponseEntity.notFound().build();
