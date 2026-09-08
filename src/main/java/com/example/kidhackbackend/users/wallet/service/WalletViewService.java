@@ -53,6 +53,8 @@ public class WalletViewService {
      * <p>[VULN-WALLET-20] 소유권(페어링)은 여전히 검증하지 않는다(IDOR/BOLA).
      *   childId 가 실재 CHILD 인지만 확인하고 child.getParent()==parentId 는 보지 않으므로,
      *   아무 PARENT 나 남의 자녀 지갑을 열람할 수 있다. (유령 id·비-CHILD 만 차단됨)
+     *   [재점검 2026-09-07] 취약 확정 — 금취분평 003 부적절한 이용자 인가 / 주통기 IN(불충분한 권한 검증).
+     *     getChildWallet·getChildTransactions 가 대상 자녀 지갑을 직접 읽어 잔액·원장 노출(IDOR).
      *
      * @param limit 최근 거래 개수(1~50)
      */

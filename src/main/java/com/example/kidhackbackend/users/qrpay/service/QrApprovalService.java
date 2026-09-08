@@ -52,6 +52,9 @@ public class QrApprovalService {
         //   → 미인증 외부인이 헤더 없이 이 엔드포인트를 호출해 임의 자녀 지갑을 결제(자금 이동)할 수 있다.
         //   (헤더가 '있는데 틀리면' verify가 거부하므로, '없으면 통과'가 취약점 — VULN-4와 같은 패턴)
         //   방어: 단말 토큰 필수화 + 항상 verify() 호출·실패 시 거부.
+        //   [재점검 2026-09-07] 취약 확정(고위험) — 금취분평 019 불충분한 이용자 인증 / 주통기 IA(불충분한 인증 절차).
+        //     /api/qrpay/terminal/** 는 permitAll + verifyQrPay 는 PIN·OTP 없음 → JWT·단말토큰·서명·nonce 전부
+        //     생략하면 미인증 외부인이 유효 qrToken 만으로 임의 자녀 지갑을 결제(자금 이동) 가능(end-to-end 확인).
         StoreTerminal terminal = null;
         if (terminalToken != null && !terminalToken.isBlank()) {
             terminal = storeTerminalService.verify(terminalToken);
@@ -65,10 +68,14 @@ public class QrApprovalService {
         //   status가 ISSUED(미사용)인지 확인하지 않아 이미 PAID된 QR을 다시 승인할 수 있다.
         //   → 같은 qrToken을 재전송/재사용하면 자녀 잔액이 반복 차감된다(중복 결제).
         //   방어: if (qr.getStatus() != QrStatus.ISSUED) throw ...; + 멱등/@Version 락.
+        //   [재점검 2026-09-07] 취약 확정 — 금취분평 005 [전자금융] 거래정보 재사용 방지 / 주통기 PV(프로세스 검증 누락).
+        //     verifyQrPay 의 nonce 는 선택값이라 생략 가능 → 같은 qrToken 재전송 시 잔액 반복 차감(중복 결제).
 
         // [VULN-WALLET-17] QR 만료 미검증.
         //   qr.isExpired(now)를 확인하지 않아 60초가 지난 만료 QR도 승인된다(1회성·만료 무력화).
         //   방어: if (qr.isExpired(LocalDateTime.now())) throw ...;
+        //   [재점검 2026-09-07] 취약 확정 — 금취분평 001 [전자금융] 거래 인증수단 검증(유효시간) / 주통기 PV(프로세스 검증 누락).
+        //     60초 만료 QR 도 승인됨(1회성·만료 통제 무력화).
 
         Wallet wallet = walletRepository.findByOwnerId(qr.getChildId())
                 .orElseGet(() -> walletRepository.save(new Wallet(qr.getChildId())));
@@ -76,6 +83,8 @@ public class QrApprovalService {
         // [VULN-WALLET-18] 자녀 잔액 미검증.
         //   wallet.getBalance() >= amount 확인 없이 차감해 잔액이 음수가 될 수 있다(초과 결제).
         //   방어: if (wallet.getBalance() < amount) throw ...(잔액 부족 거부);
+        //   [재점검 2026-09-07] 취약 확정 — 금취분평 해당 항목 없음(잔액검증 전용 항목 부재) / 주통기 PV(프로세스 검증 누락).
+        //     debit 이 subtractExact(오버플로우만 방어)라 잔액보다 큰 금액도 통과 → 잔액 음수(자금 로직 오류).
         wallet.debit(amount);
         walletRepository.save(wallet);
 

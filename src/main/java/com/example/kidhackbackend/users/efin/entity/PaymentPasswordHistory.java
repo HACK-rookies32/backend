@@ -33,6 +33,8 @@ public class PaymentPasswordHistory extends BaseEntity {
     @Column(nullable = false)
     private Long memberId;
 
+    // [재점검 2026-09-07] 취약 확정 — 주통기 IL(정보 누출) 근접 / 금취분평 해당 항목 없음(저장 평문 전용 항목 부재).
+    //   재사용 차단용 이력을 평문으로 적재 → DB 유출 시 회원의 과거 결제 비밀번호 전량 노출(VULN-1 계열).
     /** [VULN-EFIN-6] 평문 비밀번호. */
     @Column(nullable = false)
     private String password;
