@@ -1,5 +1,6 @@
 package com.example.kidhackbackend.users.chat.dto;
 
+import com.example.kidhackbackend.users.chat.entity.MessageType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -32,8 +33,11 @@ public class ChatRoomSummaryResponse {
     @Schema(description = "상대방 프로필 이미지 URL (없으면 null)")
     private String counterpartProfileImageUrl;
 
-    @Schema(description = "마지막 메시지 내용 (아직 없으면 null)")
+    @Schema(description = "마지막 메시지 미리보기 (TEXT는 본문, IMAGE는 \"사진\", AUDIO는 \"음성 메시지\"; 아직 없으면 null)")
     private String lastMessage;
+
+    @Schema(description = "마지막 메시지 종류 (TEXT/IMAGE/AUDIO; 아직 없으면 null)")
+    private MessageType lastMessageType;
 
     @Schema(description = "마지막 메시지 시각 (아직 없으면 null)")
     private LocalDateTime lastMessageAt;
