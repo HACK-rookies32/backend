@@ -23,7 +23,9 @@ public class PostResponse {
     @Schema(description = "본문 앞부분. 목록에서 한 줄로 보여 준다", example = "초등 4학년 딸아이 쓰는데요, 평일 2시간으로…")
     private String contentPreview;
 
-    @Schema(description = "첫 번째 첨부 사진 경로. 없으면 null", example = "/api/files/community/a1b2.jpg")
+    @Schema(description = "첫 번째 첨부 사진의 썸네일 프록시 주소(서버가 대신 받아 준다). 없으면 null. "
+            + "⚠️ [VULN-SSRF] url 파라미터 미검증 — 내부 리소스로 바꿔치기 가능.",
+            example = "/api/community/thumbnail?url=https%3A%2F%2Fbucket.s3.amazonaws.com%2F...")
     private String thumbnail;
 
     @Schema(description = "작성자 닉네임", example = "보라")
