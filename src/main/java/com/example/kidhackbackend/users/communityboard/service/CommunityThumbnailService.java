@@ -16,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 
 /**
  * 커뮤니티 목록 썸네일을 백엔드가 대신 받아 오는 프록시.
@@ -68,23 +69,48 @@ public class CommunityThumbnailService {
                 .orElse(publicPath);
     }
 
+    /** 하위호환: 기존 GET 전용 호출부를 위한 오버로드. */
+    public ProxyResult fetch(String url) {
+        return fetch(url, null, null);
+    }
+
     /**
      * 사용자가 넘긴 URL 을 서버가 대신 받아 온다.
      *
-     * <p><b>[VULN-SSRF]</b> url 에 대한 검증이 전혀 없다. 받은 응답은 status·body·
-     * Content-Type 을 그대로 통과시킨다(필터링 없음). connect-refused 는 502,
+     * <p><b>[VULN-SSRF]</b> url·method·headers 어느 것도 검증하지 않는다. 받은 응답은
+     * status·body·Content-Type 을 그대로 통과시킨다(필터링 없음). connect-refused 는 502,
      * timeout 은 504 로만 나누는데 이는 데모에서 결과를 읽기 쉽게 하려는 것뿐이다.
+     *
+     * <p>method 와 headers 를 그대로 받는다는 점이 특히 위험하다. 이 둘이 열려 있으면
+     * SSRF 하나로 IMDSv2 의 2단계 흐름(① {@code PUT /latest/api/token} +
+     * {@code X-aws-ec2-metadata-token-ttl-seconds} 헤더로 토큰 발급 →
+     * ② {@code X-aws-ec2-metadata-token} 헤더를 실은 GET 으로 자격증명 조회)까지
+     * 서버를 대신 시켜 클라우드 자격증명을 탈취할 수 있다. 방어를 넣지 않는 것이 목적이다.
+     *
+     * @param method  HTTP 메서드(null/blank 면 GET). 본문은 싣지 않는다.
+     * @param headers "Name:Value" 문자열 목록. 그대로 요청 헤더로 주입한다.
      */
-    public ProxyResult fetch(String url) {
-        // [VULN-SSRF] 서버가 사용자 지정 URL 로 직접 나간다는 사실을 로그로 남긴다(실습 확인용).
-        log.warn("[VULN-SSRF] community thumbnail proxy fetching user-supplied url: {}", url);
+    public ProxyResult fetch(String url, String method, List<String> headers) {
+        String httpMethod = (method == null || method.isBlank()) ? "GET" : method.trim().toUpperCase();
+        // [VULN-SSRF] 서버가 사용자 지정 메서드·헤더로 임의 URL 에 나간다는 사실을 로그로 남긴다.
+        log.warn("[VULN-SSRF] community thumbnail proxy fetching user-supplied request: method={} url={} headers={}",
+                httpMethod, url, headers);
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(5))
-                    .GET()
-                    .build();
+                    .method(httpMethod, HttpRequest.BodyPublishers.noBody());
+            if (headers != null) {
+                for (String raw : headers) {
+                    if (raw == null) continue;
+                    int sep = raw.indexOf(':');
+                    if (sep > 0) {
+                        // 검증 없이 이름:값 그대로 주입([VULN-SSRF]).
+                        builder.header(raw.substring(0, sep).trim(), raw.substring(sep + 1).trim());
+                    }
+                }
+            }
             HttpResponse<byte[]> response =
-                    httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                    httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
             String contentType = response.headers()
                     .firstValue("Content-Type")
                     .orElse("application/octet-stream");
