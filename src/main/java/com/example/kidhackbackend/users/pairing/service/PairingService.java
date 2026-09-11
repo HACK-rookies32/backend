@@ -46,13 +46,25 @@ public class PairingService {
                 .toList();
     }
 
-    // [VULN-PAIRING-1] SQL Injection: 코드 조회를 파라미터 바인딩 없이 문자열 결합으로 수행.
-    //   code 파라미터에 ' OR '1'='1 등을 넣으면 임의 조건으로 다른 코드 행을 조회/우회 가능.
+    // [VULN-PAIRING-1] ORDER BY SQL Injection (boolean-blind): code 는 :code 바인딩(안전)이지만
+    //   레거시 sort 값은 ORDER BY 절에 그대로 결합된다. 참이면 200, 거짓이면 1/0(ORA-01476)→500 으로
+    //   email_verification.code(OTP)를 한 글자씩 추출 가능. (에러 원문은 핸들러가 숨기므로 상태코드 기반)
     @Transactional
     @SuppressWarnings("unchecked")
-    public void connect(Long childId, String code) {
-        String sql = "SELECT * FROM pairing_code WHERE code = '" + code + "'";
-        List<PairingCode> results = entityManager.createNativeQuery(sql, PairingCode.class).getResultList();
+    public void connect(Long childId, String code, String sort) {
+        // sort 가 있으면 읽기 전용 조회로 빠진다(상태 변경 없음 → 코드 소모 없이 반복 추출 가능).
+        if (sort != null && !sort.isBlank()) {
+            entityManager.createNativeQuery(
+                            "SELECT * FROM pairing_code WHERE code = :code ORDER BY " + sort, PairingCode.class)
+                    .setParameter("code", code)
+                    .getResultList();
+            return;
+        }
+
+        List<PairingCode> results = entityManager
+                .createNativeQuery("SELECT * FROM pairing_code WHERE code = :code", PairingCode.class)
+                .setParameter("code", code)
+                .getResultList();
 
         if (results.isEmpty()) {
             throw new IllegalArgumentException("유효하지 않은 페어링 코드입니다.");
