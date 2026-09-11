@@ -58,6 +58,16 @@ WORKDIR /app
 ARG JAR_FILE=build/libs/kidhack-backend-0.0.1-SNAPSHOT.jar
 COPY --chown=10001:root ${JAR_FILE} /app/app.jar
 
+# [VULN-10] uploads 미러 쓰기 + JSP 실행 mount 가 쓸 수 있도록 앱 유저 소유로 선생성.
+#   /app 이 root 소유(0755)라 이게 없으면 uid 10001 이 /app/uploads 를 만들지 못해,
+#   DbFileStorageService 미러 쓰기(catch 로 조용히 실패)와 UploadsJspExecutionConfig
+#   의 mount(mkdirs 실패 시 스킵)가 둘 다 죽는다 → /uploads/inquiry/*.jspx 가 100% 404.
+#   각 WAS 가 자기 /app/uploads 에 쓰므로, 2-WAS 라운드로빈에선 업로드 받은 WAS 에
+#   걸릴 때 실행된다(확률적 성공).
+RUN mkdir -p /app/uploads/inquiry \
+    && chown -R 10001:root /app/uploads \
+    && chmod -R 775 /app/uploads
+
 USER 10001
 EXPOSE 8080
 
