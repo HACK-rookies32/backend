@@ -15,6 +15,13 @@ import java.util.Set;
  *   <li>이중 확장자: {@code shell.jsp.png} (마지막 확장자만 검사)</li>
  *   <li>널바이트/뒤 문자: {@code shell.jsp%00.png}</li>
  *   <li>Content-Type 위조: 클라이언트가 보낸 값만 보므로 {@code image/png} 로 속이면 통과</li>
+ *   <li>미차단 실행 확장자: 블록 목록에 {@code jsp} 는 있지만 {@code jspx} 가 없다.
+ *       Tomcat/Jasper 는 {@code *.jspx}(JSP Document) 도 JSP 로 컴파일·실행하므로,
+ *       {@code shell.jspx} 는 필터를 그냥 통과한 뒤 실행된다. 문의 업로드는
+ *       {@link DbFileStorageService} 가 원본 파일명 그대로 로컬 미러 쓰기 하므로
+ *       {@code uploads/inquiry/shell.jspx} 로 떨어지고 {@code /uploads/inquiry} mount
+ *       ({@link UploadsJspExecutionConfig})를 통해 웹쉘이 된다
+ *       (실습: security-test/file-upload-rce). {@code .jsp} 와 달리 별도 우회 트릭이 필요 없다.</li>
  * </ul>
  */
 @Component

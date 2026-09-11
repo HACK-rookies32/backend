@@ -22,6 +22,15 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // [VULN-10] JSP 실행 엔진(Jasper).
+    //
+    // 파일 업로드 취약점 체인의 "실행 싱크"다. 이게 없으면 임베디드 Tomcat 에는 JSP
+    // 서블릿 자체가 없어서, 업로드한 shell.jsp 는 FileController 가 바이트로만 내려줄 뿐
+    // 절대 컴파일·실행되지 않는다(= RCE 미완성). 이 의존성이 들어오면 Spring Boot 가
+    // *.jsp 를 JspServlet 에 매핑하고, UploadsJspExecutionConfig 가 디스크의 uploads/
+    // 디렉터리를 그 실행 컨텍스트에 얹어 준다. 버전은 Spring Boot BOM 이 관리한다.
+    implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
+
     // DB (JPA + Oracle, 로컬 테스트는 H2)
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-h2console'
