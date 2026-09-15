@@ -83,8 +83,8 @@ public class PaymentPasswordService {
     /**
      * 앱 로그인 비밀번호로 본인확인.
      *
-     * <p>로그인 비밀번호는 평문 저장([VULN-1])이라 그대로 비교한다 — 본인확인 절차는 실제로 존재하지만
-     * 그 비교 대상(저장 비번)이 평문이라는 점이 기존 취약점 그대로다.
+     * <p>로그인 비밀번호는 salt 없는 SHA-256 저장([VULN-1])이라, 입력값을 같은 방식으로 해시해 비교한다 —
+     * 본인확인 절차는 실제로 존재하지만 그 저장 해시가 레인보우테이블에 취약하다는 점이 기존 취약점 그대로다.
      */
     private void requireLoginPassword(Long memberId, String loginPassword) {
         if (loginPassword == null || loginPassword.isBlank()) {
@@ -92,7 +92,7 @@ public class PaymentPasswordService {
         }
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
-        if (!member.getPassword().equals(loginPassword)) {
+        if (!member.getPassword().equals(WeakHashUtil.sha256(loginPassword))) {
             throw new IllegalArgumentException("로그인 비밀번호가 일치하지 않습니다.");
         }
     }

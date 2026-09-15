@@ -5,6 +5,7 @@ import com.example.kidhackbackend.global.mail.EmailVerification;
 import com.example.kidhackbackend.global.mail.EmailVerificationRepository;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import com.example.kidhackbackend.global.util.WeakHashUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,7 +66,7 @@ public class AccountRecoveryService {
         verification.markUsed();
         Member member = memberRepository.findById(verification.getTargetMemberId())
                 .orElseThrow(() -> new IllegalArgumentException("일치하는 계정을 찾을 수 없습니다."));
-        member.setPassword(newPassword); // [VULN-1] 평문 저장 (기존과 동일)
+        member.setPassword(WeakHashUtil.sha256(newPassword)); // [VULN-1] salt 없는 SHA-256 저장 (기존과 동일)
         memberRepository.save(member);
     }
 
