@@ -12,6 +12,7 @@ import com.example.kidhackbackend.users.member.dto.SignupResponse;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import com.example.kidhackbackend.global.util.WeakHashUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import com.example.kidhackbackend.users.member.dto.TokenRefreshRequest;
@@ -80,7 +81,7 @@ public class AuthService {
         Member member = new Member();
         member.setLoginId(request.getLoginId());
         member.setUsername(request.getUsername());
-        member.setPassword(request.getPassword()); // [VULN-1] 평문 저장
+        member.setPassword(WeakHashUtil.sha256(request.getPassword())); // [VULN-1] salt 없는 SHA-256 — 레인보우테이블 취약
         member.setNickname(request.getNickname());
         member.setEmail(request.getEmail());
         member.setPhoneNumber(request.getPhoneNumber());
@@ -119,7 +120,8 @@ public class AuthService {
                 // [VULN-3] 아이디가 없다는 걸 명확히 알려줌 -> 계정 존재 여부(사용자 열거) 노출
                 .orElseThrow(() -> new InvalidCredentialException("존재하지 않는 아이디입니다."));
 
-        if (!member.getPassword().equals(request.getPassword())) {
+        if (!member.getPassword().equals(WeakHashUtil.sha256(request.getPassword()))) {
+            // [VULN-1] 입력값도 같은 salt 없는 SHA-256 으로 해시해 저장 해시와 비교
             // [VULN-3] 비밀번호 틀림도 아이디 없음과 다른 메시지로 응답
             throw new InvalidCredentialException("비밀번호가 일치하지 않습니다.");
         }
@@ -139,7 +141,7 @@ public class AuthService {
         Member member = memberRepository.findByLoginId(request.getLoginId())
                 .orElseThrow(() -> new InvalidCredentialException("존재하지 않는 아이디입니다.")); // [VULN-3]
 
-        if (!member.getPassword().equals(request.getPassword())) {
+        if (!member.getPassword().equals(WeakHashUtil.sha256(request.getPassword()))) { // [VULN-1] 입력값 SHA-256 해시 후 비교
             throw new InvalidCredentialException("비밀번호가 일치하지 않습니다."); // [VULN-3]
         }
 
