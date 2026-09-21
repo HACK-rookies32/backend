@@ -10,7 +10,7 @@
 #    /api/admin 으로 배타 분할되어 절대 겹치지 않는다.
 #
 # jar 는 이 안에서 빌드하지 않고, CI 가 미리 만들어 둔 것을 가져온다.
-#   ./gradlew bootJar && docker build -f Dockerfile.admin -t jotriever/kidhack-admin:local .
+#   ./gradlew bootJar && docker build -f Dockerfile.admin -t kidhack-admin:local .
 # ==================================================================
 FROM eclipse-temurin:17-jre-jammy
 

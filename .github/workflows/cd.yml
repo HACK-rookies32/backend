@@ -17,11 +17,26 @@ name: CD
 #    APP_MODE(admin|mobile) 한 줄뿐이다. 두 이미지의 엔드포인트 집합은 경로
 #    접두사 /api/admin 으로 배타 분할되어 절대 겹치지 않는다(AppModeWebConfig).
 #
-# 아래 IMAGE_ADMIN / IMAGE_MOBILE 는 infra 레포 variables.tf 의 이미지 변수와
-# 반드시 일치해야 한다. 어긋나면 CI 는 성공하는데 배포만 조용히 안 되고 아무
-# 에러도 나지 않는다.
+# ⚠️ 두 이미지는 서로 다른 Docker Hub 계정으로 push 한다.
+#    (무료 계정은 프라이빗 레포 개수가 제한되어 계정을 나눈다)
+#      · 관리자 웹 : <DOCKERHUB_ADMIN_USERNAME 계정>/kidhack-admin  (private)
+#      · 모바일    : <DOCKERHUB_MOBILE_USERNAME 계정>/kidhack-mobile (private)
+#    두 계정 모두 Docker Hub(docker.io) 라 registry 는 같다. 그래서 한 계정으로
+#    로그인→push 를 끝낸 뒤 다른 계정으로 다시 로그인(자격증명 교체)해서 push 한다.
+#    이미지 네임스페이스가 곧 계정 username 이므로, 이미지 경로를
+#    "<username 시크릿>/<레포명>" 으로 조립한다(username 과 push 대상 계정이 항상 일치).
+#
+#    필요한 GitHub Secrets:
+#      DOCKERHUB_ADMIN_USERNAME / DOCKERHUB_ADMIN_TOKEN   (관리자 계정 + Read&Write 토큰)
+#      DOCKERHUB_MOBILE_USERNAME / DOCKERHUB_MOBILE_TOKEN (모바일 계정 + Read&Write 토큰)
+#    (기존 DOCKERHUB_USERNAME / DOCKERHUB_TOKEN 은 더 이상 쓰지 않으므로 삭제해도 된다)
+#
+# 아래 REPO_ADMIN / REPO_MOBILE + 계정 username 으로 만들어지는 최종 이미지 경로는
+# infra 레포 variables.tf 의 이미지 변수와 반드시 일치해야 한다. 어긋나면 CI 는
+# 성공하는데 배포만 조용히 안 되고 아무 에러도 나지 않는다.
 #    · 인프라도 WAS 를 관리자용/모바일용 두 그룹으로 나누고 각 그룹의 watchtower
-#      가 자기 이미지 :latest 를 폴링하도록 맞춰야 한다.
+#      가 자기 이미지 :latest 를 폴링하도록 맞춰야 한다. watchtower 도 프라이빗
+#      이미지를 pull 하려면 각 EC2 에 해당 계정 자격증명이 있어야 한다.
 #    · 기존 단일 이미지 jotriever/kidhack-was 는 더 이상 push 하지 않는다.
 # ==================================================================
 on:
@@ -37,44 +52,54 @@ on:
 permissions:
   contents: read
 
+# 레포명(비민감)만 여기 둔다. 계정 username 은 시크릿이라 워크플로 레벨 env 에서
+# 참조할 수 없어(secrets 컨텍스트 미제공) 각 step 에서 조립한다.
 env:
-  IMAGE_ADMIN: jotriever/kidhack-admin
-  IMAGE_MOBILE: jotriever/kidhack-mobile
+  REPO_ADMIN: kidhack-admin
+  REPO_MOBILE: kidhack-mobile
 
 jobs:
   # ----------------------------------------------------------------
   # 롤백: 이미 Docker Hub 에 있는 이미지를 :latest 로 다시 가리키게만 한다.
   # 다시 빌드하지 않으므로 "그때 그 바이너리" 가 그대로 돌아온다.
   # imagetools 는 매니페스트만 조작해서 레이어를 내려받지 않는다.
+  # 같은 커밋에서 나온 두 이미지는 sha 태그가 동일하므로 함께 되돌린다.
+  # 계정이 다르므로 계정별로 로그인한 상태에서 그 계정 이미지만 조작한다.
   # ----------------------------------------------------------------
   rollback:
     if: github.event_name == 'workflow_dispatch' && inputs.rollback_to != ''
     runs-on: ubuntu-latest
     steps:
+      # --- 관리자 계정 ---
       - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_ADMIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ADMIN_TOKEN }}
 
       # 입력값을 run: 안에 ${{ }} 로 직접 박으면 셸 인젝션이 된다.
       # (워크플로를 수동 실행할 수 있는 사람이 러너에서 임의 명령을 돌릴 수 있음)
       # env 로 넘기면 셸 변수라 문자열로만 취급된다.
-      # 같은 커밋에서 나온 두 이미지는 sha 태그가 동일하므로 함께 되돌린다.
-      - name: ':latest 를 지정한 태그로 되돌린다 (관리자·모바일)'
+      - name: '관리자 :latest 를 지정한 태그로 되돌린다'
         env:
           ROLLBACK_TO: ${{ inputs.rollback_to }}
+          IMAGE: ${{ secrets.DOCKERHUB_ADMIN_USERNAME }}/${{ env.REPO_ADMIN }}
         run: |
-          docker buildx imagetools create \
-            --tag "$IMAGE_ADMIN:latest" \
-            "$IMAGE_ADMIN:$ROLLBACK_TO"
-          docker buildx imagetools create \
-            --tag "$IMAGE_MOBILE:latest" \
-            "$IMAGE_MOBILE:$ROLLBACK_TO"
+          docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE:$ROLLBACK_TO"
+          docker buildx imagetools inspect "$IMAGE:latest"
 
-      - name: 되돌린 digest 확인
+      # --- 모바일 계정 (docker.io 자격증명을 교체한다) ---
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_MOBILE_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_MOBILE_TOKEN }}
+
+      - name: '모바일 :latest 를 지정한 태그로 되돌린다'
+        env:
+          ROLLBACK_TO: ${{ inputs.rollback_to }}
+          IMAGE: ${{ secrets.DOCKERHUB_MOBILE_USERNAME }}/${{ env.REPO_MOBILE }}
         run: |
-          docker buildx imagetools inspect "$IMAGE_ADMIN:latest"
-          docker buildx imagetools inspect "$IMAGE_MOBILE:latest"
+          docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE:$ROLLBACK_TO"
+          docker buildx imagetools inspect "$IMAGE:latest"
 
   # ----------------------------------------------------------------
   # 정상 배포
@@ -141,18 +166,21 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       # 짧은 SHA 를 쓴다. 전체 40자는 롤백할 때 사람이 옮겨 적기 어렵다.
       - name: 태그 계산
         id: meta
         run: echo "sha=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      # 같은 jar 를 두 Dockerfile 로 각각 감싼다. jar 빌드는 위에서 이미 끝났고,
-      # 두 빌드가 gha 캐시를 공유하므로 베이스 이미지·레이어는 재사용된다.
+      # ----------------------------------------------------------------
+      # 관리자 웹 이미지 — 관리자 계정으로 로그인 → 빌드 & push → digest 확인
+      # 같은 jar 를 Dockerfile.admin 으로 감싼다. jar 빌드는 위에서 이미 끝났다.
+      # ----------------------------------------------------------------
+      - name: Docker Hub 로그인 (관리자 계정)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_ADMIN_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ADMIN_TOKEN }}
+
       - name: 빌드 & push (관리자 웹)
         uses: docker/build-push-action@v6
         with:
@@ -160,10 +188,25 @@ jobs:
           file: Dockerfile.admin
           push: true
           tags: |
-            ${{ env.IMAGE_ADMIN }}:latest
-            ${{ env.IMAGE_ADMIN }}:${{ steps.meta.outputs.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ secrets.DOCKERHUB_ADMIN_USERNAME }}/${{ env.REPO_ADMIN }}:latest
+            ${{ secrets.DOCKERHUB_ADMIN_USERNAME }}/${{ env.REPO_ADMIN }}:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
+
+      - name: 배포된 digest (관리자 웹)
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_ADMIN_USERNAME }}/${{ env.REPO_ADMIN }}
+        run: docker buildx imagetools inspect "$IMAGE:latest"
+
+      # ----------------------------------------------------------------
+      # 모바일 이미지 — 모바일 계정으로 다시 로그인(docker.io 자격증명 교체) →
+      # 빌드 & push → digest 확인
+      # ----------------------------------------------------------------
+      - name: Docker Hub 로그인 (모바일 계정)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_MOBILE_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_MOBILE_TOKEN }}
 
       - name: 빌드 & push (모바일)
         uses: docker/build-push-action@v6
@@ -172,15 +215,16 @@ jobs:
           file: Dockerfile.mobile
           push: true
           tags: |
-            ${{ env.IMAGE_MOBILE }}:latest
-            ${{ env.IMAGE_MOBILE }}:${{ steps.meta.outputs.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ secrets.DOCKERHUB_MOBILE_USERNAME }}/${{ env.REPO_MOBILE }}:latest
+            ${{ secrets.DOCKERHUB_MOBILE_USERNAME }}/${{ env.REPO_MOBILE }}:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha,scope=mobile
+          cache-to: type=gha,mode=max,scope=mobile
 
       # 배포가 실제로 반영됐는지 확인할 때 이 digest 를 기준으로 삼는다.
       # 태그 이름은 그대로여도 digest 가 안 바뀌었다면 watchtower 는 아무것도 안 한다.
-      - name: 배포된 digest
+      - name: 배포된 digest (모바일)
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_MOBILE_USERNAME }}/${{ env.REPO_MOBILE }}
         run: |
           echo "롤백이 필요하면 이 태그를 쓰세요: ${{ steps.meta.outputs.sha }}"
-          docker buildx imagetools inspect "$IMAGE_ADMIN:latest"
-          docker buildx imagetools inspect "$IMAGE_MOBILE:latest"
+          docker buildx imagetools inspect "$IMAGE:latest"
