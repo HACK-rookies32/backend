@@ -133,7 +133,7 @@ public class AuthService {
         // [VULN-4] 로그인 실패 횟수 제한/계정 잠금이 없어서 무제한 브루트포스 가능
 
         String token = jwtUtil.generateToken(member.getLoginId(), member.getRole());
-        String refreshToken = refreshTokenService.issue(member.getId());
+        String refreshToken = refreshTokenService.issue(member);
         return new LoginResponse(token, refreshToken, member.getLoginId(), member.getUsername(), member.getRole());
     }
 
@@ -155,7 +155,7 @@ public class AuthService {
 
         // [VULN-4] no rate limiting
         String token = jwtUtil.generateToken(member.getLoginId(), member.getRole());
-        String refreshToken = refreshTokenService.issue(member.getId());
+        String refreshToken = refreshTokenService.issue(member);
         return new LoginResponse(token, refreshToken, member.getLoginId(), member.getUsername(), member.getRole());
     }
 
