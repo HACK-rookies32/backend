@@ -12,8 +12,17 @@ name: CD
 #    그래서 :latest 라는 고정 태그를 매번 덮어써야 하고, EC2 의 컨테이너도
 #    반드시 :latest 로 떠 있어야 한다. sha- 태그로 띄우면 영원히 갱신되지 않는다.
 #
-# 아래 IMAGE 는 infra 레포 variables.tf 의 var.was_image 와 반드시 일치해야 한다.
-# 어긋나면 CI 는 성공하는데 배포만 조용히 안 되고 아무 에러도 나지 않는다.
+# ⚠️ 관리자 웹 / 모바일 두 이미지로 분리해서 빌드·푸시한다(엔드포인트 분리).
+#    같은 jar 를 Dockerfile.admin / Dockerfile.mobile 로 각각 감싸며, 차이는
+#    APP_MODE(admin|mobile) 한 줄뿐이다. 두 이미지의 엔드포인트 집합은 경로
+#    접두사 /api/admin 으로 배타 분할되어 절대 겹치지 않는다(AppModeWebConfig).
+#
+# 아래 IMAGE_ADMIN / IMAGE_MOBILE 는 infra 레포 variables.tf 의 이미지 변수와
+# 반드시 일치해야 한다. 어긋나면 CI 는 성공하는데 배포만 조용히 안 되고 아무
+# 에러도 나지 않는다.
+#    · 인프라도 WAS 를 관리자용/모바일용 두 그룹으로 나누고 각 그룹의 watchtower
+#      가 자기 이미지 :latest 를 폴링하도록 맞춰야 한다.
+#    · 기존 단일 이미지 jotriever/kidhack-was 는 더 이상 push 하지 않는다.
 # ==================================================================
 on:
   push:
@@ -21,7 +30,7 @@ on:
   workflow_dispatch:
     inputs:
       rollback_to:
-        description: '되돌릴 태그 (예: sha-a1b2c3d). 비워두면 현재 커밋을 새로 빌드해서 배포합니다.'
+        description: '되돌릴 태그 (예: sha-a1b2c3d). 관리자·모바일 두 이미지를 함께 되돌립니다. 비워두면 현재 커밋을 새로 빌드해서 배포합니다.'
         required: false
         default: ''
 
@@ -29,7 +38,8 @@ permissions:
   contents: read
 
 env:
-  IMAGE: jotriever/kidhack-was
+  IMAGE_ADMIN: jotriever/kidhack-admin
+  IMAGE_MOBILE: jotriever/kidhack-mobile
 
 jobs:
   # ----------------------------------------------------------------
@@ -49,16 +59,22 @@ jobs:
       # 입력값을 run: 안에 ${{ }} 로 직접 박으면 셸 인젝션이 된다.
       # (워크플로를 수동 실행할 수 있는 사람이 러너에서 임의 명령을 돌릴 수 있음)
       # env 로 넘기면 셸 변수라 문자열로만 취급된다.
-      - name: ':latest 를 지정한 태그로 되돌린다'
+      # 같은 커밋에서 나온 두 이미지는 sha 태그가 동일하므로 함께 되돌린다.
+      - name: ':latest 를 지정한 태그로 되돌린다 (관리자·모바일)'
         env:
           ROLLBACK_TO: ${{ inputs.rollback_to }}
         run: |
           docker buildx imagetools create \
-            --tag "$IMAGE:latest" \
-            "$IMAGE:$ROLLBACK_TO"
+            --tag "$IMAGE_ADMIN:latest" \
+            "$IMAGE_ADMIN:$ROLLBACK_TO"
+          docker buildx imagetools create \
+            --tag "$IMAGE_MOBILE:latest" \
+            "$IMAGE_MOBILE:$ROLLBACK_TO"
 
       - name: 되돌린 digest 확인
-        run: docker buildx imagetools inspect "$IMAGE:latest"
+        run: |
+          docker buildx imagetools inspect "$IMAGE_ADMIN:latest"
+          docker buildx imagetools inspect "$IMAGE_MOBILE:latest"
 
   # ----------------------------------------------------------------
   # 정상 배포
@@ -135,14 +151,29 @@ jobs:
         id: meta
         run: echo "sha=sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: 빌드 & push
+      # 같은 jar 를 두 Dockerfile 로 각각 감싼다. jar 빌드는 위에서 이미 끝났고,
+      # 두 빌드가 gha 캐시를 공유하므로 베이스 이미지·레이어는 재사용된다.
+      - name: 빌드 & push (관리자 웹)
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.admin
           push: true
           tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.meta.outputs.sha }}
+            ${{ env.IMAGE_ADMIN }}:latest
+            ${{ env.IMAGE_ADMIN }}:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 빌드 & push (모바일)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.mobile
+          push: true
+          tags: |
+            ${{ env.IMAGE_MOBILE }}:latest
+            ${{ env.IMAGE_MOBILE }}:${{ steps.meta.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -151,4 +182,5 @@ jobs:
       - name: 배포된 digest
         run: |
           echo "롤백이 필요하면 이 태그를 쓰세요: ${{ steps.meta.outputs.sha }}"
-          docker buildx imagetools inspect "$IMAGE:latest"
+          docker buildx imagetools inspect "$IMAGE_ADMIN:latest"
+          docker buildx imagetools inspect "$IMAGE_MOBILE:latest"

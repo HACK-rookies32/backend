@@ -14,6 +14,7 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -60,8 +61,12 @@ public class SwaggerConfig {
      *
      * <p>그룹 문서에는 전역 {@link OperationCustomizer} 빈이 자동 적용되지 않으므로
      * 표준 에러 응답 커스터마이저를 명시적으로 붙인다. ({@code putIfAbsent} 라 중복 적용돼도 안전)
+     *
+     * <p>관리자 이미지({@code app.mode=admin})에는 모바일 엔드포인트가 등록되지 않으므로 이 그룹도
+     * 만들지 않는다(빈 그룹 노출 방지). all/mobile 모드에서만 생성한다.
      */
     @Bean
+    @ConditionalOnExpression("'${app.mode:all}' != 'admin'")
     public GroupedOpenApi memberApi(OperationCustomizer commonErrorResponses) {
         return GroupedOpenApi.builder()
                 .group("member")
@@ -72,8 +77,14 @@ public class SwaggerConfig {
                 .build();
     }
 
-    /** 관리자(웹) API 그룹 — {@code /api/admin/**}. (/v3/api-docs/admin) */
+    /**
+     * 관리자(웹) API 그룹 — {@code /api/admin/**}. (/v3/api-docs/admin)
+     *
+     * <p>모바일 이미지({@code app.mode=mobile})에는 관리자 엔드포인트가 없으므로 생성하지 않는다.
+     * all/admin 모드에서만 생성한다.
+     */
     @Bean
+    @ConditionalOnExpression("'${app.mode:all}' != 'mobile'")
     public GroupedOpenApi adminApi(OperationCustomizer commonErrorResponses) {
         return GroupedOpenApi.builder()
                 .group("admin")
