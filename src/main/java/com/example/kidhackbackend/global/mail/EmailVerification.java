@@ -56,6 +56,8 @@ public class EmailVerification extends BaseEntity {
      * 인증 목적. FIND_ID·RESET_PASSWORD 는 이메일 채널(아이디찾기·비번재설정).
      * TX_OTP 는 전자금융 거래 2차 인증(SMS/ARS mock)이 재사용한다 — 별도 테이블을 두지 않고
      * 이 엔티티/테이블을 그대로 쓴다({@code email} 컬럼에 전화번호를 담는다).
+     * SIGNUP 은 회원가입 이메일 인증(mock)이 재사용한다 — 가입 시점엔 회원이 없어 targetMemberId 에 0 을 담는다.
+     * 검증은 정상(코드일치·만료·used)이나, 의도된 취약점은 판정 boolean 을 응답에 노출하고 클라가 신뢰하는 데 있다([VULN-EMAILVERIFY-1]).
      */
-    public enum Purpose { FIND_ID, RESET_PASSWORD, TX_OTP }
+    public enum Purpose { FIND_ID, RESET_PASSWORD, TX_OTP, SIGNUP }
 }

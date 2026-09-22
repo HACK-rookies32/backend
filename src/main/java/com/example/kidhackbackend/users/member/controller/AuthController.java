@@ -5,6 +5,7 @@ import com.example.kidhackbackend.users.member.dto.*;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.service.AccountRecoveryService;
 import com.example.kidhackbackend.users.member.service.AuthService;
+import com.example.kidhackbackend.users.member.service.SignupEmailVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,6 +23,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final AccountRecoveryService accountRecoveryService;
+    private final SignupEmailVerificationService signupEmailVerificationService;
 
     @Operation(summary = "아이디·이메일 중복 확인",
             description = """
@@ -70,6 +72,49 @@ public class AuthController {
     public ResponseEntity<ApiResponse<SignupResponse>> signup(@Valid @RequestBody SignupRequest request) {
         SignupResponse response = authService.signup(request);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "회원가입 이메일 인증 - 인증코드 발송",
+            description = """
+                    가입 이메일로 6자리 인증코드를 발송한다(유효 5분). 로그인 전 단계라 인증 없이 호출한다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `email` | ✅ | 인증코드를 받을 가입 이메일 |
+
+                    ⚠️ 메일 발송은 mock 이며 인증코드가 응답 `data.code` 에도 그대로 노출된다(화면에는 노출 금지).
+                    """)
+    @PostMapping("/email/send-code")
+    public ResponseEntity<ApiResponse<EmailVerifySendCodeResponse>> sendSignupEmailCode(
+            @RequestBody EmailVerifySendCodeRequest request) {
+        String code = signupEmailVerificationService.sendCode(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(
+                new EmailVerifySendCodeResponse("인증코드가 발송되었습니다.", code)));
+    }
+
+    @Operation(summary = "회원가입 이메일 인증 - 코드 검증",
+            description = """
+                    발송받은 인증코드를 검증하고 통과 여부(`verified`)를 반환한다. 검증 자체는 정상
+                    (코드일치·5분 만료·1회 사용)이다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `email` | ✅ | 인증코드를 받은 가입 이메일 |
+                    | `code` | ✅ | 발송받은 6자리 인증코드 |
+
+                    ⚠️ [VULN-EMAILVERIFY-1] 서버는 이 결과로 아무것도 강제하지 않고, 인증 통과 판단을
+                    모바일 클라이언트가 응답의 `verified` boolean 으로 내린다 → 프록시로 `false→true`
+                    변조 시 인증 단계를 우회할 수 있다.
+                    """)
+    @PostMapping("/email/verify")
+    public ResponseEntity<ApiResponse<EmailVerifyResponse>> verifySignupEmail(
+            @RequestBody EmailVerifyRequest request) {
+        boolean verified = signupEmailVerificationService.verify(request.getEmail(), request.getCode());
+        return ResponseEntity.ok(ApiResponse.success(new EmailVerifyResponse(verified)));
     }
 
     @Operation(summary = "로그인",
