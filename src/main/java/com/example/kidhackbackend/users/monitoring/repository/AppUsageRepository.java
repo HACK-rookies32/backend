@@ -18,4 +18,9 @@ public interface AppUsageRepository extends JpaRepository<AppUsage, Long> {
     @Modifying
     @Query("delete from AppUsage u where u.createdAt < :threshold")
     int deleteByCreatedAtBefore(@Param("threshold") LocalDateTime threshold);
+
+    /** 회원 탈퇴(물리삭제) 시 자녀의 앱 사용 기록 정리. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from AppUsage u where u.childId = :childId")
+    int deleteByChildId(@Param("childId") Long childId);
 }

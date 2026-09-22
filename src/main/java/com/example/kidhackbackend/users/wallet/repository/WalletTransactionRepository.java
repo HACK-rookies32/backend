@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -128,4 +129,9 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
                    @Param("type") TxType type,
                    @Param("from") LocalDateTime from,
                    @Param("to") LocalDateTime to);
+
+    /** 회원 탈퇴(물리삭제) 시 지갑 원장 정리. 지갑을 지우기 전에 그 지갑의 walletId 로 부른다. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from WalletTransaction t where t.walletId = :walletId")
+    int deleteByWalletId(@Param("walletId") Long walletId);
 }

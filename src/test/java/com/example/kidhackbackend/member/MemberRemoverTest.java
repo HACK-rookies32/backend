@@ -18,6 +18,7 @@ import com.example.kidhackbackend.users.inquiry.repository.InquiryRepository;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import com.example.kidhackbackend.users.member.service.MemberDomainDataRemover;
 import com.example.kidhackbackend.users.member.service.MemberRemover;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,8 +55,9 @@ class MemberRemoverTest {
         FileStorageService fileStorageService = Mockito.mock(FileStorageService.class);
         CommunityPostRemover postRemover = new CommunityPostRemover(
                 boardRepository, commentRepository, likeRepository, fileStorageService);
+        MemberDomainDataRemover domainDataRemover = Mockito.mock(MemberDomainDataRemover.class);
         remover = new MemberRemover(memberRepository, boardRepository, commentRepository,
-                likeRepository, inquiryRepository, postRemover);
+                likeRepository, inquiryRepository, postRemover, domainDataRemover);
     }
 
     private Member member(String loginId, Role role) {

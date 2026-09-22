@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -83,4 +84,14 @@ public interface ChargeOrderRepository extends JpaRepository<ChargeOrder, Long> 
                                                    @Param("status") String status,
                                                    @Param("keyword") String keyword,
                                                    Pageable pageable);
+
+    /**
+     * 회원 탈퇴(물리삭제) 시 충전 주문 정리.
+     *
+     * <p>관리자 충전 목록은 회원이 삭제돼도 이력을 남기려 LEFT JOIN 으로 버텼지만(위 주석),
+     * 회원을 물리삭제하는 마당에는 그 이력의 소유자가 사라지므로 함께 지운다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ChargeOrder co where co.ownerId = :ownerId")
+    int deleteByOwnerId(@Param("ownerId") Long ownerId);
 }

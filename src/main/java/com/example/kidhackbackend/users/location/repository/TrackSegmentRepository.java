@@ -32,4 +32,9 @@ public interface TrackSegmentRepository extends JpaRepository<TrackSegment, Long
     @Modifying
     @Query("delete from TrackSegment s where s.createdAt < :threshold")
     int deleteByCreatedAtBefore(@Param("threshold") LocalDateTime threshold);
+
+    /** 회원 탈퇴(물리삭제) 시 자녀의 동선(세그먼트) 정리. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from TrackSegment s where s.childId = :childId")
+    int deleteByChildId(@Param("childId") Long childId);
 }

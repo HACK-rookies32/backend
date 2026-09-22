@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -92,4 +93,9 @@ public interface QrPaymentRepository extends JpaRepository<QrPayment, Long> {
                                                      @Param("merchant") String merchant,
                                                      @Param("keyword") String keyword,
                                                      Pageable pageable);
+
+    /** 회원 탈퇴(물리삭제) 시 발급자(자녀)의 QR 결제 내역 정리. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from QrPayment q where q.childId = :childId")
+    int deleteByChildId(@Param("childId") Long childId);
 }

@@ -3,6 +3,7 @@ package com.example.kidhackbackend.users.location.repository;
 import com.example.kidhackbackend.users.location.entity.PlaceEvent;
 import com.example.kidhackbackend.users.location.entity.PlaceEventType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -27,4 +28,9 @@ public interface PlaceEventRepository extends JpaRepository<PlaceEvent, Long> {
     List<PlaceEvent> findEventsInRange(@Param("childId") Long childId,
                                       @Param("from") LocalDateTime from,
                                       @Param("to") LocalDateTime to);
+
+    /** 회원 탈퇴(물리삭제) 시 자녀의 진입/이탈 이벤트 이력 정리. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from PlaceEvent e where e.childId = :childId")
+    int deleteByChildId(@Param("childId") Long childId);
 }

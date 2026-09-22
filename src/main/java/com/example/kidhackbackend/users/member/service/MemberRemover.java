@@ -50,6 +50,7 @@ public class MemberRemover {
     private final CommunityBoardLikeRepository likeRepository;
     private final InquiryRepository inquiryRepository;
     private final CommunityPostRemover postRemover;
+    private final MemberDomainDataRemover domainDataRemover;
 
     /** 물리 삭제 대상인지. 관리자 계정은 제외한다. */
     public boolean isRemovable(Member member) {
@@ -92,6 +93,10 @@ public class MemberRemover {
 
         // ④ 본인 문의
         inquiryRepository.deleteByMemberId(memberId);
+
+        // ⑤ FK 로 묶이진 않았지만 회원 id(ownerId·childId·memberId·parentId)로만 참조되는 도메인 데이터
+        //    — 지갑·결제·위치·앱제어·채팅·페어링·리프레시토큰 등. 안 지우면 주인 없는 고아 행으로 남는다.
+        domainDataRemover.removeAllFor(memberId);
 
         memberRepository.delete(member);
     }

@@ -23,4 +23,7 @@ public interface ChatMessageRepository extends MongoRepository<ChatMessage, Stri
     /** 안 읽은 개수 — 내 마지막 읽음 시각 이후에 온, 내가 보내지 않은 메시지. */
     long countByRoomIdAndSentAtGreaterThanAndSenderIdNot(
             String roomId, LocalDateTime after, Long senderId);
+
+    /** 회원 탈퇴(물리삭제) 시 방의 메시지 정리. 방을 지우기 전에 방별로 부른다. */
+    void deleteByRoomId(String roomId);
 }
