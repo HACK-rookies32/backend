@@ -26,6 +26,18 @@ public interface PgClient {
     PgApproval approve(String merchantUid, long amount);
 
     /**
+     * 등록된 카드(계좌)로 환불(payout)을 요청한다. (No.37 — 카드 환불)
+     *
+     * <p>실제 카드사 환불망 대신 {@link MockPgClient} 가 항상 성공을 반환한다(승인과 같은 mock 관행).
+     *
+     * @param merchantUid 원 충전 주문번호(가맹점 주문번호)
+     * @param amount      환불 금액(원)
+     * @param maskedCard  환불이 나갈 카드 마스킹번호(감사/응답용)
+     * @return 환불 결과
+     */
+    PgRefund refund(String merchantUid, long amount, String maskedCard);
+
+    /**
      * 웹훅 본문에 대한 서명(HMAC-SHA256 hex)을 계산한다. (No.36 — 테스트/모의 PG가 서명 생성용)
      *
      * @param rawBody 웹훅 원본 바디(직렬화된 JSON 문자열)
