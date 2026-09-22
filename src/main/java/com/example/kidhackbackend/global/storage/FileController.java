@@ -93,12 +93,30 @@ public class FileController {
         UploadCategory uploadCategory = requireCategory(category);
         requireUploadPermission(member, uploadCategory);
 
-        // [VULN-10] 확장자 화이트리스트 검증이 없다.
+        // [VULN-10] 확장자 화이트리스트 검증이 없다. Content-Type 도 클라이언트가 보낸 값을
+        // 그대로 presigned URL 서명에 넣는다. 즉 "무슨 파일인지"를 올리는 쪽이 정한다.
         //
-        // 기존 multipart 업로드(FileStorageService)와 일부러 같은 수준으로 맞춘다.
-        // 여기만 막으면 프론트가 이 경로로 옮겨 가는 순간 취약점이 사라져 두 경로의
-        // 동작이 어긋난다. Content-Type 도 마찬가지로 클라이언트 값을 그대로 서명에
-        // 넣는다.
+        // 기존 multipart 업로드(FileStorageService)와 일부러 같은 수준으로 맞춘다. 여기만 막으면
+        // 프론트가 이 경로로 옮겨 가는 순간 취약점이 사라져 두 경로의 동작이 어긋난다.
+        //
+        // ── 2026-09-07 모의해킹 실증 결과 (판정: 조건부 취약) ──────────────────────────
+        // 실제로 뚫린 것:
+        //   presign 요청(.html + text/html) 200 → 받은 URL 로 PUT 200 → 다운로드 요청이
+        //   S3 로 302 리다이렉트되고 Content-Type: text/html 로 내려와 브라우저가 렌더링했다.
+        //   Content-Disposition(첨부 강제 다운로드) 헤더도 붙지 않는다. 즉 업로드한 HTML 의
+        //   스크립트가 실제로 실행된다. 크기 제한 20MB(application.yml) 말고는 걸리는 게 없다.
+        // 그런데도 '취약'이 아니라 '조건부'인 이유:
+        //   ① 파일이 서비스 도메인이 아니라 S3 주소(...s3.ap-northeast-2.amazonaws.com)에서
+        //      제공된다. 브라우저는 출처(스킴+호스트+포트)가 다르면 저장소를 분리하므로,
+        //      그 스크립트는 서비스 도메인의 쿠키나 localStorage(JWT)를 읽을 수 없다.
+        //      → 이 경로만으로 로그인 토큰을 훔치는 것은 성립하지 않는다.
+        //   ② S3 는 오브젝트 저장소라 올린 파일을 서버가 실행하지 않는다. 웹쉘로 서버를
+        //      장악하는 시나리오도 성립하지 않는다.
+        //   이 두 가지는 '방어를 해서' 막힌 게 아니라 저장 위치 덕에 우연히 막힌 것이다.
+        //   파일을 서비스 도메인에서 직접 서빙하도록 바꾸는 순간 그대로 저장형 XSS 가 된다.
+        // 방어: 허용 확장자 화이트리스트 + Content-Type 을 서버가 결정 + 다운로드 시
+        //       Content-Disposition: attachment 강제.
+        // ─────────────────────────────────────────────────────────────────────────
         String contentType = StringUtils.hasText(request.getContentType())
                 ? request.getContentType()
                 : "application/octet-stream";

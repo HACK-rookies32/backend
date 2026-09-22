@@ -26,6 +26,9 @@ public class InquiryFileStorageService {
     private final DbFileStorageService dbFileStorageService;
 
     public String store(MultipartFile file) {
+        // [VULN-10] 확장자 화이트리스트 검증 없음. 실제 싱크·저장은 DbFileStorageService 로 이동.
+        //   재현 경로: FileController(/api/files/**) 도입 후 업로드 파일을 다시 받을 수 있어
+        //   비로소 재현 가능해졌다. 조건부 판정 근거는 FileController 의 [VULN-10] 주석 참고.
         return dbFileStorageService.store(UploadCategory.INQUIRY, file);
     }
 

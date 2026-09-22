@@ -31,11 +31,15 @@ public class QrPaymentService {
     /** 결제 QR 발급: 자녀 소유로 1회성 토큰을 만들고 60초 만료로 저장한다. */
     @Transactional
     public QrIssueResponse issue(Long childId) {
-        // [VULN-WALLET-13] 예측 가능한 QR 토큰(취약한 난수 — CWE-330).
-        //   요구사항은 '예측 불가 난수'지만, 토큰을 childId + 발급시각(epoch millis)이라는 추측 가능한 값으로 만든다.
-        //   → 공격자가 대상 자녀 id와 대략적 발급 시각만 알면 유효 QR 토큰을 재구성/열거해, No.44에서 그 자녀
-        //     지갑으로 결제를 유도할 수 있다(1회성·무작위성이 사실상 무력화).
-        //   방어: SecureRandom/UUID 등 예측 불가능한 난수로 생성(예: "qr_" + UUID.randomUUID()...).
+        // [VULN-WALLET-13] QR 토큰이 예측 가능하다(추측 가능한 식별자 — CWE-330).
+        //   결제 QR 토큰은 아무도 알아맞힐 수 없는 난수여야 하는데, 아래는 "qr_" 뒤에 자녀 id 와
+        //   발급 시각(1970년부터의 밀리초)을 이어 붙일 뿐이다. 즉 비밀이 아니라 계산되는 값이다.
+        //   · 자녀 id 는 순차 번호라 알아내기 쉽다.
+        //   · 발급 시각은 밀리초 단위지만, 만료가 60초이므로 후보는 최대 6만 개뿐이다.
+        //     "대략 언제 발급했는지"만 알면 그 범위를 전부 시도해 유효한 토큰을 찾아낼 수 있다.
+        //   → 결과적으로 1회성·무작위성이 무력화되어, 남의 자녀 QR 을 알아내 그 자녀 지갑으로
+        //     결제를 일으키거나([VULN-WALLET-9] 취소와 묶어) 잔액을 조작할 수 있다.
+        //   방어: 예측 불가능한 난수로 만든다. 예) "qr_" + UUID.randomUUID() 또는 SecureRandom.
         String qrToken = "qr_" + childId + "_" + System.currentTimeMillis();
 
         LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(ttlSeconds);
