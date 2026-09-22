@@ -49,6 +49,9 @@ public class AdminFinanceCommandService {
         //   status가 PAID인지 확인하지 않아 이미 취소/환불된 결제를 재환불할 수 있다.
         //   → 같은 qrToken으로 반복 호출하면 자녀 잔액이 결제액의 배수로 환급된다(자금 창출).
         //   방어: if (qr.getStatus() != QrStatus.PAID) throw ...; + 멱등/@Version 락.
+        //   [재점검 2026-09-07] 취약 확정 — 금취분평 005 [전자금융] 거래정보 재사용 방지 / 주통기 PV(프로세스 검증 누락).
+        //     forceRefund 는 상태검증이 없어 같은 qrToken 반복 호출 시 잔액이 배수로 환급됨(자금 창출).
+        //     (아래 cancelCharge 는 PAID 검증이 있어 안전 — 이 결함은 forceRefund 에만 존재.)
 
         long amount = (qr.getAmount() != null) ? qr.getAmount() : 0L;
         qr.markCancelled();
@@ -79,6 +82,8 @@ public class AdminFinanceCommandService {
         // [VULN-ADMIN-2] 조정 사유·한도 미검증.
         //   reason이 비어도, amount가 음수/거대 금액이어도 그대로 조정한다(무제한 자금 창출·삭감).
         //   방어: reason 필수(blank 거부) + 조정 한도·부호 정책 검증.
+        //   [재점검 2026-09-07] 취약 확정 — 금취분평 해당 항목 없음(조정 한도/입력검증 전용 항목 부재) / 주통기 PV(프로세스 검증 누락).
+        //     AdjustRequest 에 @NotBlank·@Min/@Max 없음 → 거대 금액 증액(자금 창출)·무사유 조정 통과. ADMIN-1 과 겹치면 GENERAL_ADMIN 도 실행.
 
         Wallet wallet = walletRepository.findByOwnerId(userId)
                 .orElseGet(() -> walletRepository.save(new Wallet(userId)));

@@ -28,6 +28,20 @@ public class AttachmentValidator {
             return;
         }
         for (String path : attachments) {
+            // DB(BLOB) 저장 분류(inquiry·profile)는 /api/files/{seg}/{id} 형태 → 형식만 검증한다.
+            // (존재 확인까지 하려면 DbFileStorageService 를 주입해야 하는데, 그러면 AttachmentValidator 만
+            //  슬라이스로 올리는 테스트들이 그 빈까지 요구하게 돼 결합이 커진다. 업로드는 이미 끝난 뒤라
+            //  형식 검증으로 충분하다.)
+            if (DbFileStorageService.handles(category)) {
+                boolean ok = path != null
+                        && path.startsWith("/api/files/" + category.segment() + "/")
+                        && DbFileStorageService.parseId(path).isPresent();
+                if (!ok) {
+                    throw new IllegalArgumentException("첨부 경로가 올바르지 않습니다: " + path);
+                }
+                continue;
+            }
+
             StoredObject object = StoredObject.parse(path)
                     .filter(parsed -> parsed.category() == category)
                     .orElseThrow(() -> new IllegalArgumentException(

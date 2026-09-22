@@ -9,6 +9,7 @@ import com.example.kidhackbackend.users.efin.service.PaymentPasswordService;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
+import com.example.kidhackbackend.global.util.WeakHashUtil;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +38,7 @@ class PaymentPasswordServiceTest {
         Member m = new Member();
         m.setLoginId("paypw-user");
         m.setUsername("김부모");
-        m.setPassword(LOGIN_PW); // [VULN-1] 평문 저장
+        m.setPassword(WeakHashUtil.sha256(LOGIN_PW)); // [VULN-1] salt 없는 SHA-256 저장 — requireLoginPassword 는 입력값을 같은 방식으로 해시해 비교
         m.setPhoneNumber("010-1234-5678");
         m.setBirthDate(LocalDate.of(1985, 5, 10));
         m.setRole(Role.PARENT);

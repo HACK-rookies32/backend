@@ -126,6 +126,9 @@ public class AdminFinanceCommandController {
         //   시큐리티 체인(AdminFinanceSecurityConfig)이 GENERAL_ADMIN 도 허용하고 여기서 역할을 다시
         //   확인하지 않는다. → 일반관리자도 남의 충전을 취소해 지갑을 차감할 수 있다.
         //   방어: 체인 분리 또는 컨트롤러에서 SUPER_ADMIN 재확인.
+        //   [재점검 2026-09-07] 취약 확정 — 금취분평 003 부적절한 이용자 인가 / 주통기 IN(불충분한 권한 검증).
+        //     AdminFinanceSecurityConfig 가 GENERAL_ADMIN 도 허용(hasAnyRole SUPER,GENERAL)하고 컨트롤러 미재확인
+        //     → forceRefund·adjust·cancelCharge 3종 모두 GENERAL_ADMIN 이 호출 가능(수직 권한상승/BFLA).
         return ResponseEntity.ok(ApiResponse.success(
                 adminFinanceCommandService.cancelCharge(merchantUid, request.reason())));
     }

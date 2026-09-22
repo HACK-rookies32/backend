@@ -51,16 +51,17 @@ public class PairingController {
                     | 필드 | 필수 | 설명 |
                     |---|:---:|---|
                     | `code` | ✅ | 부모가 발급받은 6자리 페어링 코드 |
+                    | `sort` | ❌ | (레거시) 정렬 기준. 지정 시 연결하지 않고 조회만 함 |
 
                     - 존재하지 않는 코드: `400 INVALID_PARAMETER` "유효하지 않은 페어링 코드입니다."
                     - 만료된 코드: `400 INVALID_PARAMETER` "만료된 페어링 코드입니다."
 
-                    ⚠️ 코드 조회가 파라미터 바인딩 없이 문자열 결합으로 구현되어 SQL Injection 에 취약(의도). 이미 다른 부모와 연결된 자녀도 재연결(덮어쓰기) 가능.
+                    ⚠️ 레거시 `sort` 파라미터가 조회 쿼리 ORDER BY 절에 그대로 결합되어 ORDER BY SQL Injection 에 취약(의도). WHERE 는 바인딩되어 안전하나 ORDER BY 로 blind 추출 가능. 이미 다른 부모와 연결된 자녀도 재연결(덮어쓰기) 가능.
                     """)
     @PostMapping("/connect")
     public ResponseEntity<ApiResponse<Void>> connect(@AuthenticationPrincipal Member member,
                                                      @RequestBody PairingConnectRequest request) {
-        pairingService.connect(member.getId(), request.getCode());
+        pairingService.connect(member.getId(), request.getCode(), request.getSort());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

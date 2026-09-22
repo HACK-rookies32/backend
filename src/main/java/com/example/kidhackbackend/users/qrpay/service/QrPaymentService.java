@@ -63,6 +63,8 @@ public class QrPaymentService {
         //   → 아무 자녀나 qrToken만 알면 남의 QR 상태를 조회할 수 있고, VULN-13(예측가능 토큰)과 결합하면
         //     타 자녀의 QR 토큰을 열거·추적할 수 있다(결제 상태 정보 노출).
         //   방어: if (!qr.getChildId().equals(requesterId)) throw new AccessDenied...;
+        //   [재점검 2026-09-07] 취약 확정 — 금취분평 003 부적절한 이용자 인가 / 주통기 IN(불충분한 권한 검증).
+        //     컨트롤러가 CHILD 역할만 확인하고 QR 발급자 소유권을 안 봐, qrToken 만 알면 남의 QR 상태 조회 가능.
 
         // 만료 반영: 저장 상태가 ISSUED인데 만료 시각을 지났으면 응답 상태를 EXPIRED로 계산(DB는 그대로).
         QrStatus effective = qr.getStatus();

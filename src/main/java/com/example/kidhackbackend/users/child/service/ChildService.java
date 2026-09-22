@@ -9,6 +9,7 @@ import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import com.example.kidhackbackend.users.member.service.RefreshTokenService;
+import com.example.kidhackbackend.global.util.WeakHashUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,9 +75,9 @@ public class ChildService {
         if (request.getAddress() != null) {
             child.setAddress(request.getAddress());
         }
-        // [VULN-1] 비밀번호 평문 저장 — 회원가입·마이페이지와 동일. 현재 비번 확인 절차는 이 앱에 없다.
+        // [VULN-1] 비밀번호를 salt 없는 SHA-256 으로 저장 — 회원가입·마이페이지와 동일. 현재 비번 확인 절차는 이 앱에 없다.
         if (request.getPassword() != null) {
-            child.setPassword(request.getPassword());
+            child.setPassword(WeakHashUtil.sha256(request.getPassword()));
         }
         if (request.getProfileImageUrl() != null) {
             child.setProfileImageUrl(request.getProfileImageUrl());

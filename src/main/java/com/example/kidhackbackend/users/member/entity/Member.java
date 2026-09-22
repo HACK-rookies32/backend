@@ -26,7 +26,7 @@ public class Member extends BaseEntity {
     private String username; // 실제 이름
 
     @Column(nullable = false)
-    private String password; // [VULN-1] 평문 저장
+    private String password; // [VULN-1] salt 없는 SHA-256 해시 저장 — 레인보우테이블에 취약
 
     private String nickname;
 

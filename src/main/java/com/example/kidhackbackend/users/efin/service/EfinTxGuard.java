@@ -15,13 +15,20 @@ import org.springframework.stereotype.Component;
  * 각각에 <b>의도적 결함</b>을 심어 기존 취약점과 체이닝된다.
  *
  * <ul>
- *   <li>[VULN-EFIN-1b] OTP 실패 시도 무제한(브루트포스) — 로그인 VULN-4 계열</li>
+ *   <li>[VULN-EFIN-1b] OTP 실패 시도 무제한(브루트포스) — 로그인 VULN-4 계열.
+ *       [재점검 2026-09-07] 취약 확정 — 금취분평 032 인증 오류 횟수 제한기능 제공 / 주통기 AU(자동화 공격)</li>
  *   <li>[VULN-EFIN-2] {@code signature} 가 없으면(null/blank) 서명 검증을 통째로 skip
- *       — 웹훅 VULN-WALLET-4 · QR VULN-WALLET-15 와 동형(필드 빼면 우회)</li>
- *   <li>[VULN-EFIN-3] nonce 재사용 저장소가 <b>인메모리</b>({@link NonceStore}) — 서버 재시작 시 소실되어
- *       같은 nonce 재사용 가능. QR 멱등 미검증(VULN-WALLET-16)과 겹쳐 재시작 후 재결제로 이어진다</li>
+ *       — 웹훅 VULN-WALLET-4 · QR VULN-WALLET-15 와 동형(필드 빼면 우회).
+ *       [재점검 2026-09-07] 취약 확정 — 금취분평 004 [전자금융] 거래정보 무결성 검증 / 주통기 해당 항목 없음(서명 무결성 전용 항목 부재).
+ *       송금·충전은 PIN·OTP 가 남지만 QR 결제는 WALLET-15 와 겹쳐 완전 우회</li>
+ *   <li>[재점검 2026-09-07] (구 VULN-EFIN-3) nonce 재사용 저장소가 인메모리({@link NonceStore})인 것은 사실이나,
+ *       재점검 결과 <b>취약 아님</b>으로 판정. 송금·충전은 OTP 가 1회성(consume 시 markUsed, DB 지속)이라
+ *       nonce 내구성과 무관하게 재전송이 막히고, QR 결제는 nonce 가 선택값(생략 가능)이라 재사용의 실질 통제는
+ *       WALLET-16(멱등 미검증)이다 → 인메모리 nonce 저장소 자체로 독립 악용되는 재전송 경로는 없음</li>
  *   <li>[VULN-EFIN-4] 소유주 검증이 {@code accountHolder}(요청 body 값)와 대상 이름만 대조하고
- *       <b>부모-자녀 페어링은 확인하지 않는다</b> — 송금 IDOR(VULN-WALLET-7)를 그대로 관통</li>
+ *       <b>부모-자녀 페어링은 확인하지 않는다</b> — 송금 IDOR(VULN-WALLET-7)를 그대로 관통.
+ *       [재점검 2026-09-07] 취약 확정 — 금취분평 006 [전자금융] 거래시 소유주 검증 / 주통기 IN(불충분한 권한 검증).
+ *       accountHolder 미제공 시 대조 자체가 skip(선택값)</li>
  * </ul>
  */
 @Component
@@ -47,7 +54,8 @@ public class EfinTxGuard {
             }
         }
 
-        // 2) 재사용 방지 nonce — [VULN-EFIN-3] 인메모리 저장(재시작 시 소실).
+        // 2) 재사용 방지 nonce — 인메모리 저장(재시작 시 소실).
+        //    [재점검 2026-09-07] 구 VULN-EFIN-3 → 취약 아님: 재전송은 아래 5) OTP 1회성(markUsed)이 최종 차단.
         if (nonce == null || nonce.isBlank()) {
             throw new IllegalArgumentException("재사용 방지 값(nonce)이 필요합니다.");
         }
@@ -115,7 +123,8 @@ public class EfinTxGuard {
                 throw new IllegalArgumentException("결제정보 서명이 유효하지 않습니다(변조 의심).");
             }
         }
-        // nonce — [VULN-EFIN-3] 인메모리(재시작 시 소실) → VULN-WALLET-16 과 체인.
+        // nonce — 인메모리(선택값이라 생략 가능).
+        //    [재점검 2026-09-07] 구 VULN-EFIN-3 → 취약 아님: QR 재사용의 실질 통제 지점은 WALLET-16(멱등 미검증).
         if (nonce != null && !nonce.isBlank()
                 && !nonceStore.tryConsume(nonce, System.currentTimeMillis())) {
             throw new IllegalArgumentException("이미 처리된 결제입니다(재전송).");

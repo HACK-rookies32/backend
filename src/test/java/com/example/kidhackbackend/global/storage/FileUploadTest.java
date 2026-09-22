@@ -2,6 +2,9 @@ package com.example.kidhackbackend.global.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.example.kidhackbackend.global.exception.AdminAccessDeniedException;
 import com.example.kidhackbackend.global.exception.InvalidCredentialException;
@@ -31,7 +34,11 @@ class FileUploadTest {
     @BeforeEach
     void setUp() {
         storage = new FakeObjectStorage();
-        controller = new FileController(storage, new StorageProperties());
+        // inquiry·profile 은 DB(BLOB) 저장으로 갈라진다. 여기서는 경로 형태만 확인하므로 store 를 스텁한다.
+        DbFileStorageService dbFileStorageService = mock(DbFileStorageService.class);
+        when(dbFileStorageService.store(any(), any())).thenAnswer(inv ->
+                "/api/files/" + ((UploadCategory) inv.getArgument(0)).segment() + "/1");
+        controller = new FileController(storage, new StorageProperties(), dbFileStorageService);
     }
 
     private Member member(Role role) {

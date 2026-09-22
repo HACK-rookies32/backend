@@ -12,6 +12,7 @@ import com.example.kidhackbackend.users.member.entity.Role;
 import com.example.kidhackbackend.users.member.repository.MemberRepository;
 import com.example.kidhackbackend.users.location.service.TrackingSettingService;
 import com.example.kidhackbackend.users.member.service.RefreshTokenService;
+import com.example.kidhackbackend.global.util.WeakHashUtil;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,7 +77,7 @@ class ChildUpdateFieldsTest {
         assertThat(saved.getPhoneNumber()).isEqualTo("010-9999-8888");
         assertThat(saved.getBirthDate()).isEqualTo(LocalDate.of(2016, 5, 5));
         assertThat(saved.getAddress()).isEqualTo("서울시 강남구");
-        assertThat(saved.getPassword()).isEqualTo("newpw"); // 평문(VULN-1) 그대로
+        assertThat(saved.getPassword()).isEqualTo(WeakHashUtil.sha256("newpw")); // salt 없는 SHA-256(VULN-1)로 저장
     }
 
     @Test

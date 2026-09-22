@@ -31,6 +31,8 @@ public class IdentityVerificationService {
                 request.idType(), verified));
 
         // [VULN-EFIN-7] 판정 결과를 그대로 응답에 노출.
+        // [재점검 2026-09-07] 취약 확정 — 금취분평 027 [전자금융] 접근매체 발급 시 실명확인 / 주통기 IA(불충분한 인증 절차).
+        //   외부 진위확인 대조 없이 형식·자기일치(자릿수, 앞6자리=생년월일)만으로 통과(MockIdentityVerifier) + 판정 결과 응답 노출.
         return new IdentityVerifyResponse(saved.isVerified(), saved.getName(), saved.getVerifiedAt());
     }
 

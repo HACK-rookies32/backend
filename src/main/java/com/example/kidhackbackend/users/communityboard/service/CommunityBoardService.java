@@ -39,6 +39,7 @@ public class CommunityBoardService {
     private final CommunityPostRemover postRemover;
     private final MemberBanRepository memberBanRepository;
     private final AttachmentValidator attachmentValidator;
+    private final CommunityThumbnailService thumbnailService;
 
     @Transactional
     public PostResponse createPost(Member member, PostRequest request) {
@@ -178,7 +179,10 @@ public class CommunityBoardService {
                 board.getMember().getId(),
                 board.getTitle(),
                 preview(board.getContent()),
-                board.getAttachments().isEmpty() ? null : board.getAttachments().get(0),
+                // 첫 첨부의 공개 경로를 썸네일 프록시 주소로 감싼다([VULN-SSRF] 싱크로 연결).
+                board.getAttachments().isEmpty()
+                        ? null
+                        : thumbnailService.toThumbnailUrl(board.getAttachments().get(0)),
                 board.getMember().getNickname(),
                 likeRepository.countByBoardId(board.getId()),
                 board.getCreatedAt()

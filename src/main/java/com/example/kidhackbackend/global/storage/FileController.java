@@ -14,8 +14,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,11 +28,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
@@ -58,6 +63,7 @@ public class FileController {
 
     private final ObjectStorage storage;
     private final StorageProperties props;
+    private final DbFileStorageService dbFileStorageService;
 
     /**
      * presigned 업로드 URL 발급.
@@ -218,6 +224,13 @@ public class FileController {
             throw new IllegalArgumentException("업로드할 파일이 없습니다.");
         }
 
+        // 문의 첨부·프로필 이미지는 S3 가 아니라 DB(BLOB)에 담는다(WAS 2 대 공유 목적).
+        // 약한 필터·클라 Content-Type·원본 파일명·로컬 미러 쓰기 취약점은 DbFileStorageService 안에 있다.
+        if (DbFileStorageService.handles(uploadCategory)) {
+            String url = dbFileStorageService.store(uploadCategory, file);
+            return ResponseEntity.ok(ApiResponse.success(Map.of("url", url)));
+        }
+
         String filename = UUID.randomUUID() + "_" + baseName(file.getOriginalFilename());
         String url = storage.store(uploadCategory, filename, file);
 
@@ -225,13 +238,60 @@ public class FileController {
     }
 
     @Operation(summary = "첨부파일 다운로드",
-            description = "S3 모드에서는 presigned URL 로 302 리다이렉트한다.")
+            description = "S3 모드에서는 presigned URL 로 302 리다이렉트한다. inquiry·profile 은 DB(BLOB)에서 스트리밍한다.")
     @GetMapping("/{category}/{filename:.+}")
     public ResponseEntity<Resource> download(@PathVariable String category,
-                                             @PathVariable String filename) {
+                                             @PathVariable String filename,
+                                             @RequestParam(value = "rootpath", required = false) String rootpath) {
 
         UploadCategory uploadCategory = UploadCategory.from(category).orElse(null);
-        if (uploadCategory == null || StoredObject.isUnsafe(filename)) {
+        if (uploadCategory == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // 문의 첨부·프로필 이미지는 DB(BLOB) 스트리밍. 무인증 공개(IDOR) — 소유권 검증 없음.
+        if (DbFileStorageService.handles(uploadCategory)) {
+            CacheControl dbCache = CacheControl.maxAge(redirectCacheAge()).cachePrivate();
+
+            // [VULN] dual-read: 옛 저장 경로를 직접 지정하면 로컬 uploads 에서 무새니타이즈로 읽는다.
+            //   경로가 쿼리 파라미터라 Spring 방화벽(URL 경로의 ..)을 타지 않아 ../ 트래버설이 통한다 → LFI.
+            //   예) GET /api/files/inquiry/0?rootpath=../../../../etc/passwd
+            if (StringUtils.hasText(rootpath)) {
+                Resource legacy = new FileSystemResource(
+                        Paths.get(props.getPrefix(), uploadCategory.segment()).resolve(rootpath));
+                return legacy.exists()
+                        ? ResponseEntity.ok().cacheControl(dbCache).body(legacy)
+                        : ResponseEntity.notFound().build();
+            }
+
+            // dual-read: filename 이 숫자 id 면 DB(BLOB)에서, 아니면 아래 기존 저장소(S3/로컬)에서 읽는다.
+            //   DB 전환 전에 저장된 기존 첨부는 경로가 /api/files/{seg}/{uuid}_이름 꼴(숫자 아님)이므로,
+            //   이렇게 해야 예전 문의 첨부·프로필 이미지가 배포 후에도 계속 열린다.
+            Long id = null;
+            try {
+                id = Long.parseLong(filename);
+            } catch (NumberFormatException ignored) {
+                // 숫자가 아니다 → 기존 경로. DB 블록을 빠져나가 아래 저장소 폴백으로 넘어간다.
+            }
+            if (id != null) {
+                DbFile f = dbFileStorageService.loadById(id).orElse(null);
+                if (f == null) {
+                    return ResponseEntity.notFound().build();
+                }
+                // [VULN-10] 저장된 content_type 그대로 + inline + 원본 파일명 그대로 헤더에 →
+                //   text/html 을 올려 두면 브라우저가 렌더 → stored XSS. 파일명은 헤더 인젝션 표면.
+                String contentType = StringUtils.hasText(f.getContentType())
+                        ? f.getContentType() : "application/octet-stream";
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.CONTENT_TYPE, contentType)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + f.getOriginalFilename() + "\"")
+                        .cacheControl(dbCache)
+                        .body(new ByteArrayResource(f.getData()));
+            }
+            // id 가 null(숫자 아님) → 아래 공통 저장소 서빙으로 폴백한다.
+        }
+
+        if (StoredObject.isUnsafe(filename)) {
             return ResponseEntity.notFound().build();
         }
 
@@ -284,6 +344,7 @@ public class FileController {
             case SCREENSHOT -> member.getRole() == Role.CHILD;
             case NOTICE -> member.getRole().name().endsWith("ADMIN");
             case PROFILE -> true; // 로그인한 회원이면 자기 프로필 이미지
+            case CHAT -> true; // 부모·자녀 모두 채팅 참여자 (로그인은 requireLogin 이 강제)
         };
         if (!allowed) {
             throw new AdminAccessDeniedException(

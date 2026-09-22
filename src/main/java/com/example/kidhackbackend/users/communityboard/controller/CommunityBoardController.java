@@ -5,6 +5,7 @@ import com.example.kidhackbackend.global.exception.InvalidCredentialException;
 import com.example.kidhackbackend.global.response.ApiResponse;
 import com.example.kidhackbackend.users.communityboard.dto.*;
 import com.example.kidhackbackend.users.communityboard.service.CommunityBoardService;
+import com.example.kidhackbackend.users.communityboard.service.CommunityThumbnailService;
 import com.example.kidhackbackend.users.communityboard.service.FileStorageService;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.entity.Role;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -28,6 +30,7 @@ public class CommunityBoardController {
 
     private final CommunityBoardService communityBoardService;
     private final FileStorageService fileStorageService;
+    private final CommunityThumbnailService thumbnailService;
 
     private void requireParent(Member member) {
         if (member == null) {
@@ -165,5 +168,31 @@ public class CommunityBoardController {
         requireParent(member);
         String url = fileStorageService.store(file);
         return ResponseEntity.ok(ApiResponse.success(new AttachmentUploadResponse(url)));
+    }
+
+    @Operation(summary = "썸네일 프록시",
+            description = """
+                    목록 썸네일을 서버가 **대신 받아** 바이트로 돌려준다. 앱(Coil)은 인증 헤더 없이
+                    이 주소를 호출한다 — **로그인 불필요**(의도적 무인증).
+
+                    ⚠️ [VULN-SSRF] `url`·`method`·`header` 를 검증 없이 그대로 요청한다(스킴/호스트
+                    allowlist·사설IP 차단·리다이렉트 제한 없음). `?url=` 을 서버만 닿는 내부 리소스
+                    (예: `http://169.254.169.254/latest/meta-data/...`)로 바꾸면 서버를 경유해 응답을
+                    그대로 받아 볼 수 있고, `method`·`header` 까지 열려 있어 IMDSv2 2단계
+                    (PUT 토큰 발급 → 토큰 헤더 GET)로 클라우드 자격증명 탈취까지 가능하다.
+                    """)
+    @GetMapping("/thumbnail")
+    public ResponseEntity<byte[]> proxyThumbnail(
+            @Parameter(description = "가져올 대상 URL(presigned 등)") @RequestParam String url,
+            @Parameter(description = "HTTP 메서드(기본 GET). 예: PUT") @RequestParam(required = false) String method,
+            @Parameter(description = "주입할 요청 헤더 목록(\"Name:Value\"). 반복 가능")
+            @RequestParam(name = "header", required = false) java.util.List<String> header) {
+        // requireParent 호출 없음 — 무인증 확정. SecurityConfig 가 전 경로 permitAll 이라 추가 설정 불필요.
+        CommunityThumbnailService.ProxyResult result = thumbnailService.fetch(url, method, header);
+        // 원본 Content-Type 문자열을 그대로 헤더에 싣는다(가공 없이 통과). parseMediaType 은
+        // 내부 타깃의 비정상 값에서 예외가 날 수 있어 쓰지 않는다.
+        return ResponseEntity.status(result.status())
+                .header(HttpHeaders.CONTENT_TYPE, result.contentType())
+                .body(result.body());
     }
 }

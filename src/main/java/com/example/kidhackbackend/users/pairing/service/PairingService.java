@@ -67,9 +67,20 @@ public class PairingService {
     //         pairingCodeRepository.findByCode(code) 또는 createNativeQuery(..).setParameter(..).
     @Transactional
     @SuppressWarnings("unchecked")
-    public void connect(Long childId, String code) {
-        String sql = "SELECT * FROM pairing_code WHERE code = '" + code + "'";
-        List<PairingCode> results = entityManager.createNativeQuery(sql, PairingCode.class).getResultList();
+    public void connect(Long childId, String code, String sort) {
+        // sort 가 있으면 읽기 전용 조회로 빠진다(상태 변경 없음 → 코드 소모 없이 반복 추출 가능).
+        if (sort != null && !sort.isBlank()) {
+            entityManager.createNativeQuery(
+                            "SELECT * FROM pairing_code WHERE code = :code ORDER BY " + sort, PairingCode.class)
+                    .setParameter("code", code)
+                    .getResultList();
+            return;
+        }
+
+        List<PairingCode> results = entityManager
+                .createNativeQuery("SELECT * FROM pairing_code WHERE code = :code", PairingCode.class)
+                .setParameter("code", code)
+                .getResultList();
 
         if (results.isEmpty()) {
             throw new IllegalArgumentException("유효하지 않은 페어링 코드입니다.");

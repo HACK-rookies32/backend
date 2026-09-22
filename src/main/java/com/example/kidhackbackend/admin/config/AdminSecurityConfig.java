@@ -59,8 +59,8 @@ public class AdminSecurityConfig {
                 .securityMatcher("/api/admin/harmful-keywords/**")
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // 전역 차단 키워드는 SUPER_ADMIN 만 관리 가능
-                        .anyRequest().hasRole("SUPER_ADMIN")
+                        // 유해사이트(전역 차단 키워드)는 관리자 4종 모두 관리 가능
+                        .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN", "COMMUNITY_ADMIN", "INQUIRY_ADMIN")
                 )
                 .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex
@@ -87,14 +87,15 @@ public class AdminSecurityConfig {
         return http.build();
     }
 
-    // 공지사항 super admin만
+    // 공지사항은 관리자 4종 모두 가능
     @Bean
     @Order(12)   // 4 -> 12 (adminHarmfulKeywordFilterChain과 충돌 방지)
     public SecurityFilterChain adminNoticeFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/api/admin/notices/**")
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().hasRole("SUPER_ADMIN")
+                        // 공지 관리(등록/수정/삭제/조회)는 관리자 4종 모두 가능
+                        .anyRequest().hasAnyRole("SUPER_ADMIN", "GENERAL_ADMIN", "COMMUNITY_ADMIN", "INQUIRY_ADMIN")
                 )
                 .csrf(csrf -> csrf.disable())
                 .addFilterBefore(jwtAuthenticationFilterGio, UsernamePasswordAuthenticationFilter.class);
