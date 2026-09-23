@@ -45,10 +45,17 @@ public class StoreTerminalService {
         StoreTerminal terminal = storeTerminalRepository.findByTerminalToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("유효하지 않은 매장단말 토큰입니다."));
 
-        // [VULN-WALLET-12] 단말 토큰 검증 부실 — 폐기(REVOKED) 상태 미확인.
-        //   토큰이 DB에 존재하기만 하면 인증을 통과시키고, terminal.getStatus()가 REVOKED인지 확인하지 않는다.
-        //   → 유출되었거나 이미 폐기 처리한 단말 토큰으로도 계속 결제 승인(No.44)을 호출할 수 있다.
-        //   (덧붙여 토큰을 해시 없이 평문 저장하므로 DB 유출 시 그대로 재사용 가능.)
+        // [VULN-WALLET-12] 단말 토큰 검증 부실 — 폐기(REVOKED) 상태를 보지 않는다. 판정: 조건부
+        //   바로 위 findByTerminalToken 은 "이 토큰이 DB 에 있는가"만 본다. 그 뒤에 있어야 할
+        //   terminal.getStatus() != ACTIVE 검사가 통째로 빠져 있어, 폐기 처리한 토큰도 그대로
+        //   인증을 통과한다. 토큰을 회수해도 실제로는 회수되지 않는 구조다.
+        //   → 유출되었거나 이미 폐기한 단말 토큰으로 결제 승인(No.44)을 계속 호출할 수 있다.
+        //
+        //   판정이 '취약'이 아니라 '조건부'인 이유(2026-09-07 모의해킹):
+        //     단말을 REVOKED 상태로 바꾸는 API 자체가 아직 없어서, 실서버에서 "폐기된 토큰으로
+        //     결제가 되더라"를 재현할 방법이 없었다. 결함은 코드에 분명히 존재하지만 현재
+        //     도달 경로가 없어 실증하지 못한 것이다. 폐기 API 가 추가되는 순간 바로 성립한다.
+        //   (덧붙여 토큰을 해시 없이 평문으로 저장하므로 DB 가 유출되면 그대로 재사용 가능하다.)
         //   방어: if (terminal.getStatus() != TerminalStatus.ACTIVE) throw ...; + 토큰 해시 저장.
 
         return terminal;

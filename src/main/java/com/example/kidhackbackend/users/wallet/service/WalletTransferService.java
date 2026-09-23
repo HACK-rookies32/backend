@@ -34,9 +34,13 @@ public class WalletTransferService {
     /** 용돈 이체: 부모 지갑에서 자녀 지갑으로. */
     @Transactional
     public TransferResponse transfer(Long parentId, Long childId, long amount) {
-        // [VULN-WALLET-7] 부모-자녀 페어링(소유권)은 여전히 검증하지 않는다(IDOR).
-        //   childId 가 실재하는 CHILD 인지만 확인하고, child.getParent()==parentId 는 보지 않으므로
-        //   PARENT 권한만 있으면 남의 자녀 지갑에도 입금할 수 있다. (유령 id·비-CHILD·자기 자신만 차단됨)
+        // [VULN-WALLET-7] 부모-자녀 관계(페어링)를 검증하지 않는다(IDOR).
+        //   아래 requireExistingChild 가 확인하는 것은 "그 id 가 실제로 존재하는 CHILD 계정인가"뿐이다.
+        //   "그 자녀가 이 부모의 자녀인가"(child.getParent().getId() == parentId)는 보지 않는다.
+        //   → PARENT 권한만 있으면 아무 집 자녀 지갑에나 돈을 넣을 수 있다.
+        //   막히는 것은 존재하지 않는 id, CHILD 가 아닌 계정, 자기 자신에게 보내기 이 셋뿐이라
+        //   "검증이 있는 것처럼 보이지만 정작 소유권만 빠져 있는" 형태다.
+        //   방어: memberRepository.findById(childId) 후 child.getParent() 가 parentId 인지 확인.
         requireDifferent(parentId, childId);
         requireExistingChild(childId);
 
@@ -49,7 +53,10 @@ public class WalletTransferService {
     /** 잔액 회수: 자녀 지갑에서 부모 지갑으로. */
     @Transactional
     public TransferResponse recover(Long parentId, Long childId, long amount) {
-        // [VULN-WALLET-7] 회수도 소유권은 검증하지 않는다 → 남의 자녀 잔액을 회수(탈취) 가능.
+        // [VULN-WALLET-7] 회수도 같은 결함이다 — 부모-자녀 관계를 확인하지 않는다.
+        //   이쪽은 돈이 자녀 → 부모 방향으로 움직이므로 피해가 더 직접적이다. 남의 집 자녀 지갑에서
+        //   돈을 빼내 공격자 부모의 지갑으로 옮길 수 있다. 즉 이 건은 실제 금전 탈취가 성립한다.
+        //   방어: 위와 동일하게 child.getParent() 가 parentId 인지 확인.
         requireDifferent(parentId, childId);
         requireExistingChild(childId);
 

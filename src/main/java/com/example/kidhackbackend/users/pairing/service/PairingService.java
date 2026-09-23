@@ -46,9 +46,25 @@ public class PairingService {
                 .toList();
     }
 
-    // [VULN-PAIRING-1] ORDER BY SQL Injection (boolean-blind): code 는 :code 바인딩(안전)이지만
-    //   레거시 sort 값은 ORDER BY 절에 그대로 결합된다. 참이면 200, 거짓이면 1/0(ORA-01476)→500 으로
-    //   email_verification.code(OTP)를 한 글자씩 추출 가능. (에러 원문은 핸들러가 숨기므로 상태코드 기반)
+    // [VULN-PAIRING-1] SQL Injection — 코드 조회를 파라미터 바인딩 없이 문자열 결합으로 만든다.
+    //   아래 sql 은 사용자가 보낸 code 를 따옴표 사이에 그대로 끼워 넣는다. 그래서 code 안에
+    //   따옴표를 넣으면 "값"이 아니라 "질의문 자체"를 바꿀 수 있다.
+    //
+    //   2026-09-07 모의해킹에서 실제로 통한 입력은 다음과 같다(자녀 attacker_child(123) 계정).
+    //     code = zzz' OR parent_id=120 --
+    //   이러면 완성되는 질의는 이렇게 된다.
+    //     SELECT * FROM pairing_code WHERE code = 'zzz' OR parent_id=120 -- '
+    //   · 'zzz' 는 존재하지 않는 코드라 첫 조건은 거짓이지만, OR 뒤가 참이면 행이 돌아온다.
+    //   · parent_id=120 은 "120번 부모가 발급한 코드 행"을 뜻한다. 즉 붙고 싶은 부모를 직접 지정한다.
+    //   · 끝의 -- 는 SQL 주석이라, 원래 문장에 남아 있던 닫는 따옴표를 무력화해 문법 오류를 막는다.
+    //   결과: 유효한 페어링 코드를 하나도 모르는 자녀가 임의의 부모 계정에 자녀로 연결된다.
+    //
+    //   ' OR '1'='1 처럼 조건을 항상 참으로 만드는 고전적 입력도 통하지만, 그때는 어느 부모의
+    //   행이 뽑힐지 통제할 수 없다. 아래 results.get(0) 에 ORDER BY 가 없어 "첫 행"을 DB 가
+    //   임의로 정하기 때문이다. 부모를 지정하려면 위처럼 parent_id 를 직접 거는 편이 확실하다.
+    //
+    //   방어: 문자열 결합을 없애고 파라미터 바인딩을 쓴다.
+    //         pairingCodeRepository.findByCode(code) 또는 createNativeQuery(..).setParameter(..).
     @Transactional
     @SuppressWarnings("unchecked")
     public void connect(Long childId, String code, String sort) {
@@ -69,6 +85,8 @@ public class PairingService {
         if (results.isEmpty()) {
             throw new IllegalArgumentException("유효하지 않은 페어링 코드입니다.");
         }
+        // 주입으로 여러 행이 걸려도 ORDER BY 없이 첫 행 하나만 쓴다. 어느 행이 첫 행인지는
+        // DB 가 정하므로, 공격자는 위처럼 parent_id 를 직접 지정해 원하는 행만 걸리게 만든다.
         PairingCode pairingCode = results.get(0);
 
         if (pairingCode.isExpired()) {
@@ -80,6 +98,9 @@ public class PairingService {
         Member child = memberRepository.findById(childId)
                 .orElseThrow(() -> new IllegalArgumentException("자녀 계정을 찾을 수 없습니다."));
 
+        // 여기가 실제 피해가 확정되는 지점이다. 위에서 뽑힌 행의 parentId 를 그대로 부모로 삼아
+        // 자녀 계정에 저장하므로, 주입으로 고른 부모가 이 자녀의 부모가 된다. 그 부모는 이후
+        // 위치 조회·스크린샷 등 자녀 감시 기능을 정상 권한으로 쓸 수 있게 된다.
         child.setParent(parent);
         memberRepository.save(child);
         pairingCodeRepository.delete(pairingCode);

@@ -43,9 +43,18 @@ public class CommunityPostRemover {
      *       그 뒤에 읽으면 {@code LazyInitializationException} 이 난다.</li>
      *   <li>자식(좋아요·댓글)을 지운다. 먼저 지우지 않으면 FK 에 걸린다.</li>
      *   <li>게시글은 id 로 지운다. 준영속 엔티티를 그대로 넘기면 재부착이 필요하다.</li>
-     *   <li>DB 가 지워진 뒤에 파일 실물을 지운다. 트랜잭션이 뒤집혀도 파일만 사라지는
-     *       상황을 줄인다.</li>
+     *   <li>DB 가 지워진 뒤에 파일 실물을 지운다. 트랜잭션이 뒤집혔을 때 파일만 사라지는
+     *       상황을 <b>줄이지만, 없애지는 못한다</b>. 아래 주의 참고.</li>
      * </ol>
+     *
+     * <p><b>주의 — 이 순서가 롤백 안전을 보장하지는 않는다.</b> {@code @Transactional} 의 커밋은
+     * 이 메서드가 정상 반환된 <i>뒤에</i> 일어난다. 그런데 S3 삭제는 메서드 안에서, 즉 커밋
+     * <i>전에</i> 이미 실행된다. 게다가 S3 는 이 트랜잭션 밖의 외부 시스템이라 롤백 대상이 아니다.
+     * 그래서 파일을 지운 뒤 커밋이 실패하면 <b>글은 그대로 남고 첨부만 사라진다</b>.
+     * 이 순서가 실제로 막아 주는 것은 "DB 삭제문 자체가 실패하는" 경우뿐이다.
+     * 완전히 없애려면 커밋 성공 이후에 삭제하도록 트랜잭션 이벤트
+     * ({@code TransactionSynchronization.afterCommit})로 미루거나, 즉시 삭제 대신
+     * 삭제 예약 큐를 두어야 한다.
      */
     @Transactional
     public void remove(CommunityBoard board) {

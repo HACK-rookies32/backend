@@ -45,15 +45,21 @@ public class QrCancelService {
         QrPayment qr = qrPaymentRepository.findByQrToken(qrToken)
                 .orElseThrow(() -> new ResourceNotFoundException("결제를 찾을 수 없습니다."));
 
-        // [VULN-WALLET-9] 취소 소유권/페어링 미검증(IDOR / BOLA).
-        //   결제한 자녀(qr.getChildId())가 이 부모(parentId)의 자녀인지 확인하지 않는다('본인 자녀 결제만' 위반).
-        //   → 아무 PARENT나 qrToken만 알면 남의 자녀 결제를 취소해, 그 자녀 지갑에 임의로 환급(자금 조작)할 수 있다.
+        // [VULN-WALLET-9] 취소 소유권(부모-자녀 관계) 미검증(IDOR / BOLA).
+        //   위에서 qrToken 으로 결제를 찾아왔을 뿐, 그 결제를 한 자녀(qr.getChildId())가 취소를
+        //   요청한 부모(parentId)의 자녀인지 확인하지 않는다. '본인 자녀 결제만 취소' 원칙 위반이다.
+        //   → 아무 PARENT 나 QR 토큰만 알면 남의 집 자녀 결제를 취소하고, 아래에서 그 자녀 지갑에
+        //     환급까지 넣을 수 있다. 남의 지갑 잔액을 임의로 올리는 것이라 자금 조작에 해당한다.
+        //   ※ QR 토큰은 [VULN-WALLET-13] 때문에 "qr_{자녀id}_{발급시각ms}" 로 예측 가능하다.
+        //     즉 이 결함은 토큰을 몰라도 계산해 낼 수 있어 공격 난이도가 크게 낮아진다.
         //   방어: memberRepository.findById(qr.getChildId()) 후 child.getParent().getId()==parentId 확인.
 
-        // [VULN-WALLET-10] 취소 상태·멱등 미검증.
-        //   status가 PAID인지 확인하지 않아 이미 CANCELLED인 결제를 반복 취소할 수 있다.
-        //   → 같은 qrToken으로 취소를 N번 호출하면 자녀 잔액이 결제액의 N배로 환급된다(자금 창출).
-        //   방어: if (qr.getStatus() != QrStatus.PAID) throw ...; + 멱등/@Version 락.
+        // [VULN-WALLET-10] 이미 취소된 결제인지 확인하지 않는다(재전송·replay 방어 부재).
+        //   아래 markCancelled 앞에 "이 결제가 아직 PAID 인가?"를 보는 검사가 없다. 그래서 이미
+        //   CANCELLED 인 결제에 취소를 또 걸어도 그대로 처리되고, 환급이 한 번 더 들어간다.
+        //   → 같은 qrToken 으로 취소를 N번 부르면 결제액의 N배가 자녀 지갑에 쌓인다. 원래 결제한
+        //     금액보다 많은 돈이 생기므로 사실상 돈을 만들어 내는 것이다(자금 창출).
+        //   방어: if (qr.getStatus() != QrStatus.PAID) throw ...; + 동시 요청 차단용 @Version 락.
 
         long cancelAmount = (qr.getAmount() != null) ? qr.getAmount() : 0L;
         qr.markCancelled();

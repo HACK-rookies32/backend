@@ -130,3 +130,18 @@ app:
   #    → 키를 SSM 에 먼저 넣고, 그다음 이 시크릿을 갱신할 것.
   push:
     provider: firebase
+
+# 카드 저장 필드암호화 키(Base64 32바이트).
+#
+# 값은 이미지에 굽지 않고 app.env(WAS 부팅 시 SSM 에서 주입)가 채운다.
+# jwt.secret 과 같은 경로다 — infra 의 SSM 파라미터
+# /kidhackapp/app/card-storage-key(SecureString)를 was_user_data 가 받아
+# CARD_STORAGE_KEY 환경변수로 넘기고, 아래 플레이스홀더가 그 값을 참조한다.
+#
+# ⚠️ 비어 있으면 FieldEncryptionKey 가 재기동마다 난수 키를 만들어 WAS 2 대가
+#    서로 다른 키를 들게 된다 → GET /wallet/cards 간헐 500, 재배포 시 옛 카드가
+#    통째로 복호 불가. 키의 진실 공급원은 infra/secrets.tf 의
+#    random_bytes.card_storage_key 이며 state 가 값을 기억한다.
+kidhack:
+  card:
+    storage-key: ${CARD_STORAGE_KEY}
