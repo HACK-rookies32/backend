@@ -165,6 +165,8 @@ public class AdminFinanceCommandService {
         adminAuditLogService.record(AdminActivityType.CHARGE_CANCEL, wallet.getId(),
                 "[" + merchantUid + "] " + reason);
 
-        return new RefundResponse(order.getMerchantUid(), refundAmount, wallet.getBalance(), TxResponse.from(tx));
+        // 관리자 충전취소는 카드 payout 이 아니라 장부 되돌림이므로 카드 정보는 없다(null).
+        return new RefundResponse(order.getMerchantUid(), refundAmount, wallet.getBalance(),
+                null, null, TxResponse.from(tx));
     }
 }

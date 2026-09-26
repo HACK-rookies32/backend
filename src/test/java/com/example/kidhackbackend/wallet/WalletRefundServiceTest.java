@@ -7,6 +7,7 @@ import com.example.kidhackbackend.users.wallet.dto.ChargePrepareResponse;
 import com.example.kidhackbackend.users.wallet.dto.RefundResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargeApproveRequest;
+import com.example.kidhackbackend.global.config.JpaAuditingConfig;
 import com.example.kidhackbackend.users.wallet.entity.ChargeStatus;
 import com.example.kidhackbackend.users.wallet.pg.MockPgClient;
 import com.example.kidhackbackend.users.wallet.repository.ChargeOrderRepository;
@@ -25,7 +26,9 @@ import org.springframework.data.domain.PageRequest;
  * 충전 환불/내역(No.37) 슬라이스 테스트 — 정상 환불·내역 + 남은 취약점(IDOR) 재현 + R-2(음수 방지) 검증.
  */
 @DataJpaTest
-@Import({WalletChargeService.class, WalletRefundService.class, WalletHistoryService.class, MockPgClient.class})
+// JpaAuditingConfig 를 함께 올려야 @CreatedDate(원장 createdAt)가 채워진다 — 통합내역의 refundedAt 검증 전제.
+@Import({WalletChargeService.class, WalletRefundService.class, WalletHistoryService.class, MockPgClient.class,
+        JpaAuditingConfig.class})
 class WalletRefundServiceTest {
 
     private static final long PARENT_ID = 100L;

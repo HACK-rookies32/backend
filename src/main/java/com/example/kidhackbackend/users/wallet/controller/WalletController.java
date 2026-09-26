@@ -10,6 +10,7 @@ import com.example.kidhackbackend.users.wallet.dto.ChargeOrderPageResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargeOrderResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareResponse;
+import com.example.kidhackbackend.users.wallet.dto.RefundRequest;
 import com.example.kidhackbackend.users.wallet.dto.RefundResponse;
 import com.example.kidhackbackend.users.wallet.dto.TxPageResponse;
 import com.example.kidhackbackend.users.wallet.service.WalletChargeService;
@@ -162,15 +163,19 @@ public class WalletController {
     /** 취소·환불: 완료된 충전을 전액 환불 — No.37. */
     @Operation(summary = "충전 환불 (전액)",
             description = "merchantUid 의 충전 주문을 찾아(없으면 404) 전액 환불한다(잔액 차감 · REFUND 원장 · 주문 REFUNDED). "
+                    + "본문의 `cardId` 를 주면 그 카드로 mock PG 환불(payout)을 태우고, 없으면 지갑 잔액만 차감한다. "
                     + "환불액이 현재 잔액보다 크면 거부(400, 잔액 음수 방지). 부분 환불은 미지원. "
-                    + "⚠️ [VULN-WALLET-5] 소유권 미검증 → 남의 충전을 환불시켜 타인 지갑 차감 가능. "
-                    + "[VULN-WALLET-6] 상태 미검증(잔액 음수는 R-2 로 차단됨).")
+                    + "⚠️ [VULN-WALLET-5] 주문 소유권 미검증 → 남의 충전을 환불시켜 타인 지갑 차감 가능. "
+                    + "[VULN-WALLET-6] 상태 미검증(잔액 음수는 R-2 로 차단됨). "
+                    + "[VULN-WALLET-7] 환불 목적지 카드 소유권 미검증 → 남의 잔액을 공격자 카드로 환불 수취 가능.")
     @PostMapping("/charge/{merchantUid}/refund")
     public ResponseEntity<ApiResponse<RefundResponse>> refund(
             @AuthenticationPrincipal Member member,
-            @Parameter(description = "환불할 충전 주문번호(prepare 가 발급한 merchantUid)") @PathVariable String merchantUid) {
+            @Parameter(description = "환불할 충전 주문번호(prepare 가 발급한 merchantUid)") @PathVariable String merchantUid,
+            @RequestBody(required = false) RefundRequest request) {
         requireParent(member);
+        Long cardId = request == null ? null : request.cardId();
         return ResponseEntity.ok(
-                ApiResponse.success(walletRefundService.refund(member.getId(), merchantUid)));
+                ApiResponse.success(walletRefundService.refund(member.getId(), merchantUid, cardId)));
     }
 }
