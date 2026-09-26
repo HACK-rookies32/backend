@@ -68,7 +68,8 @@ RUN mkdir -p /app/uploads/inquiry \
     && chown -R 10001:root /app/uploads \
     && chmod -R 775 /app/uploads
 
-USER 10001
+# 테스트를 위한 변경. appuser로도 잘 작동할 시앤 다시 10001로 바꿔주기
+USER root
 EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
