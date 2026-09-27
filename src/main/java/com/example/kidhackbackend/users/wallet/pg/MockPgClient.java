@@ -42,6 +42,13 @@ public class MockPgClient implements PgClient {
     }
 
     @Override
+    public PgRefund refund(String maskedCard, long amount) {
+        // 모의 환불 — 실제 카드망 대신 항상 성공을 반환하고 환불 거래 ID 를 발급한다.
+        String pgRefundId = "imprf_" + UUID.randomUUID().toString().replace("-", "");
+        return new PgRefund(pgRefundId, amount, maskedCard, "refunded");
+    }
+
+    @Override
     public String sign(String rawBody) {
         return hmacSha256Hex(rawBody, webhookSecret);
     }

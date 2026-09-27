@@ -26,6 +26,15 @@ public interface PgClient {
     PgApproval approve(String merchantUid, long amount);
 
     /**
+     * 지정한 카드로 환불(payout)을 태운다. 충전 환불에서 {@code cardId} 를 지정했을 때 호출된다.
+     *
+     * @param maskedCard 환불 대상 카드(마스킹된 번호 — 로그/응답용)
+     * @param amount     환불 금액(원)
+     * @return 환불 결과(pgRefundId 등)
+     */
+    PgRefund refund(String maskedCard, long amount);
+
+    /**
      * 웹훅 본문에 대한 서명(HMAC-SHA256 hex)을 계산한다. (No.36 — 테스트/모의 PG가 서명 생성용)
      *
      * @param rawBody 웹훅 원본 바디(직렬화된 JSON 문자열)

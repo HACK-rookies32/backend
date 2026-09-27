@@ -3,10 +3,14 @@ package com.example.kidhackbackend.users.wallet.service;
 import com.example.kidhackbackend.global.exception.ResourceNotFoundException;
 import com.example.kidhackbackend.users.wallet.dto.RefundResponse;
 import com.example.kidhackbackend.users.wallet.dto.TxResponse;
+import com.example.kidhackbackend.users.wallet.entity.Card;
 import com.example.kidhackbackend.users.wallet.entity.ChargeOrder;
 import com.example.kidhackbackend.users.wallet.entity.TxType;
 import com.example.kidhackbackend.users.wallet.entity.Wallet;
 import com.example.kidhackbackend.users.wallet.entity.WalletTransaction;
+import com.example.kidhackbackend.users.wallet.pg.PgClient;
+import com.example.kidhackbackend.users.wallet.pg.PgRefund;
+import com.example.kidhackbackend.users.wallet.repository.CardRepository;
 import com.example.kidhackbackend.users.wallet.repository.ChargeOrderRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletRepository;
 import com.example.kidhackbackend.users.wallet.repository.WalletTransactionRepository;
@@ -27,15 +31,26 @@ public class WalletRefundService {
     private final WalletRepository walletRepository;
     private final ChargeOrderRepository chargeOrderRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final CardRepository cardRepository;
+    private final PgClient pgClient;
+
+    /** 하위호환 — 카드 미지정 환불(지갑 잔액 환불). */
+    @Transactional
+    public RefundResponse refund(Long requesterId, String merchantUid) {
+        return refund(requesterId, merchantUid, null);
+    }
 
     /**
      * 충전 환불: merchantUid로 주문을 찾아 전액 환불한다.
      *
+     * <p>{@code cardId} 를 주면 지갑 차감에 더해 그 카드로 mock PG 환불(payout)을 태운다.
+     *
      * @param requesterId 환불을 요청한(로그인한) 회원 id
      * @param merchantUid 환불할 충전 주문번호
+     * @param cardId      (선택) 환불 payout 을 태울 카드 id. null 이면 지갑 잔액 환불만.
      */
     @Transactional
-    public RefundResponse refund(Long requesterId, String merchantUid) {
+    public RefundResponse refund(Long requesterId, String merchantUid, Long cardId) {
         ChargeOrder order = chargeOrderRepository.findByMerchantUid(merchantUid)
                 .orElseThrow(() -> new ResourceNotFoundException("충전 주문을 찾을 수 없습니다."));
 
@@ -80,6 +95,25 @@ public class WalletRefundService {
                 new WalletTransaction(wallet.getId(), TxType.REFUND, refundAmount,
                         wallet.getBalance(), order.getMerchantUid()));
 
-        return new RefundResponse(order.getMerchantUid(), refundAmount, wallet.getBalance(), TxResponse.from(tx));
+        // 목적지 카드 지정 환불 — cardId 를 주면 그 카드로 mock PG 환불(payout)을 태운다.
+        String maskedCard = null;
+        String pgRefundId = null;
+        if (cardId != null) {
+            // [VULN-WALLET-7] 환불 목적지 카드 소유권 미검증(BOLA). — 판정: 취약
+            //   cardId 로 카드를 찾을 뿐, 그 카드가 요청자(requesterId)나 이 주문의 것인지 확인하지 않는다.
+            //   본인 카드만 허용하려면 findByIdAndOwnerId(cardId, requesterId) 를 써야 하지만, 여기서는
+            //   findById(cardId) 로 '아무 카드나' 목적지로 받는다.
+            //   → 공격자가 자기 카드 id 를 넣고 [VULN-WALLET-5](남의 merchantUid 환불)와 엮으면,
+            //     피해자 주문의 환불 금액이 공격자 카드로 payout 된다. (mock PG · 실결제망 미연동)
+            //   방어: Card card = cardRepository.findByIdAndOwnerId(cardId, requesterId).orElseThrow(...);
+            Card card = cardRepository.findById(cardId)
+                    .orElseThrow(() -> new ResourceNotFoundException("카드를 찾을 수 없습니다."));
+            maskedCard = card.maskedCardNumber();
+            PgRefund pgRefund = pgClient.refund(maskedCard, refundAmount);
+            pgRefundId = pgRefund.pgRefundId();
+        }
+
+        return new RefundResponse(order.getMerchantUid(), refundAmount, wallet.getBalance(),
+                maskedCard, pgRefundId, TxResponse.from(tx));
     }
 }

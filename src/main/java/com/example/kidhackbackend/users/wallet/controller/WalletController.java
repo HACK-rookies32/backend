@@ -10,6 +10,7 @@ import com.example.kidhackbackend.users.wallet.dto.ChargeOrderPageResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargeOrderResponse;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareRequest;
 import com.example.kidhackbackend.users.wallet.dto.ChargePrepareResponse;
+import com.example.kidhackbackend.users.wallet.dto.RefundRequest;
 import com.example.kidhackbackend.users.wallet.dto.RefundResponse;
 import com.example.kidhackbackend.users.wallet.dto.TxPageResponse;
 import com.example.kidhackbackend.users.wallet.service.WalletChargeService;
@@ -39,12 +40,12 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>흐름: {@code prepare}(READY 주문 + merchantUid 발급) → 앱이 PG 결제(mock 이면 생략) → {@code approve}(승인 + 잔액 적립).
  * 결제 진행 중 취소는 {@code cancel}, 이미 결제된 건의 환불은 {@code refund}. PG 서버 웹훅 확정(No.36)은 태그 14 참고.
  *
- * <p>⚠️ 이 도메인은 자금 조작 모의해킹의 핵심이라 {@code [VULN-WALLET-1~6]} 취약점이 의도적으로 심어져 있다.
+ * <p>⚠️ 이 도메인은 자금 조작 모의해킹의 핵심이라 {@code [VULN-WALLET-1~7]} 취약점이 의도적으로 심어져 있다.
  * (단 [VULN-WALLET-6] 의 "잔액 음수" 부분은 R-2 로 막았고, 소유권 미검증만 남아 있다.)
  */
 @Tag(name = "11. 지갑 - 충전/환불",
         description = "지갑 충전 준비/승인(2단계) · 결제 취소 · 원장/주문/통합 내역(페이징) · 환불 — PARENT 전용. "
-                + "⚠️ [VULN-WALLET-1~6] 의도적 포함")
+                + "⚠️ [VULN-WALLET-1~7] 의도적 포함")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/wallet")
@@ -163,14 +164,18 @@ public class WalletController {
     @Operation(summary = "충전 환불 (전액)",
             description = "merchantUid 의 충전 주문을 찾아(없으면 404) 전액 환불한다(잔액 차감 · REFUND 원장 · 주문 REFUNDED). "
                     + "환불액이 현재 잔액보다 크면 거부(400, 잔액 음수 방지). 부분 환불은 미지원. "
-                    + "⚠️ [VULN-WALLET-5] 소유권 미검증 → 남의 충전을 환불시켜 타인 지갑 차감 가능. "
+                    + "body 로 cardId 를 주면 그 카드로 mock PG 환불(payout)까지 태우고 maskedCard·pgRefundId 를 응답한다. "
+                    + "⚠️ [VULN-WALLET-5] 주문 소유권 미검증 → 남의 충전을 환불시켜 타인 지갑 차감 가능. "
+                    + "⚠️ [VULN-WALLET-7] 환불 목적지 카드 소유권 미검증 → cardId 로 아무 카드나 payout 목적지 지정 가능. "
                     + "[VULN-WALLET-6] 상태 미검증(잔액 음수는 R-2 로 차단됨).")
     @PostMapping("/charge/{merchantUid}/refund")
     public ResponseEntity<ApiResponse<RefundResponse>> refund(
             @AuthenticationPrincipal Member member,
-            @Parameter(description = "환불할 충전 주문번호(prepare 가 발급한 merchantUid)") @PathVariable String merchantUid) {
+            @Parameter(description = "환불할 충전 주문번호(prepare 가 발급한 merchantUid)") @PathVariable String merchantUid,
+            @RequestBody(required = false) RefundRequest request) {
         requireParent(member);
+        Long cardId = request != null ? request.cardId() : null;
         return ResponseEntity.ok(
-                ApiResponse.success(walletRefundService.refund(member.getId(), merchantUid)));
+                ApiResponse.success(walletRefundService.refund(member.getId(), merchantUid, cardId)));
     }
 }
