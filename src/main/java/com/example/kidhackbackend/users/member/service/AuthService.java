@@ -58,6 +58,12 @@ public class AuthService {
     }
 
     public SignupResponse signup(SignupRequest request) {
+        // [VULN-PHONEVERIFY-2] 휴대폰 인증이 가입과 서버에서 묶여 있지 않다.
+        //   코드 검증은 POST /api/auth/phone/verify 가 {valid} 로 돌려줄 뿐이고, 그 결과를
+        //   클라이언트가 신뢰해 진행한다. signup 은 인증 여부를 전혀 확인하지 않으므로
+        //   (요청의 phoneVerified 는 무시), verify 응답을 valid:true 로 변조하거나 verify 를
+        //   아예 건너뛰고 signup 만 호출해도 가입이 된다(인증이 장식이 됨).
+
         // [VULN-6] 동시 요청 시 중복 체크와 저장 사이에 경쟁 조건 존재
         if (memberRepository.existsByLoginId(request.getLoginId())) {
             throw new DuplicateResourceException("이미 존재하는 아이디입니다.");

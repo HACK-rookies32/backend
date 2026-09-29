@@ -57,6 +57,7 @@ class SignupDuplicateTest {
         ReflectionTestUtils.setField(r, "phoneNumber", "010-1111-2222");
         ReflectionTestUtils.setField(r, "birthDate", LocalDate.of(2016, 1, 1));
         ReflectionTestUtils.setField(r, "role", role);
+        ReflectionTestUtils.setField(r, "phoneVerified", true); // [VULN-PHONEVERIFY-2] 게이트 통과용
         return r;
     }
 
@@ -94,6 +95,20 @@ class SignupDuplicateTest {
     void 새_이메일이면_가입된다() {
         assertThatCode(() -> authService.signup(request("newbie", "fresh@test.com", Role.PARENT)))
                 .doesNotThrowAnyException();
+
+        verify(memberRepository).save(any(Member.class));
+    }
+
+    /**
+     * [VULN-PHONEVERIFY-2] 휴대폰 인증은 가입과 서버에서 묶여 있지 않다 — signup 은 인증 여부를
+     * 확인하지 않으므로, 인증(verify) 없이 phoneVerified 를 false 로 두거나 아예 비워도 가입된다.
+     */
+    @Test
+    void 휴대폰_미인증이어도_가입된다() {
+        SignupRequest r = request("newbie", "fresh@test.com", Role.PARENT);
+        ReflectionTestUtils.setField(r, "phoneVerified", false);
+
+        assertThatCode(() -> authService.signup(r)).doesNotThrowAnyException();
 
         verify(memberRepository).save(any(Member.class));
     }
