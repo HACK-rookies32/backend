@@ -51,4 +51,10 @@ public class SignupRequest {
 
     @Schema(description = "(선택) role 이 CHILD 일 때 연결할 부모 회원 id", example = "1")
     private Long parentId;
+
+    // [VULN-PHONEVERIFY-2] 클라이언트가 자기 인증상태를 담아 보내지만, 서버는 이 값을 확인하지
+    //   않는다(무시). 휴대폰 인증은 POST /api/auth/phone/verify 의 {valid} 응답을 클라가 신뢰하는
+    //   것으로 끝나고 가입과 서버에서 묶이지 않는다 → verify 응답변조/생략으로 우회된다.
+    @Schema(description = "(선택) 클라이언트 인증상태 표식 — 서버는 확인하지 않음(의도된 취약점)", example = "true")
+    private Boolean phoneVerified;
 }

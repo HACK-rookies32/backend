@@ -5,6 +5,7 @@ import com.example.kidhackbackend.users.member.dto.*;
 import com.example.kidhackbackend.users.member.entity.Member;
 import com.example.kidhackbackend.users.member.service.AccountRecoveryService;
 import com.example.kidhackbackend.users.member.service.AuthService;
+import com.example.kidhackbackend.users.member.service.PhoneVerificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,6 +23,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final AccountRecoveryService accountRecoveryService;
+    private final PhoneVerificationService phoneVerificationService;
 
     @Operation(summary = "아이디·이메일 중복 확인",
             description = """
@@ -70,6 +72,51 @@ public class AuthController {
     public ResponseEntity<ApiResponse<SignupResponse>> signup(@Valid @RequestBody SignupRequest request) {
         SignupResponse response = authService.signup(request);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @Operation(summary = "회원가입 휴대폰 인증 - 인증코드 발송",
+            description = """
+                    가입 폼에서 휴대폰 번호로 6자리 인증코드를 발송한다. 로그인 없이 부를 수 있다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `phoneNumber` | ✅ | 인증코드를 받을 휴대폰 번호 |
+
+                    - 정상이라면 코드는 그 번호의 소유자에게 SMS 로만 가야 한다.
+                    - ⚠️ 발송은 mock 이며 인증코드가 응답 `data.code` 에도 그대로 노출된다(화면에는 노출 금지).
+                    - ⚠️ 서버는 코드를 저장·검증하지 않는다. 가입 통과는 `POST /api/auth/signup` 의
+                      `phoneVerified` 불리언으로만 판정된다(의도된 취약점 — 클라 전용 검증).
+                    """)
+    @PostMapping("/phone/send-code")
+    public ResponseEntity<ApiResponse<PhoneVerifySendCodeResponse>> sendPhoneVerifyCode(
+            @RequestBody PhoneVerifySendCodeRequest request) {
+        String code = phoneVerificationService.sendCode(request.getPhoneNumber());
+        return ResponseEntity.ok(ApiResponse.success(
+                new PhoneVerifySendCodeResponse("인증번호가 발송되었습니다.", code)));
+    }
+
+    @Operation(summary = "회원가입 휴대폰 인증 - 코드 검증",
+            description = """
+                    발송받은 6자리 인증코드가 유효한지 검증한다. 로그인 없이 부를 수 있다.
+
+                    **요청 필드**
+
+                    | 필드 | 필수 | 설명 |
+                    |---|:---:|---|
+                    | `phoneNumber` | ✅ | 인증코드를 받은 휴대폰 번호 |
+                    | `code` | ✅ | 발송받은 6자리 인증코드 |
+
+                    - 응답 `data.valid` 로 성공 여부를 돌려준다(TTL 180초, 시도 제한 없음).
+                    - ⚠️ 클라이언트가 이 결과를 신뢰해 다음 단계로 넘어가며, 서버는 이를 가입과 묶어
+                      강제하지 않는다 → 응답을 `valid:true` 로 변조하면 틀린 코드로도 통과한다(의도된 취약점).
+                    """)
+    @PostMapping("/phone/verify")
+    public ResponseEntity<ApiResponse<PhoneVerifyResponse>> verifyPhoneCode(
+            @RequestBody PhoneVerifyRequest request) {
+        boolean valid = phoneVerificationService.verify(request.getPhoneNumber(), request.getCode());
+        return ResponseEntity.ok(ApiResponse.success(new PhoneVerifyResponse(valid)));
     }
 
     @Operation(summary = "로그인",
